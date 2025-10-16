@@ -22,18 +22,14 @@ export default function HomeScreen() {
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
+        <Link href="/login">
+          <Link.Trigger>
+            <ThemedText type="subtitle">Step 1: View Login Screen</ThemedText>
+          </Link.Trigger>
+          <Link.Preview />
+        </Link>
         <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
+          Tap above to see the cloned login UI that matches the provided design.
         </ThemedText>
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
