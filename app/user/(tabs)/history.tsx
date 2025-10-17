@@ -1,29 +1,30 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import HistoryHeader from '../../../components/ui/user/history/HistoryHeader';
+import HistoryList from '../../../components/ui/user/history/HistoryList';
+import HistorySearchBar from '../../../components/ui/user/history/HistorySearchBar';
+import HistoryTabs from '../../../components/ui/user/history/HistoryTabs';
 
 export default function UserHistoryScreen() {
+  const [activeTab, setActiveTab] = useState('pending');
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Booking History</Text>
-      <Text style={styles.subtitle}>View your past car wash bookings</Text>
-    </View>
+    <SafeAreaView className="flex-1 bg-gray-100">
+      {/* Header */}
+      <HistoryHeader />
+      
+      {/* Status Tabs */}
+      <HistoryTabs activeTab={activeTab} onTabChange={handleTabChange} />
+      
+      {/* Search Bar */}
+      <HistorySearchBar />
+      
+      {/* Booking History List */}
+      <HistoryList activeTab={activeTab} />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-});

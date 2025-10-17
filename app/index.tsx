@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,11 +12,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import SplashScreen from '../components/SplashScreen';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2000); // Show splash screen for 2 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
 
   const handleSignIn = () => {
     // Handle sign in logic here
@@ -41,11 +55,13 @@ export default function LoginScreen() {
   const handleSignUp = () => {
     // Navigate to sign up screen
     console.log('Sign up pressed');
+    router.push('/register');
   };
 
   const handleForgotPassword = () => {
     // Navigate to forgot password screen
     console.log('Forgot password pressed');
+    router.push('/forgot-password');
   };
 
   return (
@@ -132,7 +148,7 @@ export default function LoginScreen() {
 
             {/* Sign In Button */}
             <TouchableOpacity 
-              className="bg-yellow-400 rounded-xl py-5 items-center mt-4 mb-1" 
+              className="bg-[#F9EF08] rounded-xl py-5 items-center mt-4 mb-1" 
               onPress={handleSignIn}
             >
               <Text className="text-lg font-bold text-white">
@@ -183,7 +199,7 @@ export default function LoginScreen() {
           <View className="items-center pb-8">
             <Text className="text-lg text-gray-600 text-center">
               Don't have an account yet?{' '}
-              <Text className="text-yellow-400 font-semibold" onPress={handleSignUp}>
+              <Text className="text-[#F9EF08] font-semibold" onPress={handleSignUp}>
                 Sign Up
               </Text>
             </Text>

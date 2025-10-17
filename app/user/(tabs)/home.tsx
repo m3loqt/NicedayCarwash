@@ -1,29 +1,25 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import BranchesSlider from '../../../components/ui/user/home/BranchesSlider';
+import HomeHeader from '../../../components/ui/user/home/HomeHeader';
+import ServicesSlider from '../../../components/ui/user/home/ServicesSlider';
 
 export default function UserHomeScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Nice Day Carwash</Text>
-      <Text style={styles.subtitle}>Book your car wash service today!</Text>
-    </View>
+    <SafeAreaView className="flex-1 bg-gray-100">
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header with greeting, search, and promotional banner */}
+        <HomeHeader />
+        
+        {/* Branches Slider */}
+        <BranchesSlider />
+        
+        {/* Services Slider */}
+        <ServicesSlider />
+        
+        {/* Bottom padding for tab bar */}
+        <View className="h-20" />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-});

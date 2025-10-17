@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/constants/theme';
+import { CustomTabIcon } from '@/components/CustomTabIcon';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function UserTabLayout() {
@@ -10,35 +9,76 @@ export default function UserTabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#F9EF08', // Yellow for active
+        tabBarInactiveTintColor: '#9CA3AF', // Gray for inactive
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: 'white',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          height: 70,
+          paddingBottom: 20,
+          paddingTop: 10,
+        },
       }}>
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <HapticTab icon="home" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="book"
-        options={{
-          title: 'Book',
-          tabBarIcon: ({ color }) => <HapticTab icon="calendar-plus" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <CustomTabIcon 
+              source={require('../../../assets/images/home.png')} 
+              focused={focused} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color }) => <HapticTab icon="history" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <CustomTabIcon 
+              source={require('../../../assets/images/history_icon_bot.png')} 
+              focused={focused} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="book"
+        options={{
+          title: 'Booking',
+          tabBarIcon: ({ focused }) => (
+            <CustomTabIcon 
+              source={require('../../../assets/images/add_event_icon.png')} 
+              focused={focused} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="vehicles"
+        options={{
+          title: 'Vehicles',
+          tabBarIcon: ({ focused }) => (
+            <CustomTabIcon 
+              source={require('../../../assets/images/vehicles.png')} 
+              focused={focused} 
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <HapticTab icon="user" color={color} />,
+          title: 'Account',
+          tabBarIcon: ({ focused }) => (
+            <CustomTabIcon 
+              source={require('../../../assets/images/account.png')} 
+              focused={focused} 
+            />
+          ),
         }}
       />
     </Tabs>
