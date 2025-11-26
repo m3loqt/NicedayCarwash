@@ -1,19 +1,77 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { get, ref } from 'firebase/database';
+import { useEffect, useState } from 'react';
+import { Alert, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { auth, db } from '../../../firebase/firebase';
+
+type UserData = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  profileImage?: string;
+};
 
 export default function UserProfileScreen() {
+  const [user, setUser] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+
+      try {
+        const snapshot = await get(ref(db, `users/${uid}`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setUser({
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            profileImage: data.profileImage,
+          });
+        }
+      } catch (error) {
+        console.log('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
   const handleEditAccount = () => {
-    console.log('Edit Account pressed');
+    router.push('/user/edit-profile');
   };
 
-  const handleSignOut = () => {
-    console.log('Sign Out pressed');
+  const handleSignOut = async () => {
+    try {
+      // Confirm before signing out
+      Alert.alert('Logout', 'Are you sure you want to sign out?', [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await auth.signOut();
+            await AsyncStorage.clear();
+            router.replace('/'); // replace with your login route
+          },
+        },
+      ]);
+    } catch (error) {
+      console.log('Error signing out:', error);
+    }
   };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <StatusBar barStyle="dark-content" backgroundColor="white" />
+      
       {/* Header */}
       <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200">
         <TouchableOpacity className="p-2 rounded-full border border-gray-300">
@@ -31,8 +89,12 @@ export default function UserProfileScreen() {
             <Ionicons name="person" size={50} color="#9CA3AF" />
           </View>
           <View className="flex flex-col">
-            <Text className="text-xl font-bold text-gray-900">Mel Angelo Cortes</Text>
-            <Text className="text-sm text-gray-500">angelomelcortes06@gmail.com</Text>
+            <Text className="text-xl font-bold text-gray-900">
+              {user ? `${user.firstName} ${user.lastName}` : 'Loading...'}
+            </Text>
+            <Text className="text-sm text-gray-500">
+              {user ? user.email : ''}
+            </Text>
           </View>
         </View>
         <TouchableOpacity 

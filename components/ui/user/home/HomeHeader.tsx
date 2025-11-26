@@ -1,10 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { get, ref } from 'firebase/database';
+import { useEffect, useState } from 'react';
 import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { auth, db } from '../../../../firebase/firebase';
 import PromotionalBanner from './PromotionalBanner';
+
+type UserData = {
+  firstName: string;
+  lastName: string;
+};
 
 export default function HomeHeader() {
   const [showFilter, setShowFilter] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+
+      try {
+        const snapshot = await get(ref(db, `users/${uid}`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setUser({
+            firstName: data.firstName,
+            lastName: data.lastName,
+          });
+        }
+      } catch (error) {
+        console.log('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserName();
+  }, []);
 
   const handleFilterToggle = () => {
     setShowFilter(!showFilter);
@@ -23,7 +53,9 @@ export default function HomeHeader() {
         <View className="flex-row justify-between items-center mb-4">
           <View>
             <Text className="text-gray-800 text-2xl font-bold">Hello, Welcome Back!</Text>
-            <Text className="text-gray-800 text-xl font-semibold opacity-90">Mel Angelo</Text>
+            <Text className="text-gray-800 text-xl font-semibold opacity-90">
+              {user ? `${user.firstName} ${user.lastName}` : 'Loading...'}
+            </Text>
           </View>
           <Image 
             source={require('../../../../assets/images/ndcwlogo.png')}
@@ -50,7 +82,7 @@ export default function HomeHeader() {
         </View>
       </View>
 
-      {/* Filter Dropdown - Outside header container with higher z-index */}
+      {/* Filter Dropdown */}
       {showFilter && (
         <View className="absolute z-50 left-4 right-4 bg-white rounded-xl shadow-lg"
               style={{ top: 150, elevation: 10 }}>

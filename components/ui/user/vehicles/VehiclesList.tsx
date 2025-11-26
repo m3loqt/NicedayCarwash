@@ -1,5 +1,8 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import VehicleCard from './VehicleCard';
+import VehicleSuccessPanel from './VehicleSuccessPanel';
 
 const mockVehicles = [
   {
@@ -29,13 +32,37 @@ const mockVehicles = [
 ];
 
 export default function VehiclesList() {
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+
   const handleEdit = (vehicleId: string) => {
-    console.log('Edit vehicle:', vehicleId);
+    // Navigate to edit vehicle screen
+    router.push('/user/edit-vehicle');
   };
 
   const handleDelete = (vehicleId: string) => {
+    // TODO: Implement actual delete logic
     console.log('Delete vehicle:', vehicleId);
+    
+    // Show delete success panel
+    setShowDeleteSuccess(true);
   };
+
+  const handleDeleteSuccessContinue = () => {
+    // Hide success panel and refresh list
+    setShowDeleteSuccess(false);
+    // TODO: Remove vehicle from list or refresh data
+  };
+
+  // Show delete success panel if needed
+  if (showDeleteSuccess) {
+    return (
+      <VehicleSuccessPanel
+        message="Vehicle has been removed successfully!"
+        onContinue={handleDeleteSuccessContinue}
+        iconType="delete"
+      />
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-100">

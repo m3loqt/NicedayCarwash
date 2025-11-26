@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 export default function VehiclesHeader() {
   const handleBack = () => {
-    console.log('Back pressed');
+    router.back();
   };
 
   const handleAdd = () => {
-    console.log('Add vehicle pressed');
+    router.push('/user/add-vehicle');
   };
 
   return (
