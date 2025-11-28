@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Alert, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../../../firebase/firebase';
 
@@ -84,9 +84,19 @@ export default function UserProfileScreen() {
       {/* Profile Card */}
       <View className="bg-white rounded-lg shadow-md mx-4 mt-4 p-4">
         <View className="flex flex-row items-center">
-          {/* Profile Icon Placeholder */}
-          <View className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mr-4">
-            <Ionicons name="person" size={50} color="#9CA3AF" />
+          {/* Profile Image or Placeholder */}
+          <View className="w-20 h-20 rounded-full bg-gray-200 overflow-hidden mr-4">
+            {user && user.profileImage ? (
+              <Image
+                source={{ uri: user.profileImage }}
+                className="w-full h-full"
+                resizeMode="cover"
+              />
+            ) : (
+              <View className="w-full h-full flex items-center justify-center bg-gray-200">
+                <Ionicons name="person" size={50} color="#9CA3AF" />
+              </View>
+            )}
           </View>
           <View className="flex flex-col">
             <Text className="text-xl font-bold text-gray-900">

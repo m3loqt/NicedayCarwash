@@ -1,94 +1,134 @@
-import { ScrollView, Text, View } from 'react-native';
+import { getAuth } from 'firebase/auth';
+import { getDatabase, onValue, ref } from 'firebase/database';
+import { useEffect, useState } from 'react';
+import { Modal, ScrollView, Text, View } from 'react-native';
+import AppointmentDetails from '../AppointmentDetails';
 import BookingCard from './BookingCard';
 
-const mockBookings = {
-  pending: [
-    {
-      id: '1',
-      branchName: 'P. Mabolo',
-      address: 'Along Pope John Paul Avenue, Cebu City',
-      appointmentId: '#ND-2024-01',
-      appointmentDate: '12/2/2024',
-      amount: '₱250.00',
-      status: 'pending' as const,
-      vehicleName: 'Toyota Fortuner',
-      plateNumber: 'ND-213-5921',
-      classification: 'SUV'
-    },
-    {
-      id: '2',
-      branchName: 'Bacolod',
-      address: 'The District North Point, Talisay City, Negros Occidental',
-      appointmentId: '#ND-2024-02',
-      appointmentDate: '12/3/2024',
-      amount: '₱200.00',
-      status: 'pending' as const
-    }
-  ],
-  ongoing: [
-    {
-      id: '3',
-      branchName: 'P. Mabolo',
-      address: 'Along Pope John Paul Avenue, Cebu City',
-      appointmentId: '#ND-2024-03',
-      appointmentDate: '12/2/2024',
-      amount: '₱250.00',
-      status: 'ongoing' as const
-    }
-  ],
-  completed: [
-    {
-      id: '4',
-      branchName: 'P. Mabolo',
-      address: 'Along Pope John Paul Avenue, Cebu City',
-      appointmentId: '#ND-2024-04',
-      appointmentDate: '12/1/2024',
-      amount: '₱250.00',
-      status: 'completed' as const
-    }
-  ],
-  canceled: [
-    {
-      id: '5',
-      branchName: 'P. Mabolo',
-      address: 'Along Pope John Paul Avenue, Cebu City',
-      appointmentId: '#ND-2024-05',
-      appointmentDate: '12/1/2024',
-      amount: '₱250.00',
-      status: 'cancelled' as const
-    }
-  ]
-};
+interface Booking {
+  id: string;
+  branchName: string;
+  address: string;
+  note: string;
+  appointmentId: string;
+  appointmentDate: string;
+  paymentMethod: string;
+  time: string;
+  amount: string;
+  status: 'pending' | 'ongoing' | 'completed' | 'cancelled';
+  vehicleName?: string;
+  plateNumber?: string;
+  classification?: string;
+  // New fields from DB
+  addOns?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number }>;
+  services?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number; status?: string }>;
+  estCompletion?: string | number;
+
+}
 
 interface HistoryListProps {
   activeTab: string;
 }
 
 export default function HistoryList({ activeTab }: HistoryListProps) {
-  const handleBookingPress = (bookingId: string) => {
-    console.log('Booking pressed:', bookingId);
-  };
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
-  const getBookingsForTab = (tab: string) => {
-    switch (tab) {
-      case 'pending':
-        return mockBookings.pending;
-      case 'ongoing':
-        return mockBookings.ongoing;
-      case 'completed':
-        return mockBookings.completed;
-      case 'canceled':
-        return mockBookings.canceled;
-      default:
-        return [];
+  useEffect(() => {
+    const auth = getAuth();
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      console.log('No user logged in');
+      setLoading(false);
+      return;
     }
+
+    const db = getDatabase();
+    const userBookingsRef = ref(db, `Reservations/ReservationsByUser/${userId}`);
+    console.log('Fetching bookings for user:', userId);
+
+    const unsubscribe = onValue(userBookingsRef, (snapshot) => {
+      const list: Booking[] = [];
+
+      snapshot.forEach((dateSnap) => {
+        dateSnap.forEach((bookingSnap) => {
+          const data = bookingSnap.val();
+          if (data && data.status === activeTab) {
+            // normalize addOns (may be null, array, or object with numeric keys)
+            const addOnsObj = data.addOns;
+            let addOns: any[] = [];
+            if (Array.isArray(addOnsObj)) {
+              addOns = addOnsObj;
+            } else if (addOnsObj && typeof addOnsObj === 'object') {
+              addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
+            }
+
+            // normalize services (may be null, array, or object with numeric keys)
+            const servicesObj = data.services;
+            let services: any[] = [];
+            if (Array.isArray(servicesObj)) {
+              services = servicesObj;
+            } else if (servicesObj && typeof servicesObj === 'object') {
+              services = Object.keys(servicesObj).map((k) => servicesObj[k]);
+            }
+
+            // estCompletion pulled from timeSlot
+            const estCompletion = data.timeSlot?.estCompletion ?? null;
+
+            list.push({
+              id: bookingSnap.key || '',
+              branchName: data.branchName || '',
+              address: data.branchAddress || '',
+              appointmentId: data.appointmentId || '',
+              paymentMethod: data.paymentMethod || '',
+              time: data.timeSlot?.time || '',
+              appointmentDate: data.timeSlot?.appointmentDate || '',
+              amount: data.amountDue || '',
+              status: data.status,
+              vehicleName: data.vehicleDetails?.vehicleName,
+              plateNumber: data.vehicleDetails?.plateNumber,
+              classification: data.vehicleDetails?.classification,
+              addOns: addOns,
+              note: data.note || '',
+              services: services,
+              estCompletion: estCompletion,
+            });
+          }
+        });
+      });
+
+      console.log('Fetched bookings:', list);
+      setBookings(list);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [activeTab]);
+
+  const handleBookingPress = (booking: Booking) => {
+    console.log('Booking pressed:', booking.id);
+    setSelectedBooking(booking);
+    setShowDetails(true);
   };
 
-  const bookings = getBookingsForTab(activeTab);
+  const handleCloseDetails = () => {
+    setShowDetails(false);
+    setSelectedBooking(null);
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-gray-100">
+        <Text>Loading bookings...</Text>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-100">
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         className="pt-4"
         contentContainerStyle={{ paddingBottom: 20 }}
@@ -107,18 +147,70 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               vehicleName={booking.vehicleName}
               plateNumber={booking.plateNumber}
               classification={booking.classification}
-              onPress={() => handleBookingPress(booking.id)}
+              onPress={() => handleBookingPress(booking)}
+              onViewMore={() => handleBookingPress(booking)}
             />
           ))
         ) : (
           <View className="flex-1 justify-center items-center py-20">
-            <Text className="text-lg text-gray-500 text-center">No {activeTab} bookings found</Text>
+            <Text className="text-lg text-gray-500 text-center">
+              No {activeTab} bookings found
+            </Text>
             <Text className="text-sm text-gray-400 text-center mt-2">
               Your {activeTab} bookings will appear here
             </Text>
           </View>
         )}
       </ScrollView>
+
+      {/* Appointment Details Modal */}
+      <Modal
+        visible={showDetails}
+        animationType="slide"
+        onRequestClose={handleCloseDetails}
+      >
+        {selectedBooking && (
+          <AppointmentDetails
+  branchName={selectedBooking.branchName}
+  branchAddress={selectedBooking.address}
+  branchImage={require('../../../../assets/images/samplebranch.png')}
+
+  vehicleName={selectedBooking.vehicleName}
+  plateNumber={selectedBooking.plateNumber}
+  classification={selectedBooking.classification}
+
+  date={selectedBooking.appointmentDate}
+  time={selectedBooking.time}
+
+  orderSummary={[
+    ...(selectedBooking.services?.map((s) => ({
+      label: (s?.name ?? 'Service') as string,
+      price: `₱${s?.price ?? '0'}`,
+    })) ?? []),
+
+    ...(selectedBooking.addOns?.map((a) => ({
+      label: (a?.name ?? 'Add-on') as string,
+      price: `₱${a?.price ?? '0'}`,
+    })) ?? []),
+
+    { label: 'Booking Fee', price: '₱20' },
+  ]}
+
+  amountDue={selectedBooking.amount}
+  paymentMethod={selectedBooking.paymentMethod}
+  estimatedCompletion={
+    typeof selectedBooking.estCompletion === "number"
+      ? `${selectedBooking.estCompletion} Hours`
+      : selectedBooking.estCompletion
+  }
+
+  note={selectedBooking.note}
+
+  onBack={handleCloseDetails}
+/>
+
+        )}
+      </Modal>
     </View>
   );
 }

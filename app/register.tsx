@@ -1,15 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,19 +22,47 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = () => {
-    // Handle sign up logic here
-    console.log('Sign up pressed');
-    console.log('Form data:', { firstName, lastName, email, password });
-    
-    // TODO: Add validation and API call
-    // For now, redirect to login after successful registration
-    router.push('/');
+  const handleSignUp = async () => {
+    if (!firstName || !lastName || !email || !password) {
+      Alert.alert('Error', 'Please fill out all fields.');
+      return;
+    }
+
+    setLoading(true);
+    const auth = getAuth();
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      if (user) {
+        const userId = user.uid;
+        const db = getDatabase();
+        const userRef = ref(db, `users/${userId}`);
+
+        const userMap = {
+          firstName,
+          lastName,
+          email,
+          role: 'default',
+          profileImage: '',
+        };
+
+        await set(userRef, userMap);
+
+        Alert.alert('Success', 'Registration successful.', [
+          { text: 'OK', onPress: () => router.push('/') },
+        ]);
+      }
+    } catch (error: any) {
+      Alert.alert('Registration Failed', error.message || 'Something went wrong.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignIn = () => {
-    // Navigate back to login screen
     router.push('/');
   };
 
@@ -63,14 +94,11 @@ export default function RegisterScreen() {
 
           {/* Form Section */}
           <View className="mb-5">
-            {/* First Name Input */}
             <View className="mb-4">
-              <Text className="text-lg font-medium text-gray-800 mb-2">
-                First Name
-              </Text>
+              <Text className="text-lg font-medium text-gray-800 mb-2">First Name</Text>
               <TextInput
                 className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800"
-                placeholder="Mel Angelo"
+                placeholder="Firstname"
                 placeholderTextColor="#999"
                 value={firstName}
                 onChangeText={setFirstName}
@@ -79,14 +107,11 @@ export default function RegisterScreen() {
               />
             </View>
 
-            {/* Last Name Input */}
             <View className="mb-4">
-              <Text className="text-lg font-medium text-gray-800 mb-2">
-                Last Name
-              </Text>
+              <Text className="text-lg font-medium text-gray-800 mb-2">Last Name</Text>
               <TextInput
                 className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800"
-                placeholder="Cortes"
+                placeholder="Lastname"
                 placeholderTextColor="#999"
                 value={lastName}
                 onChangeText={setLastName}
@@ -95,14 +120,11 @@ export default function RegisterScreen() {
               />
             </View>
 
-            {/* Email Input */}
             <View className="mb-4">
-              <Text className="text-lg font-medium text-gray-800 mb-2">
-                Email Address
-              </Text>
+              <Text className="text-lg font-medium text-gray-800 mb-2">Email Address</Text>
               <TextInput
                 className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800"
-                placeholder="angelomelcortes06@gmail.com"
+                placeholder="your.email@example.com"
                 placeholderTextColor="#999"
                 value={email}
                 onChangeText={setEmail}
@@ -112,11 +134,8 @@ export default function RegisterScreen() {
               />
             </View>
 
-            {/* Password Input */}
             <View className="mb-6">
-              <Text className="text-lg font-medium text-gray-800 mb-2">
-                Password
-              </Text>
+              <Text className="text-lg font-medium text-gray-800 mb-2">Password</Text>
               <View className="flex-row items-center border border-gray-300 rounded-xl bg-white">
                 <TextInput
                   className="flex-1 px-5 py-4 text-lg text-gray-800"
@@ -141,13 +160,13 @@ export default function RegisterScreen() {
               </View>
             </View>
 
-            {/* Sign Up Button */}
             <TouchableOpacity 
-              className="bg-[#F9EF08] rounded-xl py-5 items-center mb-6" 
+              className="bg-[#F9EF08] rounded-xl py-5 items-center mb-6"
               onPress={handleSignUp}
+              disabled={loading}
             >
               <Text className="text-lg font-bold text-white">
-                Sign up
+                {loading ? 'Signing Up...' : 'Sign Up'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -166,5 +185,3 @@ export default function RegisterScreen() {
     </SafeAreaView>
   );
 }
-
-

@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -36,6 +37,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // ---------------- GOOGLE SIGN IN ----------------
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
@@ -91,17 +93,22 @@ export default function LoginScreen() {
 
   // ---------------- NORMAL EMAIL LOGIN ----------------
   const handleSignIn = async () => {
+    if (isSigningIn) return;
+
     if (!email || !password) {
       return Alert.alert("Missing Info", "Please enter email and password");
     }
 
+    setIsSigningIn(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       const uid = result.user.uid;
 
       const snapshot = await get(ref(db, "users/" + uid));
       if (!snapshot.exists()) {
-        return Alert.alert("Error", "User data not found.");
+        Alert.alert("Error", "User data not found.");
+        setIsSigningIn(false);
+        return;
       }
 
       const role = snapshot.val().role || "default";
@@ -117,6 +124,8 @@ export default function LoginScreen() {
 
     } catch (e) {
       Alert.alert("Login Failed", e.message);
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -220,10 +229,16 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
-              className="bg-[#F9EF08] rounded-xl py-5 items-center mt-4 mb-1"
+              className={`rounded-xl py-5 bg-[#F9EF08] items-center mt-4 mb-1 ${isSigningIn ? 'opacity-50' : ''}`}
               onPress={handleSignIn}
+              disabled={isSigningIn}
+              accessibilityState={{ busy: isSigningIn }}
             >
-              <Text className="text-lg font-bold text-white">Sign in</Text>
+              {isSigningIn ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text className="text-lg font-bold text-white">Sign in</Text>
+              )}
             </TouchableOpacity>
 
             <View className="flex-row items-center my-4">

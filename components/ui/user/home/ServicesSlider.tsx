@@ -30,6 +30,10 @@ export default function ServicesSlider() {
     console.log('Book now pressed');
   };
 
+  const handleViewMore = (service: any) => {
+    console.log('View more pressed:', service.title);
+  };
+
   return (
     <View className="mt-6">
       {/* Header */}
@@ -41,26 +45,29 @@ export default function ServicesSlider() {
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
+        snapToInterval={360}
+        decelerationRate="fast"
         className="px-4"
         contentContainerStyle={{ paddingRight: 16 }}
       >
         {services.map((service) => (
           <TouchableOpacity 
             key={service.id}
-            className="rounded-xl overflow-hidden mr-4 w-80"
+            className="rounded-xl overflow-hidden mr-4 h-48"
+            style={{ width: 340 }}
             onPress={() => handleServicePress(service)}
           >
             <Image 
               source={service.image}
-              className="w-full h-48"
+              className="w-full h-full"
               resizeMode="cover"
             />
-            <View className="absolute inset-0 bg-black/50 justify-center items-center">
-              <View className="items-center">
-                <Text className="text-white text-xl font-bold text-center mb-2">
+            <View className="absolute inset-0 bg-black/50 justify-end items-start p-6">
+              <View className="items-start">
+                <Text className="text-white text-xl font-bold text-left mb-2">
                   {service.title}
                 </Text>
-                <Text className="text-white text-base text-center mb-6">
+                <Text className="text-white text-base text-left mb-6">
                   {service.subtitle}
                 </Text>
                 <TouchableOpacity 
@@ -68,6 +75,13 @@ export default function ServicesSlider() {
                   onPress={handleBookNow}
                 >
                   <Text className="text-gray-800 font-semibold">Book now</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* View More centered at bottom */}
+              <View className="w-full items-center mt-3 pb-1">
+                <TouchableOpacity onPress={() => handleViewMore(service)}>
+                  <Text className="text-white underline font-semibold">View More</Text>
                 </TouchableOpacity>
               </View>
             </View>

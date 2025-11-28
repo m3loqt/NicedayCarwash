@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { useState } from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,35 +19,41 @@ export default function ForgotPasswordScreen() {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
   const handleBack = () => {
-    // Navigate back to login screen
     router.push('/');
   };
 
-  const handleResetPassword = () => {
-    // Handle password reset logic here
-    console.log('Reset password pressed');
-    console.log('Email:', email);
-    
-    // TODO: Add validation and API call
-    // For now, show success screen
-    setShowSuccessScreen(true);
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email');
+      return;
+    }
+
+    const auth = getAuth();
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setShowSuccessScreen(true);
+    } catch (error: any) {
+      console.log('Reset password error:', error);
+      Alert.alert(
+        'Failed',
+        error.message || 'Failed to send password reset email'
+      );
+    }
   };
 
   const handleOpenEmailApp = () => {
-    // TODO: Implement opening email app
+    // Optional: open email app using Linking
     console.log('Open email app pressed');
   };
 
   const handleResend = () => {
-    // TODO: Implement resend functionality
-    console.log('Resend pressed');
+    handleResetPassword();
   };
 
   if (showSuccessScreen) {
     return (
       <SafeAreaView className="flex-1 bg-white">
         <View className="flex-1 px-6">
-          {/* Header with X button */}
           <View className="pt-8 pb-4 items-end">
             <TouchableOpacity 
               className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center"
@@ -55,24 +63,19 @@ export default function ForgotPasswordScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Success Content */}
           <View className="flex-1 justify-center items-center">
-            {/* Email Sent Icon */}
             <View className="w-24 h-24 bg-[#F9EF08] rounded-full items-center justify-center mb-8 shadow-lg">
               <Ionicons name="mail" size={40} color="white" />
             </View>
 
-            {/* Title */}
             <Text className="text-3xl font-bold text-gray-800 mb-4 text-center">
               Email Sent!
             </Text>
 
-            {/* Description */}
             <Text className="text-lg text-gray-600 text-center mb-8 px-4 leading-6">
-              We have sent an email to your registered email address with a link to reset your password.
+              We have sent an email to {email} with a link to reset your password.
             </Text>
 
-            {/* Open Email App Button */}
             <TouchableOpacity 
               className="bg-[#F9EF08] rounded-xl py-5 items-center w-full mb-6" 
               onPress={handleOpenEmailApp}
@@ -82,7 +85,6 @@ export default function ForgotPasswordScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* Resend Link */}
             <View className="flex-row items-center">
               <Text className="text-gray-600 text-base">
                 Email not received?{' '}
@@ -106,7 +108,6 @@ export default function ForgotPasswordScreen() {
         className="flex-1"
       >
         <View className="flex-1 px-6">
-          {/* Header */}
           <View className="pt-8 pb-4">
             <TouchableOpacity 
               className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center"
@@ -116,28 +117,23 @@ export default function ForgotPasswordScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Main Content */}
           <View className="flex-1 justify-center items-center">
-            {/* Forgot Password Logo */}
-            <View className="w-24 h-24 bg-[#F9EF08] rounded-full items-center justify-center mb-8">
+            <View className="w-24 h-24 rounded-full items-center justify-center mb-8">
               <Image 
                 source={require('../assets/images/forgotpasslogo.png')}
-                className="w-16 h-16"
+                className="w-24 h-24"
                 resizeMode="contain"
               />
             </View>
 
-            {/* Title */}
             <Text className="text-3xl font-bold text-gray-800 mb-4 text-center">
               Forgot Password
             </Text>
 
-            {/* Description */}
             <Text className="text-lg text-gray-600 text-center mb-8 px-4">
               Enter your email to receive a password reset link.
             </Text>
 
-            {/* Email Input */}
             <View className="w-full mb-8">
               <TextInput
                 className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800 w-full"
@@ -151,7 +147,6 @@ export default function ForgotPasswordScreen() {
               />
             </View>
 
-            {/* Reset Password Button */}
             <TouchableOpacity 
               className="bg-[#F9EF08] rounded-xl py-5 items-center w-full" 
               onPress={handleResetPassword}
@@ -166,5 +161,3 @@ export default function ForgotPasswordScreen() {
     </SafeAreaView>
   );
 }
-
-

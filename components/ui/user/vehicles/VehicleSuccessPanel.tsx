@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -26,11 +27,7 @@ export default function VehicleSuccessPanel({
     }
     
     return (
-      <Image
-        source={require('../../../../assets/images/checkicon.png')}
-        className="w-16 h-16"
-        resizeMode="contain"
-      />
+      <Ionicons name="checkmark" size={90} color="white" />
     );
   };
 
