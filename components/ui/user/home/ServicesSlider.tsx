@@ -30,10 +30,6 @@ export default function ServicesSlider() {
     console.log('Book now pressed');
   };
 
-  const handleViewMore = (service: any) => {
-    console.log('View more pressed:', service.title);
-  };
-
   return (
     <View className="mt-6">
       {/* Header */}
@@ -75,13 +71,6 @@ export default function ServicesSlider() {
                   onPress={handleBookNow}
                 >
                   <Text className="text-gray-800 font-semibold">Book now</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* View More centered at bottom */}
-              <View className="w-full items-center mt-3 pb-1">
-                <TouchableOpacity onPress={() => handleViewMore(service)}>
-                  <Text className="text-white underline font-semibold">View More</Text>
                 </TouchableOpacity>
               </View>
             </View>

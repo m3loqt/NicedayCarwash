@@ -257,14 +257,14 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             {/* Facebook */}
-            {/* <TouchableOpacity
+            <TouchableOpacity
               className="flex-row items-center justify-center border border-gray-300 rounded-xl py-4 px-5 mb-6 bg-white"
-              onPress={handleFacebookSignIn}
+              // onPress={handleFacebookSignIn}
             >
               <Image source={require('../assets/images/facebooklogo.png')}
                 className="w-6 h-6 mr-3" resizeMode="contain" />
               <Text className="text-lg text-gray-800">Sign up using Facebook</Text>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </View>
 
           <View className="items-center pb-8">
