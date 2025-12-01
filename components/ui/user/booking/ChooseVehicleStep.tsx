@@ -1,10 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import VehicleCard from '../vehicles/VehicleCard';
+import { ActivityIndicator, ScrollView, TouchableOpacity, View } from 'react-native';
+import VehicleCard from './VehicleCard';
 
 interface VehicleProfile {
   vname: string;
@@ -46,28 +44,28 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1 pt-5 bg-gray-100">
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        {vehicles.map((v) => (
-          <TouchableOpacity key={v.vplateNumber} onPress={() => onSelectVehicle(v)}>
-            <VehicleCard id={v.vplateNumber} name={v.vname} plateNumber={v.vplateNumber} type={v.vtype as any} />
-          </TouchableOpacity>
-        ))}
+        {vehicles.map((v) => {
+          const isSelected = selectedVehicle?.vplateNumber === v.vplateNumber;
+
+          return (
+            <TouchableOpacity
+              className="mx-5 my-2"
+              key={v.vplateNumber}
+              onPress={() => onSelectVehicle(v)}
+            >
+              <VehicleCard
+                id={v.vplateNumber}
+                name={v.vname}
+                plateNumber={v.vplateNumber}
+                type={v.vtype}
+                selected={isSelected}
+              />
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
-
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 w-16 h-16 bg-[#F9EF08] rounded-full items-center justify-center shadow-lg"
-        onPress={() => router.push('/user/add-vehicle')}
-      >
-        <Ionicons name="add" size={36} color="white" />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        className="absolute bottom-6 left-6 px-6 py-3 bg-white rounded-full border border-gray-200"
-        onPress={onNext}
-      >
-        <Text className="text-gray-700 font-semibold">Next</Text>
-      </TouchableOpacity>
     </View>
   );
 }

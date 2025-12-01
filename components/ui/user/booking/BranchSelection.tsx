@@ -30,22 +30,6 @@ interface Branch {
   };
 }
 
-const sampleBranches: Branch[] = [
-  {
-    id: '1',
-    name: 'P. Mabolo',
-    address: 'Branch 1, Cebu City',
-    phone: '+63 912 345 6789',
-    hours: 'Mon-Fri: 8:00 AM - 5:00 PM',
-    distance: '58.60 km',
-    status: 'Open',
-    coordinates: {
-      latitude: 10.3157,
-      longitude: 123.8854,
-    },
-  },
-];
-
 export default function BranchSelection({ onBranchSelect, onNextStep }: { onBranchSelect: (branch: Branch) => void; onNextStep: () => void }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);

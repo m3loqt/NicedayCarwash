@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AddVehicleInline from './AddVehicleInline';
 import ChooseVehicleStep from './ChooseVehicleStep';
 import ConfirmationStep from './ConfirmationStep';
 import ServicesStep from './ServicesStep';
@@ -25,8 +26,25 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
   const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
   const [dateTime, setDateTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
 
-  const handleNext = () => setStep((s) => Math.min(3, s + 1));
+const handleNext = (data?: any) => {
+  if (step === 1 && !selectedVehicle) {
+    Alert.alert('Select Vehicle', 'Please select or add a vehicle before continuing.');
+    return;
+  }
+
+  // Step 2: Save ServicesStep selections
+  if (step === 2 && data) {
+    setSelectedServices(data.services ?? []);
+    setSelectedAddons(data.addons ?? []);
+    setDateTime(data.date ? `${data.date.toLocaleDateString()} - ${data.timeSlot?.time}` : null);
+    setPaymentMethod(data.paymentMethod ?? null);
+  }
+
+  setStep((s) => Math.min(3, s + 1));
+};
+
   const handleBack = () => {
     if (step === 1) return onClose();
     setStep((s) => Math.max(1, s - 1));
@@ -41,7 +59,13 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
             <Ionicons name="arrow-back" size={24} color="#666" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-900">{step === 1 ? 'Choose Vehicle' : step === 2 ? 'Choose Services' : 'Confirmation'}</Text>
-          <View className="w-10" />
+          {step === 1 ? (
+            <TouchableOpacity onPress={() => setShowAddVehicle(true)} className="w-10 h-10 items-center justify-center">
+              <Ionicons name="add" size={24} color="#666" />
+            </TouchableOpacity>
+          ) : (
+            <View className="w-10" />
+          )}
         </View>
       </View>
 
@@ -49,22 +73,24 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
       {step === 1 && (
         <ChooseVehicleStep
           selectedVehicle={selectedVehicle}
-          onSelectVehicle={(v) => setSelectedVehicle(v)}
+          onSelectVehicle={(v: any) => setSelectedVehicle(v)}
           onNext={handleNext}
         />
       )}
 
+      <AddVehicleInline
+        visible={showAddVehicle}
+        onClose={() => setShowAddVehicle(false)}
+        onSaved={(vehicle: any) => {
+          setSelectedVehicle({ vname: vehicle.vname, vplateNumber: vehicle.vplateNumber, vtype: vehicle.vtype });
+          setShowAddVehicle(false);
+        }}
+      />
+
       {step === 2 && (
         <ServicesStep
-          branch={branch}
-          selectedServices={selectedServices}
-          selectedAddons={selectedAddons}
-          dateTime={dateTime}
-          paymentMethod={paymentMethod}
-          onUpdateServices={(s) => setSelectedServices(s)}
-          onUpdateAddons={(a) => setSelectedAddons(a)}
-          onUpdateDateTime={(d) => setDateTime(d)}
-          onUpdatePayment={(p) => setPaymentMethod(p)}
+          branchId={branch?.id ?? ''}
+          selectedVehicle={selectedVehicle}
           onNext={handleNext}
         />
       )}

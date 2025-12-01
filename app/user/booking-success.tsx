@@ -1,6 +1,6 @@
-import BookingSuccess from '../../components/ui/user/booking/BookingSuccess';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import BookingSuccess from '../../components/ui/user/booking/BookingSuccess';
 
 export default function BookingSuccessPage() {
   return (
