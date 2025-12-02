@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { getAuth } from 'firebase/auth';
+import { get, getDatabase, ref, update } from 'firebase/database';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   ScrollView,
   Text,
@@ -12,31 +16,85 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EditProfile() {
-  const [firstName, setFirstName] = useState('Mel Angelo');
-  const [lastName, setLastName] = useState('Cortes');
-  const [password, setPassword] = useState('........');
-  const [showPassword, setShowPassword] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleBack = () => {
-    router.back();
+  const auth = getAuth();
+  const userId = auth.currentUser?.uid;
+  const db = getDatabase();
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchUserData = async () => {
+      try {
+        const snapshot = await get(ref(db, `users/${userId}`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setFirstName(data.firstName || '');
+          setLastName(data.lastName || '');
+          setProfileImage(data.profileImage || null);
+        } else {
+          Alert.alert('Error', 'User data not found');
+        }
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'Failed to load user data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [userId]);
+
+  const handleBack = () => router.back();
+
+  const handleSaveChanges = async () => {
+    if (!firstName || !lastName) {
+      Alert.alert('Validation', 'All fields must be filled');
+      return;
+    }
+
+    if (!userId) return;
+
+    try {
+      await update(ref(db, `users/${userId}`), {
+        firstName,
+        lastName,
+        profileImage: profileImage || '',
+      });
+      Alert.alert('Success', 'Changes saved successfully', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to save changes');
+    }
   };
 
-  const handleSaveChanges = () => {
-    // TODO: Implement save profile logic
-    console.log('Save profile:', {
-      firstName,
-      lastName,
-      password
+  const handleChangeProfilePicture = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
     });
-    
-    // Navigate back after saving
-    router.back();
+
+    // Newer versions of expo-image-picker return { canceled: boolean, assets: [{ uri, ... }] }
+    // So check `canceled` and read the uri from `assets[0].uri` safely.
+    if (!result.canceled && Array.isArray(result.assets) && result.assets.length > 0) {
+      setProfileImage(result.assets[0].uri);
+    }
   };
 
-  const handleChangeProfilePicture = () => {
-    // TODO: Implement profile picture change logic
-    console.log('Change profile picture');
-  };
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center bg-gray-100">
+        <Text>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={['top']}>
@@ -51,26 +109,22 @@ export default function EditProfile() {
           </TouchableOpacity>
           
           <Text className="text-xl font-bold text-gray-900">Edit Account</Text>
-          
           <View className="w-10" />
         </View>
       </View>
 
       {/* Main Content */}
       <ScrollView className="flex-1 p-6">
-        {/* Profile Picture Section */}
+        {/* Profile Picture */}
         <View className="items-center mb-8">
           <View className="relative">
-            {/* Profile Picture */}
             <View className="w-32 h-32 rounded-full bg-white border-4 border-white shadow-lg overflow-hidden">
               <Image
-                source={require('../../../../assets/images/profile_placeholder.png')}
+                source={profileImage ? { uri: profileImage } : require('../../../../assets/images/profile_placeholder.png')}
                 className="w-full h-full"
                 resizeMode="cover"
               />
             </View>
-            
-            {/* Camera Button */}
             <TouchableOpacity
               className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#F9EF08] rounded-full items-center justify-center shadow-lg"
               onPress={handleChangeProfilePicture}
@@ -82,11 +136,8 @@ export default function EditProfile() {
 
         {/* Form Fields */}
         <View className="space-y-6">
-          {/* First Name */}
           <View>
-            <Text className="text-lg font-semibold text-gray-800 mb-3">
-              First Name
-            </Text>
+            <Text className="text-lg font-semibold text-gray-800 mb-3">First Name</Text>
             <TextInput
               className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg text-gray-800"
               placeholder="Enter first name"
@@ -96,11 +147,8 @@ export default function EditProfile() {
             />
           </View>
 
-          {/* Last Name */}
           <View>
-            <Text className="text-lg font-semibold text-gray-800 mb-3">
-              Last Name
-            </Text>
+            <Text className="text-lg font-semibold text-gray-800 mb-3">Last Name</Text>
             <TextInput
               className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg text-gray-800"
               placeholder="Enter last name"
@@ -108,33 +156,9 @@ export default function EditProfile() {
               value={lastName}
               onChangeText={setLastName}
             />
-          </View>
-
-          {/* Password */}
-          <View>
-            <Text className="text-lg font-semibold text-gray-800 mb-3">
-              Password
-            </Text>
-            <View className="relative">
-              <TextInput
-                className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg text-gray-800 pr-12"
-                placeholder="Enter password"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                className="absolute right-4 top-1/2 -translate-y-1/2"
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Ionicons 
-                  name={showPassword ? "eye-off" : "eye"} 
-                  size={20} 
-                  color="#666" 
-                />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={() => router.push('/forgot-password')}>
+              <Text className="text-[#F9EF08] mt-2 font-semibold">Reset Password</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -145,9 +169,7 @@ export default function EditProfile() {
           className="bg-[#F9EF08] rounded-xl py-4 items-center"
           onPress={handleSaveChanges}
         >
-          <Text className="text-lg font-bold text-white">
-            Save Changes
-          </Text>
+          <Text className="text-lg font-bold text-white">Save Changes</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -13,6 +13,7 @@ interface BookingCardProps {
   plateNumber?: string;
   classification?: string;
   onPress?: () => void;
+  onViewMore?: () => void;
 }
 
 export default function BookingCard({ 
@@ -26,7 +27,8 @@ export default function BookingCard({
   vehicleName,
   plateNumber,
   classification,
-  onPress 
+  onPress,
+  onViewMore
 }: BookingCardProps) {
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -122,6 +124,13 @@ export default function BookingCard({
           </View>
         </View>
       )}
+
+      {/* View More (centered, underlined) */}
+      <View className="mt-4 items-center">
+        <TouchableOpacity onPress={() => (onViewMore ? onViewMore() : onPress ? onPress() : undefined)}>
+          <Text className="text-sm text-gray-700 underline">View More</Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }

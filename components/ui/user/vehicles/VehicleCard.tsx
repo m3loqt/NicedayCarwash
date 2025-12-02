@@ -5,7 +5,7 @@ interface VehicleCardProps {
   id: string;
   name: string;
   plateNumber: string;
-  type: 'sedan' | 'suv' | 'pickup' | 'motorcycle';
+  type: 'sedan' | 'suv' | 'pickup' | 'motorcycle-small' | 'motorcycle-large';
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -26,8 +26,10 @@ export default function VehicleCard({
         return require('../../../../assets/images/suv.png');
       case 'pickup':
         return require('../../../../assets/images/pickup.png');
-      case 'motorcycle':
+      case 'motorcycle-small':
         return require('../../../../assets/images/motorcycle_small.png');
+      case 'motorcycle-large':
+        return require('../../../../assets/images/motorcycle_large.png');
       default:
         return require('../../../../assets/images/sedan.png');
     }
@@ -41,8 +43,10 @@ export default function VehicleCard({
         return 'SUV';
       case 'pickup':
         return 'Pickup';
-      case 'motorcycle':
-        return 'Motorcycle';
+      case 'motorcycle-small':
+        return 'Motorcycle (Small)';
+      case 'motorcycle-large':
+        return 'Motorcycle (Large)';
       default:
         return 'Vehicle';
     }
@@ -52,7 +56,7 @@ export default function VehicleCard({
     <View className="bg-white rounded-xl p-4 mb-4 shadow-md mx-4">
       <View className="flex-row items-center">
         {/* Vehicle Icon */}
-        <View className="w-16 h-16 bg-[#F9EF08] rounded-lg items-center justify-center mr-4">
+        <View className="w-16 h-16 rounded-lg items-center justify-center mr-4">
           <Image 
             source={getVehicleIcon(type)}
             className="w-10 h-10"
@@ -63,7 +67,7 @@ export default function VehicleCard({
         {/* Vehicle Details */}
         <View className="flex-1">
           <Text className="text-lg font-bold text-gray-900 mb-1">{name}</Text>
-          <Text className="text-sm text-gray-600">{plateNumber} - {getTypeLabel(type)}</Text>
+          <Text className="text-sm text-gray-600">{plateNumber}</Text>
         </View>
 
         {/* Action Buttons */}
@@ -72,7 +76,7 @@ export default function VehicleCard({
             className="w-8 h-8 bg-[#F9EF08] rounded-full items-center justify-center mr-2"
             onPress={onEdit}
           >
-            <Ionicons name="pencil" size={16} color="black" />
+            <Ionicons name="pencil" size={16} color="white" />
           </TouchableOpacity>
           
           <TouchableOpacity 
