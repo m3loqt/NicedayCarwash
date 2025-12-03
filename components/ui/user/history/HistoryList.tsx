@@ -1,8 +1,8 @@
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
-import AppointmentDetails from '../AppointmentDetails';
+import { ScrollView, Text, View } from 'react-native';
+import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 import BookingCard from './BookingCard';
 
 interface Booking {
@@ -164,53 +164,39 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
       </ScrollView>
 
       {/* Appointment Details Modal */}
-      <Modal
-        visible={showDetails}
-        animationType="slide"
-        onRequestClose={handleCloseDetails}
-      >
-        {selectedBooking && (
-          <AppointmentDetails
-  branchName={selectedBooking.branchName}
-  branchAddress={selectedBooking.address}
-  branchImage={require('../../../../assets/images/samplebranch.png')}
-
-  vehicleName={selectedBooking.vehicleName}
-  plateNumber={selectedBooking.plateNumber}
-  classification={selectedBooking.classification}
-
-  date={selectedBooking.appointmentDate}
-  time={selectedBooking.time}
-
-  orderSummary={[
-    ...(selectedBooking.services?.map((s) => ({
-      label: (s?.name ?? 'Service') as string,
-      price: `₱${s?.price ?? '0'}`,
-    })) ?? []),
-
-    ...(selectedBooking.addOns?.map((a) => ({
-      label: (a?.name ?? 'Add-on') as string,
-      price: `₱${a?.price ?? '0'}`,
-    })) ?? []),
-
-    { label: 'Booking Fee', price: '₱20' },
-  ]}
-
-  amountDue={selectedBooking.amount}
-  paymentMethod={selectedBooking.paymentMethod}
-  estimatedCompletion={
-    typeof selectedBooking.estCompletion === "number"
-      ? `${selectedBooking.estCompletion} Hours`
-      : selectedBooking.estCompletion
-  }
-
-  note={selectedBooking.note}
-
-  onBack={handleCloseDetails}
-/>
-
-        )}
-      </Modal>
+      {selectedBooking && (
+        <AppointmentDetailsModal
+          visible={showDetails}
+          branchName={selectedBooking.branchName}
+          branchAddress={selectedBooking.address}
+          branchImage={require('../../../../assets/images/samplebranch.png')}
+          vehicleName={selectedBooking.vehicleName}
+          plateNumber={selectedBooking.plateNumber}
+          classification={selectedBooking.classification}
+          date={selectedBooking.appointmentDate}
+          time={selectedBooking.time}
+          orderSummary={[
+            ...(selectedBooking.services?.map((s) => ({
+              label: (s?.name ?? 'Service') as string,
+              price: `₱${s?.price ?? '0'}`,
+            })) ?? []),
+            ...(selectedBooking.addOns?.map((a) => ({
+              label: (a?.name ?? 'Add-on') as string,
+              price: `₱${a?.price ?? '0'}`,
+            })) ?? []),
+            { label: 'Booking Fee', price: '₱20' },
+          ]}
+          amountDue={selectedBooking.amount}
+          paymentMethod={selectedBooking.paymentMethod}
+          estimatedCompletion={
+            typeof selectedBooking.estCompletion === "number"
+              ? `${selectedBooking.estCompletion} Hours`
+              : selectedBooking.estCompletion
+          }
+          note={selectedBooking.note}
+          onClose={handleCloseDetails}
+        />
+      )}
     </View>
   );
 }

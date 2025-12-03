@@ -13,6 +13,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import VehicleClassificationModal from '../vehicles/modals/VehicleClassificationModal';
 
 interface VehicleClassification {
   id: string;
@@ -151,55 +152,16 @@ export default function AddVehicleInline({
             </TouchableOpacity>
 
             {/* Dropdown Modal */}
-            <Modal
+            <VehicleClassificationModal
               visible={showClassificationModal}
-              transparent={true}
-              animationType="none"
-              onRequestClose={() => setShowClassificationModal(false)}
-            >
-              <TouchableOpacity
-                style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}
-                activeOpacity={1}
-                onPress={() => setShowClassificationModal(false)}
-              >
-
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={(e) => e.stopPropagation()}
-                  className="absolute left-6 right-6 bg-white rounded-xl shadow-lg border border-gray-200"
-                  style={{ top: 185 }}
-                >
-                  <ScrollView scrollEnabled nestedScrollEnabled>
-                    {vehicleClassifications.map((c, index) => (
-                      <TouchableOpacity
-                        key={c.id}
-                        className={`flex-row items-center p-4 ${
-                          index < vehicleClassifications.length - 1 ? 'border-b border-gray-200' : ''
-                        }`}
-                        onPress={() => handleClassificationSelect(c)}
-                      >
-                        <Image
-                          source={getVehicleIcon(c.id)}
-                          className="w-8 h-8 mr-4"
-                          resizeMode="contain"
-                        />
-                        <View className="flex-1">
-                          <Text className="text-lg font-semibold text-gray-800">{c.name}</Text>
-                          <Text className="text-sm text-gray-500 mt-1">
-                            {c.examples || c.details}
-                          </Text>
-                        </View>
-
-                        {selectedClassification?.id === c.id && (
-                          <Ionicons name="checkmark" size={24} color="#F9EF08" />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </TouchableOpacity>
-
-              </TouchableOpacity>
-            </Modal>
+              classifications={vehicleClassifications}
+              selectedClassification={selectedClassification}
+              getVehicleIcon={getVehicleIcon}
+              onSelect={handleClassificationSelect}
+              onClose={() => setShowClassificationModal(false)}
+              topPosition={185}
+              backdropColor="rgba(0,0,0,0.3)"
+            />
           </View>
 
           {/* Vehicle Name */}

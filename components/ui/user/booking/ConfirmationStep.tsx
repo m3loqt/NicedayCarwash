@@ -88,8 +88,8 @@ export default function ConfirmationStep({
           {/* Branch */}
           <View className="flex-row justify-between items-start">
             <View className="flex-1 mr-4">
-              <Text className="text-base font-semibold text-gray-900">Branch</Text>
-              <Text className="text-xl font-bold text-gray-900 mt-1">{branch?.name}</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E]">Branch</Text>
+              <Text className="text-xl font-bold text-[#1E1E1E] mt-1">{branch?.name}</Text>
               {branch?.address && (
                 <Text className="text-sm text-gray-500 mt-1">{branch.address}</Text>
               )}
@@ -101,7 +101,7 @@ export default function ConfirmationStep({
 
           {/* Vehicle */}
           <View className="border-t border-gray-200 pt-4">
-            <Text className="text-base font-semibold text-gray-900 mb-2">Vehicle</Text>
+            <Text className="text-base font-semibold text-[#1E1E1E] mb-2">Vehicle</Text>
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <Image
@@ -120,14 +120,14 @@ export default function ConfirmationStep({
           {/* Date & Time */}
           {dateTime && (
             <View className="border-t border-gray-200 pt-4">
-              <Text className="text-base font-semibold text-gray-900 mb-2">Date & Time</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E] mb-2">Date & Time</Text>
               <Text className="text-gray-800">{dateTime}</Text>
             </View>
           )}
 
           {/* Order Summary */}
           <View className="border-t border-gray-200 pt-4">
-            <Text className="text-base font-semibold text-gray-900 mb-2">Order Summary</Text>
+            <Text className="text-base font-semibold text-[#1E1E1E] mb-2">Order Summary</Text>
             {orderSummary.length === 0 ? (
               <Text className="text-gray-600">No items</Text>
             ) : (
@@ -140,15 +140,15 @@ export default function ConfirmationStep({
             )}
             <View className="h-px bg-gray-200 my-3" />
             <View className="flex-row justify-end mb-2">
-              <Text className="text-base font-semibold text-gray-900 mr-2">Amount Due</Text>
-              <Text className="text-base font-bold text-gray-900">{formatPrice(amountDue)}</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E] mr-2">Amount Due</Text>
+              <Text className="text-base font-bold text-[#1E1E1E]">{formatPrice(amountDue)}</Text>
             </View>
           </View>
 
           {/* Payment */}
           <View className="border-t border-gray-200 pt-4">
             <View className="flex-row justify-between items-center">
-              <Text className="text-base font-semibold text-gray-900">Payment Method</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E]">Payment Method</Text>
               <Text className="text-gray-800">{paymentMethod || '-'}</Text>
             </View>
           </View>
@@ -156,7 +156,7 @@ export default function ConfirmationStep({
           {/* Note */}
           {note && (
             <View className="border-t border-gray-200 pt-4">
-              <Text className="text-base font-semibold text-gray-900 mb-2">Note to Branch</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E] mb-2">Note to Branch</Text>
               <View className="bg-gray-50 rounded-lg border border-gray-200 p-3">
                 <Text className="text-gray-600">{note}</Text>
               </View>

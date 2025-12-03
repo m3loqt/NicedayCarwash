@@ -31,7 +31,7 @@ export default function BranchesSlider() {
     <View className="">
       {/* Header */}
       <View className="flex-row justify-between items-center px-4 mb-4">
-        <Text className="text-xl font-bold text-gray-900">Our branches near you</Text>
+        <Text className="text-xl font-bold text-[#1E1E1E]">Our branches near you</Text>
         <TouchableOpacity className="flex-row items-center bg-gray-100 px-3 py-2 rounded-lg">
           <Text className="text-gray-700 mr-2">Mindanao</Text>
           <Ionicons name="chevron-down" size={16} color="#6B7280" />
@@ -57,7 +57,7 @@ export default function BranchesSlider() {
               resizeMode="cover"
             />
             <View className="p-4">
-              <Text className="text-lg font-bold text-gray-900 mb-2">{branch.name}</Text>
+              <Text className="text-lg font-bold text-[#1E1E1E] mb-2">{branch.name}</Text>
               <View className="flex-row items-start">
                 <Ionicons name="location" size={16} color="#6B7280" className="mr-2 mt-1" />
                 <Text className="text-sm text-gray-600 flex-1">{branch.address}</Text>

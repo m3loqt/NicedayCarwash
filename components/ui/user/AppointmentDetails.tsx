@@ -76,7 +76,7 @@ export default function AppointmentDetails({
             <Ionicons name="arrow-back" size={24} color="#666" />
           </TouchableOpacity>
 
-          <Text className="text-xl font-bold text-gray-900">Appointment Details</Text>
+          <Text className="text-xl font-bold text-[#1E1E1E]">Appointment Details</Text>
 
           <View className="w-10" />
         </View>
@@ -87,8 +87,8 @@ export default function AppointmentDetails({
           {/* Branch */}
           <View className="flex-row justify-between items-start mb-4">
             <View className="flex-1 mr-4">
-              <Text className="text-base font-semibold text-gray-900">Branch</Text>
-              <Text className="text-xl font-bold text-gray-900 mt-2">{branchName}</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E]">Branch</Text>
+              <Text className="text-xl font-bold text-[#1E1E1E] mt-2">{branchName}</Text>
               {branchAddress ? (
                 <Text className="text-sm text-gray-500 mt-1">{branchAddress} </Text>
               ) : null}
@@ -106,7 +106,7 @@ export default function AppointmentDetails({
           {/* Vehicle */}
           {(vehicleName || plateNumber || classification) && (
             <View className="border-t border-gray-200 pt-4">
-              <Text className="text-base font-semibold text-gray-900 mb-2">Vehicle</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E] mb-2">Vehicle</Text>
               <View className="flex-row items-center justify-between mb-4">
                 <View className="flex-row items-center">
                   <Image
@@ -125,7 +125,7 @@ export default function AppointmentDetails({
           {(date || time) && (
             <View className="border-t border-gray-200 pt-4">
               <View className="flex-row justify-between items-start">
-                <Text className="text-base font-semibold text-gray-900">Date Time</Text>
+                <Text className="text-base font-semibold text-[#1E1E1E]">Date Time</Text>
                 <View className="items-end mb-4">
                   <Text className="text-gray-800">{date || ''}</Text>
                   {time ? <Text className="text-gray-600 mt-1">{time}</Text> : null}
@@ -136,7 +136,7 @@ export default function AppointmentDetails({
 
           {/* Order Summary */}
           <View className="border-t border-gray-200 pt-4">
-            <Text className="text-base font-semibold text-gray-900 mb-3">Order Summary</Text>
+            <Text className="text-base font-semibold text-[#1E1E1E] mb-3">Order Summary</Text>
             {orderSummary.length === 0 ? (
               <Text className="text-gray-600">No items</Text>
             ) : (
@@ -150,29 +150,29 @@ export default function AppointmentDetails({
 
             <View className="h-px bg-gray-200 my-3" />
             <View className="flex-row justify-end mb-4 items-center">
-              <Text className="text-base font-semibold text-gray-900 mr-2">Amount Due</Text>
-              <Text className="text-base font-bold text-gray-900">{formatPrice(amountDue)}</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E] mr-2">Amount Due</Text>
+              <Text className="text-base font-bold text-[#1E1E1E]">{formatPrice(amountDue)}</Text>
             </View>
           </View>
 
           {/* Payment + Estimated */}
           <View className="border-t border-gray-200 pt-4">
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-base font-semibold text-gray-900">Payment Method</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E]">Payment Method</Text>
               <Text className="text-gray-800">{paymentMethod || '-'}</Text>
             </View>
 
             <View className="h-px bg-gray-200 my-3" />
 
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-base font-semibold text-gray-900">Estimated Completion</Text>
+              <Text className="text-base font-semibold text-[#1E1E1E]">Estimated Completion</Text>
               <Text className="text-gray-800">{estimatedCompletion || '-'} Hours</Text>
             </View>
           </View>
 
           {/* Note */}
           <View className="border-t border-gray-200 pt-4">
-            <Text className="text-base font-semibold text-gray-900 mb-3">Note to Branch</Text>
+            <Text className="text-base font-semibold text-[#1E1E1E] mb-3">Note to Branch</Text>
             <View className="bg-gray-50 rounded-lg border border-gray-200 p-3">
               <Text className="text-gray-600">{note || ''}</Text>
             </View>

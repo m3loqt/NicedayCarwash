@@ -4,12 +4,14 @@ import {
   Alert,
   Button,
   Image,
-  Modal,
   ScrollView,
   Text,
   TouchableOpacity,
   View
-} from "react-native";
+} from "react-native"
+import { Ionicons } from "@expo/vector-icons";
+import DateSelectionModal from "./modals/DateSelectionModal";
+import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
 
 interface Service {
   id: string;
@@ -53,11 +55,15 @@ export default function ServicesStep({
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDateModal, setShowDateModal] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
     null
   );
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  const [branchSchedule, setBranchSchedule] = useState<{ openTime: string; closeTime: string } | null>(null);
+  const [showScheduleUnavailableModal, setShowScheduleUnavailableModal] = useState(false);
+  const [unavailableReason, setUnavailableReason] = useState<string>("");
 
   const db = getDatabase();
 
@@ -66,8 +72,49 @@ export default function ServicesStep({
   useEffect(() => {
     loadServices();
     loadAddons();
-    loadTimeSlots(selectedDate);
+    loadBranchSchedule();
   }, []);
+
+  useEffect(() => {
+    if (branchSchedule) {
+      loadTimeSlots(selectedDate);
+    }
+  }, [selectedDate, branchSchedule]);
+
+  const loadBranchSchedule = async (): Promise<{ openTime: string; closeTime: string } | null> => {
+    try {
+      const snapshot = await get(
+        ref(db, `Branches/${sanitizePath(branchId)}/profile`)
+      );
+      if (snapshot.exists()) {
+        const profile = snapshot.val();
+        // Parse schedule - assuming format like "8:00 AM - 6:00 PM" or similar
+        const schedule = profile.schedule || "";
+        // Extract open and close times from schedule string
+        // This is a basic parser - adjust based on actual format
+        const timeMatch = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        let scheduleData: { openTime: string; closeTime: string };
+        if (timeMatch) {
+          scheduleData = {
+            openTime: `${timeMatch[1]}:${timeMatch[2]} ${timeMatch[3]}`,
+            closeTime: `${timeMatch[4]}:${timeMatch[5]} ${timeMatch[6]}`
+          };
+        } else {
+          // Default schedule if parsing fails
+          scheduleData = { openTime: "8:00 AM", closeTime: "6:00 PM" };
+        }
+        setBranchSchedule(scheduleData);
+        return scheduleData;
+      }
+    } catch (err) {
+      console.error("Failed to load branch schedule:", err);
+      // Default schedule on error
+      const defaultSchedule = { openTime: "8:00 AM", closeTime: "6:00 PM" };
+      setBranchSchedule(defaultSchedule);
+      return defaultSchedule;
+    }
+    return null;
+  };
 
   // ------------------ Firebase Loaders ------------------
   const loadServices = async () => {
@@ -118,13 +165,105 @@ export default function ServicesStep({
     }
   };
 
+  const parseTimeTo24Hour = (timeStr: string): number => {
+    // Parse "8:00 AM" or "6:00 PM" to 24-hour format (0-23)
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return 8; // Default to 8 AM
+    
+    let hour = parseInt(match[1], 10);
+    const period = match[3].toUpperCase();
+    
+    if (period === "PM" && hour !== 12) {
+      hour += 12;
+    } else if (period === "AM" && hour === 12) {
+      hour = 0;
+    }
+    
+    return hour;
+  };
+
+  const checkDateAvailability = (date: Date, schedule?: { openTime: string; closeTime: string }): { available: boolean; reason: string } => {
+    const scheduleToUse = schedule || branchSchedule;
+    if (!scheduleToUse) {
+      return { available: true, reason: "" };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateOnly = new Date(date);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const isToday = selectedDateOnly.getTime() === today.getTime();
+    
+    // Get current hour if selecting today
+    const currentHour = isToday ? new Date().getHours() : 0;
+    
+    // Get branch schedule hours
+    const openHour = parseTimeTo24Hour(scheduleToUse.openTime);
+    const closeHour = parseTimeTo24Hour(scheduleToUse.closeTime);
+    
+    // Check if store is already closed today
+    if (isToday && currentHour >= closeHour) {
+      return {
+        available: false,
+        reason: `The store is closed.`
+      };
+    }
+    
+    // Check if there are any available time slots
+    let hasAvailableSlots = false;
+    for (let h = openHour; h < closeHour; h++) {
+      if (isToday && h <= currentHour) {
+        continue;
+      }
+      hasAvailableSlots = true;
+      break;
+    }
+    
+    if (!hasAvailableSlots) {
+      return {
+        available: false,
+        reason: `The store is closed.`
+      };
+    }
+    
+    return { available: true, reason: "" };
+  };
+
   const loadTimeSlots = (date: Date) => {
-    const hours = Array.from({ length: 11 }, (_, i) => 6 + i); // 6 AM to 16 PM
-    const slots: TimeSlot[] = hours.map((h) => ({
-      time: `${h}:00 ${h < 12 ? "AM" : "PM"}`,
-      isAvailable: true,
-    }));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateOnly = new Date(date);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const isToday = selectedDateOnly.getTime() === today.getTime();
+    
+    // Get current hour if selecting today
+    const currentHour = isToday ? new Date().getHours() : 0;
+    
+    // Get branch schedule hours
+    const openHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.openTime) : 8;
+    const closeHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.closeTime) : 18;
+    
+    // Generate time slots from open to close hour
+    const slots: TimeSlot[] = [];
+    for (let h = openHour; h < closeHour; h++) {
+      // If today, only show future hours
+      if (isToday && h <= currentHour) {
+        continue;
+      }
+      
+      const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+      const period = h >= 12 ? "PM" : "AM";
+      slots.push({
+        time: `${hour12}:00 ${period}`,
+        isAvailable: true,
+      });
+    }
+    
     setTimeSlots(slots);
+    // Reset selected time slot if it's no longer available
+    if (selectedTimeSlot && !slots.find(s => s.time === selectedTimeSlot.time)) {
+      setSelectedTimeSlot(null);
+    }
   };
 
   // ------------------ Helpers ------------------
@@ -157,6 +296,30 @@ export default function ServicesStep({
     exists
       ? setSelectedAddons(selectedAddons.filter((x) => x.id !== a.id))
       : setSelectedAddons([...selectedAddons, a]);
+  };
+
+  // Format date as "Dec. 7, 2025"
+  const formatDate = (date: Date): string => {
+    const months = [
+      "Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
+      "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."
+    ];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month} ${day}, ${year}`;
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCalendarMonth(prev => {
+      const newDate = new Date(prev);
+      if (direction === 'prev') {
+        newDate.setMonth(prev.getMonth() - 1);
+      } else {
+        newDate.setMonth(prev.getMonth() + 1);
+      }
+      return newDate;
+    });
   };
 
   // ------------------ Confirm Booking ------------------
@@ -265,42 +428,46 @@ export default function ServicesStep({
           <Text className="text-xl font-semibold">Date and Time</Text>
 
           <TouchableOpacity
-            onPress={() => setShowDateModal(true)}
+            onPress={() => {
+              setCalendarMonth(new Date(selectedDate));
+              setShowDateModal(true);
+            }}
             className="bg-white px-4 py-2 rounded-xl border border-gray-300 shadow-sm"
           >
             <Text className="text-gray-700 font-medium">
-              {selectedDate.toLocaleDateString()}
+              {formatDate(selectedDate)}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Custom Date Modal */}
-        <Modal visible={showDateModal} transparent animationType="slide">
-          <View className="flex-1 justify-center items-center bg-black/30">
-            <View className="bg-white rounded-lg p-4 w-11/12">
-              <ScrollView>
-                {Array.from({ length: 30 }, (_, i) => {
-                  const dateOption = new Date();
-                  dateOption.setDate(dateOption.getDate() + i);
-                  return (
-                    <TouchableOpacity
-                      key={i}
-                      className="py-2 border-b border-gray-200"
-                      onPress={() => {
-                        setSelectedDate(dateOption);
-                        setShowDateModal(false);
-                        loadTimeSlots(dateOption);
-                      }}
-                    >
-                      <Text>{dateOption.toDateString()}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <Button title="Cancel" onPress={() => setShowDateModal(false)} />
-            </View>
-          </View>
-        </Modal>
+        {/* Date Selection Modal */}
+        <DateSelectionModal
+          visible={showDateModal}
+          selectedDate={selectedDate}
+          calendarMonth={calendarMonth}
+          branchSchedule={branchSchedule}
+          onClose={() => setShowDateModal(false)}
+          onDateSelect={(date) => {
+            setSelectedDate(date);
+            setShowDateModal(false);
+            loadTimeSlots(date);
+          }}
+          onMonthNavigate={navigateMonth}
+          checkDateAvailability={checkDateAvailability}
+          loadBranchSchedule={loadBranchSchedule}
+          onUnavailableDate={(reason) => {
+            setUnavailableReason(reason);
+            setShowScheduleUnavailableModal(true);
+          }}
+        />
+
+        {/* Schedule Unavailable Modal */}
+        <ScheduleUnavailableModal
+          visible={showScheduleUnavailableModal}
+          reason={unavailableReason}
+          branchSchedule={branchSchedule}
+          onClose={() => setShowScheduleUnavailableModal(false)}
+        />
 
         {/* ------------------- TIMESLOTS ------------------- */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
@@ -364,10 +531,16 @@ export default function ServicesStep({
 
       {/* NEXT BUTTON */}
       <TouchableOpacity
-        className="absolute bottom-6 right-6 w-16 h-16 bg-yellow-300 rounded-full items-center justify-center shadow-lg"
+        className="absolute bottom-6 right-6 w-16 h-16 bg-[#F9EF08] rounded-full shadow-lg"
         onPress={handleNext}
+        activeOpacity={0.8}
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
       >
-        <Text className="text-black text-3xl">›</Text>
+        <Ionicons name="chevron-forward" size={46} color="white" style={{ marginLeft: 4 }} />
       </TouchableOpacity>
     </View>
   );

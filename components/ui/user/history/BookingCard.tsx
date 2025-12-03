@@ -81,7 +81,7 @@ export default function BookingCard({
       {/* Branch Info and Image */}
       <View className="flex-row justify-between items-start mb-4">
         <View className="flex-1 mr-4">
-          <Text className="text-xl font-bold text-gray-900 mb-1">{branchName}</Text>
+          <Text className="text-xl font-bold text-[#1E1E1E] mb-1">{branchName}</Text>
           <Text className="text-sm text-gray-600">{address}</Text>
         </View>
         <Image 
@@ -95,15 +95,15 @@ export default function BookingCard({
       <View className="flex-row justify-between mb-2">
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Appointment ID</Text>
-          <Text className="text-sm font-bold text-gray-900">{appointmentId}</Text>
+          <Text className="text-sm font-bold text-[#1E1E1E]">{appointmentId}</Text>
         </View>
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Appointment Date</Text>
-          <Text className="text-sm font-bold text-gray-900">{appointmentDate}</Text>
+          <Text className="text-sm font-bold text-[#1E1E1E]">{appointmentDate}</Text>
         </View>
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Amount Due</Text>
-          <Text className="text-sm font-bold text-gray-900">{amount}</Text>
+          <Text className="text-sm font-bold text-[#1E1E1E]">{amount}</Text>
         </View>
       </View>
 
@@ -112,15 +112,15 @@ export default function BookingCard({
         <View className="flex-row justify-between">
           <View className="flex-1">
             <Text className="text-xs text-gray-500 mb-1">Vehicle Name</Text>
-            <Text className="text-sm font-bold text-gray-900">{vehicleName}</Text>
+            <Text className="text-sm font-bold text-[#1E1E1E]">{vehicleName}</Text>
           </View>
           <View className="flex-1">
             <Text className="text-xs text-gray-500 mb-1">Plate Number</Text>
-            <Text className="text-sm font-bold text-gray-900">{plateNumber}</Text>
+            <Text className="text-sm font-bold text-[#1E1E1E]">{plateNumber}</Text>
           </View>
           <View className="flex-1">
             <Text className="text-xs text-gray-500 mb-1">Classification</Text>
-            <Text className="text-sm font-bold text-gray-900">{classification}</Text>
+            <Text className="text-sm font-bold text-[#1E1E1E]">{classification}</Text>
           </View>
         </View>
       )}

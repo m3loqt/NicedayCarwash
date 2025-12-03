@@ -24,7 +24,7 @@ export default function HistoryTabs({ activeTab, onTabChange }: HistoryTabsProps
           <Text 
             className={`text-base font-medium ${
               activeTab === tab.id 
-                ? 'text-gray-900 font-bold' 
+                ? 'text-[#1E1E1E] font-bold' 
                 : 'text-gray-600'
             }`}
           >

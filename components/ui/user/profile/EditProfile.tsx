@@ -108,7 +108,7 @@ export default function EditProfile() {
             <Ionicons name="arrow-back" size={24} color="#666" />
           </TouchableOpacity>
           
-          <Text className="text-xl font-bold text-gray-900">Edit Account</Text>
+          <Text className="text-xl font-bold text-[#1E1E1E]">Edit Account</Text>
           <View className="w-10" />
         </View>
       </View>
