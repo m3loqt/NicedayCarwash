@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import HistoryHeader from '../../../components/ui/user/history/HistoryHeader';
 import HistoryList from '../../../components/ui/user/history/HistoryList';
@@ -13,18 +14,20 @@ export default function UserHistoryScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      {/* Header */}
-      <HistoryHeader />
-      
-      {/* Status Tabs */}
-      <HistoryTabs activeTab={activeTab} onTabChange={handleTabChange} />
-      
-      {/* Search Bar */}
-      <HistorySearchBar />
-      
-      {/* Booking History List */}
-      <HistoryList activeTab={activeTab} />
-    </SafeAreaView>
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        {/* Header */}
+        <HistoryHeader />
+        
+        {/* Status Tabs */}
+        <HistoryTabs activeTab={activeTab} onTabChange={handleTabChange} />
+        
+        {/* Search Bar */}
+        <HistorySearchBar />
+        
+        {/* Booking History List */}
+        <HistoryList activeTab={activeTab} />
+      </SafeAreaView>
+    </View>
   );
 }

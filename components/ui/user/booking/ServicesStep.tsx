@@ -1,15 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  Button,
   Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons";
+} from "react-native";
 import DateSelectionModal from "./modals/DateSelectionModal";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
 
@@ -354,36 +353,45 @@ export default function ServicesStep({
           Choose Service <Text className="text-gray-500">(Choose 1)</Text>
         </Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ alignItems: 'center' }}
+        >
           {services.map((s) => {
             const selected = selectedServices.some((x) => x.id === s.id);
             return (
               <TouchableOpacity
                 key={s.id}
                 onPress={() => toggleService(s)}
-                style={{ width: 170, height: 130 }}
-                className={`rounded-2xl bg-white p-4 mx-1 shadow-sm border ${
-                  selected ? "border-[3px] border-yellow-400" : "border-gray-200"
+                style={{ 
+                  width: 220, 
+                  height: 140,
+                }}
+                className={`rounded-2xl bg-white mx-2 border-2 flex-col p-1 ${
+                  selected ? "border-yellow-300" : "border-transparent"
                 }`}
               >
-                <Text className="text-base font-semibold text-gray-400 text-center mb-3">
-                  {s.name}
-                </Text>
+                <View className="flex-1 justify-center px-5">
+                  <Text className="text-2xl font-semibold text-gray-400 text-center">
+                    {s.name}
+                  </Text>
+                </View>
 
-                <View className="bg-yellow-300 px-3 py-2 rounded-b-2xl -mb-3 -mx-3 mt-auto">
-                  <View className="flex-row justify-between mb-1">
-                    <Text className="text-white font-medium">Sedan</Text>
-                    <Text className="text-white font-medium">
+                <View className="bg-yellow-300 px-4 py-2 rounded-b-2xl">
+                  <View className="flex-row justify-between mb-1.5">
+                    <Text className="text-white font-medium text-lg">Sedan</Text>
+                    <Text className="text-white font-medium text-lg">
                       ₱{s.sedan}.00
                     </Text>
                   </View>
                   <View className="flex-row justify-between mb-1">
-                    <Text className="text-white font-medium">SUV</Text>
-                    <Text className="text-white font-medium">₱{s.suv}.00</Text>
+                    <Text className="text-white font-medium text-lg">SUV</Text>
+                    <Text className="text-white font-medium text-lg">₱{s.suv}.00</Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="text-white font-medium">Pick Up</Text>
-                    <Text className="text-white font-medium">
+                    <Text className="text-white font-medium text-lg">Pick Up</Text>
+                    <Text className="text-white font-medium text-lg">
                       ₱{s.pickup}.00
                     </Text>
                   </View>
@@ -398,23 +406,32 @@ export default function ServicesStep({
           Add ons <Text className="text-gray-500">(Optional)</Text>
         </Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ alignItems: 'center' }}
+        >
           {addons.map((a) => {
             const selected = selectedAddons.some((x) => x.id === a.id);
             return (
               <TouchableOpacity
                 key={a.id}
                 onPress={() => toggleAddon(a)}
-                style={{ width: 170, height: 90 }}
-                className={`rounded-2xl bg-white p-4 mx-1 shadow-sm border ${
-                  selected ? "border-[3px] border-yellow-400" : "border-gray-200"
+                style={{ 
+                  width: 170, 
+                  height: 90,
+                }}
+                className={`rounded-2xl bg-white mx-2 border-2 flex-col p-1 ${
+                  selected ? "border-yellow-300" : "border-transparent"
                 }`}
               >
-                <Text className="text-base font-semibold text-gray-400 text-center mb-3">
-                  {a.name}
-                </Text>
-                <View className="bg-yellow-300 px-3 py-2 rounded-b-2xl mb-1 -mx-3 mt-auto items-center justify-center shadow-sm border border-gray-200">
-                  <Text className="text-white font-medium text-center text-lg">
+                <View className="flex-1 justify-center px-5">
+                  <Text className="text-xl font-semibold text-gray-400 text-center">
+                    {a.name}
+                  </Text>
+                </View>
+                <View className="bg-yellow-300 px-4 py-3 rounded-b-2xl items-center justify-center">
+                  <Text className="text-white font-medium text-center text-xl">
                     ₱{a.price}.00
                   </Text>
                 </View>
@@ -432,9 +449,9 @@ export default function ServicesStep({
               setCalendarMonth(new Date(selectedDate));
               setShowDateModal(true);
             }}
-            className="bg-white px-4 py-2 rounded-xl border border-gray-300 shadow-sm"
+            className="bg-white px-4 py-2 rounded-xl"
           >
-            <Text className="text-gray-700 font-medium">
+            <Text className="text-gray-400 font-medium">
               {formatDate(selectedDate)}
             </Text>
           </TouchableOpacity>
@@ -475,13 +492,13 @@ export default function ServicesStep({
             <TouchableOpacity
               key={t.time}
               onPress={() => setSelectedTimeSlot(t)}
-              className={`px-5 py-3 rounded-xl bg-white border mr-3 shadow-sm ${
+              className={`px-5 py-3 rounded-xl bg-white border mr-3 ${
                 selectedTimeSlot?.time === t.time
-                  ? "border-yellow-400 bg-yellow-100"
-                  : "border-gray-300"
+                  ? "border-yellow-300 border-2"
+                  : "border-transparent border-2"
               }`}
             >
-              <Text className="font-medium text-center">{t.time}</Text>
+              <Text className="font-medium text-center text-gray-400">{t.time}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -511,7 +528,7 @@ export default function ServicesStep({
           <TouchableOpacity
             key={p.id}
             onPress={() => setPaymentMethod(p.id)}
-            className="bg-white p-4 rounded-2xl shadow-sm flex-row items-start mb-4 border border-gray-200"
+            className="bg-white p-4 rounded-2xl shadow-sm flex-row items-center mx-2 mb-4 border border-gray-200"
           >
             {p.icon && <Image source={p.icon} className="w-8 h-8 mr-3" />}
             <View className="flex-1">
@@ -520,11 +537,13 @@ export default function ServicesStep({
             </View>
             <View
               className={`w-6 h-6 rounded-full border-2 ${
-                paymentMethod === p.id
-                  ? "border-yellow-400 bg-yellow-300"
-                  : "border-gray-400"
-              }`}
-            />
+                paymentMethod === p.id ? "border-[#F9EF08]" : "border-gray-300"
+              } items-center justify-center`}
+            >
+              {paymentMethod === p.id && (
+                <View className="w-3.5 h-3.5 rounded-full bg-[#F9EF08]" />
+              )}
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>

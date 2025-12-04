@@ -25,6 +25,9 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
   const [dateTime, setDateTime] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<any>(null);
+  const [totalEstimatedTime, setTotalEstimatedTime] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
 
@@ -34,12 +37,19 @@ const handleNext = (data?: any) => {
     return;
   }
 
-  // Step 2: Save ServicesStep selections
-  if (step === 2 && data) {
-    setSelectedServices(data.services ?? []);
-    setSelectedAddons(data.addons ?? []);
-    setDateTime(data.date ? `${data.date.toLocaleDateString()} - ${data.timeSlot?.time}` : null);
-    setPaymentMethod(data.paymentMethod ?? null);
+  // Step 2: Save ServicesStep selections and advance to confirmation
+  if (step === 2) {
+    if (data) {
+      setSelectedServices(data.services ?? []);
+      setSelectedAddons(data.addons ?? []);
+      setSelectedDate(data.date ?? null);
+      setSelectedTimeSlot(data.timeSlot ?? null);
+      setTotalEstimatedTime(data.totalEstimatedTime ?? 0);
+      setDateTime(data.date && data.timeSlot ? `${data.date.toLocaleDateString()} - ${data.timeSlot.time}` : null);
+      setPaymentMethod(data.paymentMethod ?? null);
+      setStep(3);
+    }
+    return;
   }
 
   setStep((s) => Math.min(3, s + 1));
@@ -146,8 +156,11 @@ const handleNext = (data?: any) => {
           vehicle={selectedVehicle}
           services={selectedServices}
           addons={selectedAddons}
-          dateTime={dateTime}
+          date={selectedDate}
+          timeSlot={selectedTimeSlot}
+          totalEstimatedTime={totalEstimatedTime}
           paymentMethod={paymentMethod}
+          onBack={handleBack}
           onDone={() => router.replace('/user/(tabs)/history')}
         />
       )}

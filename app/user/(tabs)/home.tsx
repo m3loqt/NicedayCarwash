@@ -6,20 +6,28 @@ import ServicesSlider from '../../../components/ui/user/home/ServicesSlider';
 
 export default function UserHomeScreen() {
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header with greeting, search, and promotional banner */}
-        <HomeHeader />
-        
-        {/* Branches Slider */}
-        <BranchesSlider />
-        
-        {/* Services Slider */}
-        <ServicesSlider />
-        
-        {/* Bottom padding for tab bar */}
-        <View className="h-20" />
-      </ScrollView>
-    </SafeAreaView>
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          style={{ backgroundColor: 'white', flex: 1 }}
+          contentContainerStyle={{ 
+            backgroundColor: 'white', 
+            paddingBottom: 80,
+            flexGrow: 1 
+          }}
+        >
+          {/* Header with greeting, search, and promotional banner */}
+          <HomeHeader />
+          
+          {/* Branches Slider */}
+          <BranchesSlider />
+          
+          {/* Services Slider */}
+          <ServicesSlider />
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }

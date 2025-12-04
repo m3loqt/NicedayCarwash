@@ -69,8 +69,9 @@ export default function UserProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="white" />
       
       {/* Header */}
       <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200">
@@ -123,6 +124,7 @@ export default function UserProfileScreen() {
         <Ionicons name="log-out" size={24} color="#1E1E1E" className="mr-3" />
         <Text className="text-lg text-[#1E1E1E]">Sign Out</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }

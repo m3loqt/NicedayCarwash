@@ -25,6 +25,12 @@ export default function UserLayout() {
           presentation: 'modal'
         }} 
       />
+      <Stack.Screen 
+        name="booking-success" 
+        options={{ 
+          headerShown: false
+        }} 
+      />
     </Stack>
   );
 }

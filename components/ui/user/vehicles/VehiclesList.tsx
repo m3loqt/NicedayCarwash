@@ -102,18 +102,20 @@ const handleDelete = (plateNumber: string) => {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-100">
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'white' }}>
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        style={{ backgroundColor: 'white', flex: 1 }}
         className="pt-4"
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'white' }}
       >
         {vehicles.map((vehicle) => (
           <VehicleCard

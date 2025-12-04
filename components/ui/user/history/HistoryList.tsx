@@ -77,19 +77,22 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
             // estCompletion pulled from timeSlot
             const estCompletion = data.timeSlot?.estCompletion ?? null;
 
+            // appointmentId is now the key itself (ND-XXXXXX format)
+            const appointmentId = bookingSnap.key || '';
+            
             list.push({
-              id: bookingSnap.key || '',
+              id: appointmentId,
               branchName: data.branchName || '',
               address: data.branchAddress || '',
-              appointmentId: data.appointmentId || '',
+              appointmentId: appointmentId,
               paymentMethod: data.paymentMethod || '',
               time: data.timeSlot?.time || '',
               appointmentDate: data.timeSlot?.appointmentDate || '',
               amount: data.amountDue || '',
               status: data.status,
-              vehicleName: data.vehicleDetails?.vehicleName,
-              plateNumber: data.vehicleDetails?.plateNumber,
-              classification: data.vehicleDetails?.classification,
+              vehicleName: data.vehicleDetails?.vehicleName || '',
+              plateNumber: data.vehicleDetails?.plateNumber || '',
+              classification: data.vehicleDetails?.classification || '',
               addOns: addOns,
               note: data.note || '',
               services: services,
@@ -120,18 +123,20 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-100">
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'white' }}>
         <Text>Loading bookings...</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        style={{ backgroundColor: 'white', flex: 1 }}
         className="pt-4"
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'white' }}
       >
         {bookings.length > 0 ? (
           bookings.map((booking) => (
