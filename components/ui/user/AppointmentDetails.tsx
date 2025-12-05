@@ -24,7 +24,7 @@ export interface AppointmentDetailsProps {
   onBack?: () => void;
 }
 
-const getVehicleIcon = (vehicleType: string) => {
+const getVehicleIcon = (vehicleType?: string) => {
   switch (vehicleType?.toLowerCase()) {
     case 'sedan':
       return require('../../../assets/images/sedan.png');
@@ -39,6 +39,66 @@ const getVehicleIcon = (vehicleType: string) => {
     default:
       return require('../../../assets/images/sedan.png');
   }
+};
+
+// Format date from MM-DD-YYYY to "December 6, 2025" format
+const formatDateForDisplay = (dateString?: string): string => {
+  if (!dateString) return '';
+  // Parse MM-DD-YYYY format
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString; // Return as-is if format is unexpected
+  
+  const month = parseInt(parts[0], 10);
+  const day = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+  
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  if (month < 1 || month > 12) return dateString;
+  
+  return `${monthNames[month - 1]} ${day}, ${year}`;
+};
+
+const formatTimeRange = (time?: string, estimatedHours?: string | number): string => {
+  if (!time) return '';
+  if (!estimatedHours) return time;
+  
+  // Parse start time and add estimated hours
+  const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return time;
+  
+  let hour = parseInt(match[1], 10);
+  const minute = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  
+  // Convert to 24-hour format
+  if (period === 'PM' && hour !== 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+  
+  // Add estimated hours
+  const estHours = typeof estimatedHours === 'number' ? estimatedHours : parseInt(String(estimatedHours).replace(/\D/g, ''), 10) || 0;
+  const endHour = hour + estHours;
+  
+  // Convert back to 12-hour format
+  const endHour12 = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour === 12 ? 12 : endHour);
+  const endPeriod = endHour >= 12 ? 'pm' : 'am';
+  
+  const startTimeLower = time.toLowerCase();
+  return `${startTimeLower} - ${endHour12}:${minute.toString().padStart(2, '0')} ${endPeriod}`;
+};
+
+const formatPrice = (value?: string | number): string => {
+  if (value === null || value === undefined || value === '') return '₱ 0.00';
+  if (typeof value === 'number') return `₱ ${value.toFixed(2)}`;
+  const str = String(value).trim();
+  // Remove existing ₱ if present and extract number
+  const numStr = str.replace(/[₱,\s]/g, '');
+  const num = parseFloat(numStr);
+  if (isNaN(num)) return '₱ 0.00';
+  return `₱ ${num.toFixed(2)}`;
 };
 
 export default function AppointmentDetails({
@@ -57,23 +117,29 @@ export default function AppointmentDetails({
   note,
   onBack,
 }: AppointmentDetailsProps) {
-  const formatPrice = (value?: string | number) => {
-    if (value === null || value === undefined || value === '') return '-';
-    if (typeof value === 'number') return `₱${value}`;
-    const str = String(value).trim();
-    if (str.startsWith('₱')) return str;
-    return `₱${str}`;
+  // Extract hours from estimatedCompletion (e.g., "3 Hours" -> 3)
+  const extractHours = (est?: string | number): number => {
+    if (!est) return 0;
+    if (typeof est === 'number') return est;
+    const match = String(est).match(/(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
   };
+
+  const estimatedHours = extractHours(estimatedCompletion);
+  const formattedDate = formatDateForDisplay(date);
+  const formattedTimeRange = formatTimeRange(time, estimatedHours);
+
   return (
-    <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-[#F8F8F8]" edges={["top"]}>
       {/* Header */}
       <View className="bg-white border-b border-gray-200">
         <View className="flex-row items-center justify-between p-4">
           <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center"
+            className="w-10 h-10 rounded-full bg-white border items-center justify-center"
+            style={{ borderColor: 'rgba(179, 179, 179, 0.20)' }}
             onPress={onBack}
           >
-            <Ionicons name="arrow-back" size={24} color="#666" />
+            <Ionicons name="arrow-back" size={24} color="#B3B3B3" />
           </TouchableOpacity>
 
           <Text className="text-xl font-bold text-[#1E1E1E]">Appointment Details</Text>
@@ -82,100 +148,149 @@ export default function AppointmentDetails({
         </View>
       </View>
 
-      <ScrollView className="flex-1 p-4">
-        <View className="bg-white rounded-xl p-4 shadow-md">
-          {/* Branch */}
-          <View className="flex-row justify-between items-start mb-4">
-            <View className="flex-1 mr-4">
-              <Text className="text-base font-semibold text-[#1E1E1E]">Branch</Text>
-              <Text className="text-xl font-bold text-[#1E1E1E] mt-2">{branchName}</Text>
-              {branchAddress ? (
-                <Text className="text-sm text-gray-500 mt-1">{branchAddress} </Text>
-              ) : null}
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100, paddingTop: 16 }}>
+        {/* Single White Card Container - matching ConfirmationStep design */}
+        <View className="bg-white rounded-2xl mx-4 mb-4">
+          {/* Branch Information Section */}
+          <View className="p-4">
+            <Text className="font-semibold text-[#1E1E1E] mb-2" style={{ fontSize: 20 }}>Branch</Text>
+            <View className="flex-row justify-between items-start">
+              <View className="flex-1 mr-3">
+                <Text className="font-semibold text-[#1E1E1E] mb-1" style={{ fontSize: 20 }}>{branchName}</Text>
+                <View className="flex-row items-center">
+                  <Ionicons name="location" size={12} color="#9CA3AF" style={{ marginRight: 4 }} />
+                  <Text className="text-gray-500 flex-1" style={{ fontSize: 16 }}>{branchAddress || 'No address provided'}</Text>
+                </View>
+              </View>
+              {branchImage && (
+                <Image source={branchImage} className="w-20 h-20 rounded-lg" resizeMode="cover" />
+              )}
             </View>
-
-            {branchImage ? (
-              <Image
-                source={branchImage}
-                className="w-16 h-16 rounded-lg"
-                resizeMode="cover"
-              />
-            ) : null}
           </View>
 
-          {/* Vehicle */}
+          {/* Separator Line */}
+          <View className="px-4">
+            <View className="h-[0.5px] bg-gray-200" />
+          </View>
+
+          {/* Vehicle Information Section */}
           {(vehicleName || plateNumber || classification) && (
-            <View className="border-t border-gray-200 pt-4">
-              <Text className="text-base font-semibold text-[#1E1E1E] mb-2">Vehicle</Text>
-              <View className="flex-row items-center justify-between mb-4">
+            <>
+              <View className="p-4">
+                <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Vehicle</Text>
                 <View className="flex-row items-center">
                   <Image
-                    source={getVehicleIcon(classification || '')}
-                    className="w-10 h-10 rounded-full mr-3"
+                    source={getVehicleIcon(classification)}
+                    className="w-10 h-10"
                     resizeMode="contain"
+                    style={{ tintColor: '#F9EF08' }}
                   />
-                  <Text className="text-gray-800 text-base">{vehicleName || '-'}</Text>
+                  <View className="w-[0.5px] h-10 bg-gray-200 mx-3" />
+                  <View className="flex-1 flex-row items-center justify-between">
+                    <Text className="text-gray-500" style={{ fontSize: 16 }}>{vehicleName || '-'}</Text>
+                    <Text className="text-gray-500" style={{ fontSize: 16 }}>{plateNumber || ''} {classification || ''}</Text>
+                  </View>
                 </View>
-                <Text className="text-gray-600">{plateNumber ? `${plateNumber} - ${classification || ''}` : ''}</Text>
               </View>
-            </View>
+
+              {/* Separator Line */}
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+            </>
           )}
 
-          {/* Date Time */}
+          {/* Date & Time Section */}
           {(date || time) && (
-            <View className="border-t border-gray-200 pt-4">
-              <View className="flex-row justify-between items-start">
-                <Text className="text-base font-semibold text-[#1E1E1E]">Date Time</Text>
-                <View className="items-end mb-4">
-                  <Text className="text-gray-800">{date || ''}</Text>
-                  {time ? <Text className="text-gray-600 mt-1">{time}</Text> : null}
+            <>
+              <View className="p-4">
+                <View className="flex-row justify-between items-center mb-3">
+                  <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Date & Time</Text>
+                  <Text className="text-gray-500" style={{ fontSize: 16 }}>{formattedDate}</Text>
                 </View>
+                {formattedTimeRange && (
+                  <View className="items-end">
+                    <Text className="text-gray-500" style={{ fontSize: 16 }}>{formattedTimeRange}</Text>
+                  </View>
+                )}
               </View>
-            </View>
+
+              {/* Separator Line */}
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+            </>
           )}
 
-          {/* Order Summary */}
-          <View className="border-t border-gray-200 pt-4">
-            <Text className="text-base font-semibold text-[#1E1E1E] mb-3">Order Summary</Text>
+          {/* Order Summary Section */}
+          <View className="p-4">
+            <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Order Summary</Text>
             {orderSummary.length === 0 ? (
-              <Text className="text-gray-600">No items</Text>
+              <Text className="text-gray-500" style={{ fontSize: 16 }}>No items</Text>
             ) : (
               orderSummary.map((item, idx) => (
-                <View key={idx} className="flex-row justify-between py-1">
-                  <Text className="text-gray-700">{item.label}</Text>
-                  <Text className="text-gray-700">{formatPrice(item.price)}</Text>
+                <View key={idx} className="flex-row justify-between mb-2">
+                  <Text className="text-gray-500" style={{ fontSize: 16 }}>{item.label}</Text>
+                  <Text className="text-gray-500" style={{ fontSize: 16 }}>{formatPrice(item.price)}</Text>
                 </View>
               ))
             )}
-
-            <View className="h-px bg-gray-200 my-3" />
-            <View className="flex-row justify-end mb-4 items-center">
-              <Text className="text-base font-semibold text-[#1E1E1E] mr-2">Amount Due</Text>
-              <Text className="text-base font-bold text-[#1E1E1E]">{formatPrice(amountDue)}</Text>
+            <View className="h-[0.5px] bg-gray-200 my-3" />
+            <View className="flex-row justify-between items-center">
+              <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Amount Due</Text>
+              <Text className="text-gray-500" style={{ fontSize: 16 }}>{formatPrice(amountDue)}</Text>
             </View>
           </View>
 
-          {/* Payment + Estimated */}
-          <View className="border-t border-gray-200 pt-4">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-base font-semibold text-[#1E1E1E]">Payment Method</Text>
-              <Text className="text-gray-800">{paymentMethod || '-'}</Text>
-            </View>
+          {/* Separator Line */}
+          <View className="px-4">
+            <View className="h-[0.5px] bg-gray-200" />
+          </View>
 
-            <View className="h-px bg-gray-200 my-3" />
-
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-base font-semibold text-[#1E1E1E]">Estimated Completion</Text>
-              <Text className="text-gray-800">{estimatedCompletion || '-'} Hours</Text>
+          {/* Payment Method Section */}
+          <View className="p-4">
+            <View className="flex-row justify-between items-center">
+              <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Payment Method</Text>
+              <Text className="text-gray-500" style={{ fontSize: 16 }}>{paymentMethod || 'Not selected'}</Text>
             </View>
           </View>
 
-          {/* Note */}
-          <View className="border-t border-gray-200 pt-4">
-            <Text className="text-base font-semibold text-[#1E1E1E] mb-3">Note to Branch</Text>
-            <View className="bg-gray-50 rounded-lg border border-gray-200 p-3">
-              <Text className="text-gray-600">{note || ''}</Text>
+          {/* Separator Line */}
+          <View className="px-4">
+            <View className="h-[0.5px] bg-gray-200" />
+          </View>
+
+          {/* Estimated Time of Completion Section */}
+          {estimatedCompletion && (
+            <>
+              <View className="p-4">
+                <View className="flex-row justify-between items-center">
+                  <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Estimated Time of Completion</Text>
+                  <Text className="text-gray-500" style={{ fontSize: 16 }}>{estimatedHours} {estimatedHours === 1 ? 'Hour' : 'Hours'}</Text>
+                </View>
+              </View>
+
+              {/* Separator Line */}
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+            </>
+          )}
+
+          {/* Note to Branch Section */}
+          <View className="p-4">
+            <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Note to Branch</Text>
+            <View className="rounded-lg border border-gray-200 p-3 min-h-[80px]">
+              <Text className="text-[#1E1E1E]" style={{ fontSize: 14 }}>{note || 'No note provided.'}</Text>
             </View>
+          </View>
+
+          {/* Disclaimer Section */}
+          <View className="pb-4">
+            <Text className="font-regular text-[#1E1E1E] mb-1 text-center" style={{ fontSize: 18 }}>Disclaimer</Text>
+            <Text className="text-gray-500 italic text-center px-10" style={{ fontSize: 15 }}>
+              Final duration of the carwash will depend on the car size and state
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -202,3 +317,4 @@ Usage example:
   onBack={() => router.back()}
 />
 */
+

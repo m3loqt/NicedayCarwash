@@ -1,23 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
-
-// Verify expo-location is available
-if (!Location) {
-  console.error('expo-location module failed to load');
-}
 import { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Platform,
   Text,
   TextInput,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import BookingFlow from './BookingFlow';
 import BranchDetailsModal from './BranchDetailsModal';
+
+// Verify expo-location is available
+if (!Location) {
+  console.error('expo-location module failed to load');
+}
 
 
 const { height } = Dimensions.get('window');
@@ -212,16 +211,10 @@ const handleSearch = (q: string) => {
 
       {/* Header */}
       <View
-        className="flex-row items-center justify-between px-4 pb-4 mt-4 bg-[#F8F8F8] border-b border-[#E0E0E0]"
+        className="flex-row items-center justify-center px-4 pb-4 mt-4 bg-[#F8F8F8] border-b border-[#E0E0E0]"
         style={{ paddingTop: Platform.OS === 'ios' ? 50 : 20 }}
       >
-        <TouchableOpacity className="p-2">
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-
         <Text className="text-lg font-semibold text-[#333]">Choose a Branch</Text>
-
-        <View className="w-10" />
       </View>
 
       {/* Map */}
