@@ -1,6 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
+// Format date from MM-DD-YYYY to "Dec. 6, 2025" format
+const formatDateForHistory = (dateString: string): string => {
+  // Parse MM-DD-YYYY format
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString; // Return as-is if format is unexpected
+  
+  const month = parseInt(parts[0], 10);
+  const day = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+  
+  const monthNames = [
+    'Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.',
+    'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'
+  ];
+  
+  if (month < 1 || month > 12) return dateString;
+  
+  return `${monthNames[month - 1]} ${day}, ${year}`;
+};
+
 interface BookingCardProps {
   id: string;
   branchName: string;
@@ -81,7 +101,7 @@ export default function BookingCard({
       {/* Branch Info and Image */}
       <View className="flex-row justify-between items-start mb-4">
         <View className="flex-1 mr-4">
-          <Text className="text-xl font-bold text-gray-900 mb-1">{branchName}</Text>
+          <Text className="text-xl font-bold text-[#1E1E1E] mb-1">{branchName}</Text>
           <Text className="text-sm text-gray-600">{address}</Text>
         </View>
         <Image 
@@ -95,15 +115,15 @@ export default function BookingCard({
       <View className="flex-row justify-between mb-2">
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Appointment ID</Text>
-          <Text className="text-sm font-bold text-gray-900">{appointmentId}</Text>
+          <Text className="text-sm font-bold text-[#1E1E1E]">{appointmentId}</Text>
         </View>
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Appointment Date</Text>
-          <Text className="text-sm font-bold text-gray-900">{appointmentDate}</Text>
+          <Text className="text-sm font-bold text-[#1E1E1E]">{formatDateForHistory(appointmentDate)}</Text>
         </View>
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Amount Due</Text>
-          <Text className="text-sm font-bold text-gray-900">{amount}</Text>
+          <Text className="text-sm font-bold text-[#1E1E1E]">{amount}</Text>
         </View>
       </View>
 
@@ -112,15 +132,15 @@ export default function BookingCard({
         <View className="flex-row justify-between">
           <View className="flex-1">
             <Text className="text-xs text-gray-500 mb-1">Vehicle Name</Text>
-            <Text className="text-sm font-bold text-gray-900">{vehicleName}</Text>
+            <Text className="text-sm font-bold text-[#1E1E1E]">{vehicleName}</Text>
           </View>
           <View className="flex-1">
             <Text className="text-xs text-gray-500 mb-1">Plate Number</Text>
-            <Text className="text-sm font-bold text-gray-900">{plateNumber}</Text>
+            <Text className="text-sm font-bold text-[#1E1E1E]">{plateNumber}</Text>
           </View>
           <View className="flex-1">
             <Text className="text-xs text-gray-500 mb-1">Classification</Text>
-            <Text className="text-sm font-bold text-gray-900">{classification}</Text>
+            <Text className="text-sm font-bold text-[#1E1E1E]">{classification}</Text>
           </View>
         </View>
       )}

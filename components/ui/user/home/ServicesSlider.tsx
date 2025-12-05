@@ -34,7 +34,7 @@ export default function ServicesSlider() {
     <View className="mt-6">
       {/* Header */}
       <View className="px-4 mb-4">
-        <Text className="text-xl font-bold text-gray-900">Our Services</Text>
+        <Text className="text-xl font-bold text-[#1E1E1E]">Our Services</Text>
       </View>
 
       {/* Services Slider */}

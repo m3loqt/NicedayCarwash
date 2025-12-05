@@ -17,16 +17,16 @@ export default function VehiclesHeader() {
         className="p-2 rounded-full border border-gray-300"
         onPress={handleBack}
       >
-        <Ionicons name="arrow-back" size={24} color="black" />
+        <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
       </TouchableOpacity>
       
-      <Text className="text-xl font-bold text-gray-900">My Vehicles</Text>
+      <Text className="text-xl font-bold text-[#1E1E1E]">My Vehicles</Text>
       
       <TouchableOpacity 
         className="p-2 rounded-full border border-gray-300"
         onPress={handleAdd}
       >
-        <Ionicons name="add" size={24} color="black" />
+        <Ionicons name="add" size={24} color="#1E1E1E" />
       </TouchableOpacity>
     </View>
   );

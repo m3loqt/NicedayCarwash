@@ -66,7 +66,7 @@ export default function VehicleCard({
 
         {/* Vehicle Details */}
         <View className="flex-1">
-          <Text className="text-lg font-bold text-gray-900 mb-1">{name}</Text>
+          <Text className="text-lg font-bold text-[#1E1E1E] mb-1">{name}</Text>
           <Text className="text-sm text-gray-600">{plateNumber}</Text>
         </View>
 

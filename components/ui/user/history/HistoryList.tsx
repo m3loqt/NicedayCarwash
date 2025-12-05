@@ -1,8 +1,8 @@
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
-import AppointmentDetails from '../AppointmentDetails';
+import { ScrollView, Text, View } from 'react-native';
+import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 import BookingCard from './BookingCard';
 
 interface Booking {
@@ -77,19 +77,22 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
             // estCompletion pulled from timeSlot
             const estCompletion = data.timeSlot?.estCompletion ?? null;
 
+            // appointmentId is now the key itself (ND-XXXXXX format)
+            const appointmentId = bookingSnap.key || '';
+            
             list.push({
-              id: bookingSnap.key || '',
+              id: appointmentId,
               branchName: data.branchName || '',
               address: data.branchAddress || '',
-              appointmentId: data.appointmentId || '',
+              appointmentId: appointmentId,
               paymentMethod: data.paymentMethod || '',
               time: data.timeSlot?.time || '',
               appointmentDate: data.timeSlot?.appointmentDate || '',
               amount: data.amountDue || '',
               status: data.status,
-              vehicleName: data.vehicleDetails?.vehicleName,
-              plateNumber: data.vehicleDetails?.plateNumber,
-              classification: data.vehicleDetails?.classification,
+              vehicleName: data.vehicleDetails?.vehicleName || '',
+              plateNumber: data.vehicleDetails?.plateNumber || '',
+              classification: data.vehicleDetails?.classification || '',
               addOns: addOns,
               note: data.note || '',
               services: services,
@@ -120,18 +123,20 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-100">
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'white' }}>
         <Text>Loading bookings...</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        style={{ backgroundColor: 'white', flex: 1 }}
         className="pt-4"
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'white' }}
       >
         {bookings.length > 0 ? (
           bookings.map((booking) => (
@@ -164,53 +169,39 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
       </ScrollView>
 
       {/* Appointment Details Modal */}
-      <Modal
-        visible={showDetails}
-        animationType="slide"
-        onRequestClose={handleCloseDetails}
-      >
-        {selectedBooking && (
-          <AppointmentDetails
-  branchName={selectedBooking.branchName}
-  branchAddress={selectedBooking.address}
-  branchImage={require('../../../../assets/images/samplebranch.png')}
-
-  vehicleName={selectedBooking.vehicleName}
-  plateNumber={selectedBooking.plateNumber}
-  classification={selectedBooking.classification}
-
-  date={selectedBooking.appointmentDate}
-  time={selectedBooking.time}
-
-  orderSummary={[
-    ...(selectedBooking.services?.map((s) => ({
-      label: (s?.name ?? 'Service') as string,
-      price: `₱${s?.price ?? '0'}`,
-    })) ?? []),
-
-    ...(selectedBooking.addOns?.map((a) => ({
-      label: (a?.name ?? 'Add-on') as string,
-      price: `₱${a?.price ?? '0'}`,
-    })) ?? []),
-
-    { label: 'Booking Fee', price: '₱20' },
-  ]}
-
-  amountDue={selectedBooking.amount}
-  paymentMethod={selectedBooking.paymentMethod}
-  estimatedCompletion={
-    typeof selectedBooking.estCompletion === "number"
-      ? `${selectedBooking.estCompletion} Hours`
-      : selectedBooking.estCompletion
-  }
-
-  note={selectedBooking.note}
-
-  onBack={handleCloseDetails}
-/>
-
-        )}
-      </Modal>
+      {selectedBooking && (
+        <AppointmentDetailsModal
+          visible={showDetails}
+          branchName={selectedBooking.branchName}
+          branchAddress={selectedBooking.address}
+          branchImage={require('../../../../assets/images/samplebranch.png')}
+          vehicleName={selectedBooking.vehicleName}
+          plateNumber={selectedBooking.plateNumber}
+          classification={selectedBooking.classification}
+          date={selectedBooking.appointmentDate}
+          time={selectedBooking.time}
+          orderSummary={[
+            ...(selectedBooking.services?.map((s) => ({
+              label: (s?.name ?? 'Service') as string,
+              price: `₱${s?.price ?? '0'}`,
+            })) ?? []),
+            ...(selectedBooking.addOns?.map((a) => ({
+              label: (a?.name ?? 'Add-on') as string,
+              price: `₱${a?.price ?? '0'}`,
+            })) ?? []),
+            { label: 'Booking Fee', price: '₱25' },
+          ]}
+          amountDue={selectedBooking.amount}
+          paymentMethod={selectedBooking.paymentMethod}
+          estimatedCompletion={
+            typeof selectedBooking.estCompletion === "number"
+              ? `${selectedBooking.estCompletion} Hours`
+              : selectedBooking.estCompletion
+          }
+          note={selectedBooking.note}
+          onClose={handleCloseDetails}
+        />
+      )}
     </View>
   );
 }
