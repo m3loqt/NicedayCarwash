@@ -1,6 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
+// Format date from MM-DD-YYYY to "Dec. 6, 2025" format
+const formatDateForHistory = (dateString: string): string => {
+  // Parse MM-DD-YYYY format
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString; // Return as-is if format is unexpected
+  
+  const month = parseInt(parts[0], 10);
+  const day = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+  
+  const monthNames = [
+    'Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.',
+    'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'
+  ];
+  
+  if (month < 1 || month > 12) return dateString;
+  
+  return `${monthNames[month - 1]} ${day}, ${year}`;
+};
+
 interface BookingCardProps {
   id: string;
   branchName: string;
@@ -99,7 +119,7 @@ export default function BookingCard({
         </View>
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Appointment Date</Text>
-          <Text className="text-sm font-bold text-[#1E1E1E]">{appointmentDate}</Text>
+          <Text className="text-sm font-bold text-[#1E1E1E]">{formatDateForHistory(appointmentDate)}</Text>
         </View>
         <View className="flex-1">
           <Text className="text-xs text-gray-500 mb-1">Amount Due</Text>

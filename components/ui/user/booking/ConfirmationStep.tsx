@@ -131,7 +131,7 @@ export default function ConfirmationStep({
   };
 
   const formatDateForPath = (date: Date): string => {
-    // Format as MM-DD-YYYY for database path
+    // Format as MM-DD-YYYY for database path (matches database structure)
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -139,7 +139,7 @@ export default function ConfirmationStep({
   };
 
   const formatDateForDisplay = (date: Date): string => {
-    // Format as MM-DD-YYYY for display
+    // Format as MM-DD-YYYY for appointmentDate field (same as database path)
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -168,8 +168,9 @@ export default function ConfirmationStep({
       // Generate appointment ID (ND-XXXXXX format)
       const appointmentId = generateAppointmentId();
       
-      // Format date for database path (MM-DD-YYYY)
-      const datePath = formatDateForPath(date);
+      // Format creation date for database path (MM-DD-YYYY) - use current date, not appointment date
+      const creationDate = new Date();
+      const datePath = formatDateForPath(creationDate);
       
       // Get classification for price calculation (use vtype ID if available, otherwise classification)
       const classificationForPrice = vehicle.vtype || vehicle.classification?.toLowerCase() || '';
@@ -183,19 +184,20 @@ export default function ConfirmationStep({
       // Get classification name for display/storage (convert vtype to name if needed)
       const classification = vehicle.classification || getClassificationName(vehicle.vtype) || '';
       
-      // Prepare booking data (without appointmentId field since it's the key)
+      // Prepare booking data matching database structure
       const bookingData = {
+        appointmentId: appointmentId,
         branchName: branch.name,
         branchAddress: branch.address || '',
-        branchId: branch.id,
         paymentMethod: paymentMethod || '',
         status: 'pending',
         note: note.trim() || '',
-        amountDue: amountDue.toFixed(2),
+        amountDue: amountDue, // Store as number, not string
         timeSlot: {
           time: timeSlot.time,
           appointmentDate: formatDateForDisplay(date),
-          estCompletion: totalEstimatedTime,
+          available: true,
+          estCompletion: String(totalEstimatedTime), // Database shows as string
         },
         vehicleDetails: {
           vehicleName: vehicle.vname || '',
@@ -203,32 +205,25 @@ export default function ConfirmationStep({
           classification: classification,
         },
         services: services.map(s => ({
-          id: s.id,
           name: s.name,
           price: getPriceForClassification(s, classificationForPrice),
-          estimatedTime: s.estimatedTime || 0,
-          status: 'pending',
+          estimatedTime: String(s.estimatedTime || 0), // Database shows as string
         })),
         addOns: addons.map(a => ({
-          id: a.id,
           name: a.name,
           price: getPriceForClassification(a, classificationForPrice),
-          estimatedTime: a.estimatedTime || 0,
+          estimatedTime: String(a.estimatedTime || 0), // Database shows as string
         })),
-        createdAt: new Date().toISOString(),
       };
 
       // Save to ReservationsByUser/{userId}/{date}/{appointmentId}
-      // Use appointmentId as the key itself, not a field
+      // appointmentId is both the key and included as a field in the data
       const userBookingRef = ref(db, `Reservations/ReservationsByUser/${userId}/${datePath}/${appointmentId}`);
       await set(userBookingRef, bookingData);
 
       // Also save to ReservationsByBranch/{branchId}/{date}/{appointmentId} for admin access
       const branchBookingRef = ref(db, `Reservations/ReservationsByBranch/${branch.id}/${datePath}/${appointmentId}`);
-      await set(branchBookingRef, {
-        ...bookingData,
-        userId,
-      });
+      await set(branchBookingRef, bookingData);
 
       setSubmitting(false);
       onDone?.();
@@ -247,15 +242,17 @@ export default function ConfirmationStep({
     return `₱ ${value.toFixed(2)}`;
   };
 
+  // Use the same classification logic as in handleConfirm for consistency
+  const classificationForPrice = vehicle?.vtype || vehicle?.classification?.toLowerCase() || '';
   const bookingFee = 25.00;
   const orderSummary = [
     ...services.map((s) => ({
       label: s.name,
-      price: getPriceForClassification(s, vehicle?.classification),
+      price: getPriceForClassification(s, classificationForPrice),
     })),
     ...addons.map((a) => ({
       label: a.name,
-      price: getPriceForClassification(a, vehicle?.classification),
+      price: getPriceForClassification(a, classificationForPrice),
     })),
     {
       label: 'Booking Fee',

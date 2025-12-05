@@ -189,7 +189,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               label: (a?.name ?? 'Add-on') as string,
               price: `₱${a?.price ?? '0'}`,
             })) ?? []),
-            { label: 'Booking Fee', price: '₱20' },
+            { label: 'Booking Fee', price: '₱25' },
           ]}
           amountDue={selectedBooking.amount}
           paymentMethod={selectedBooking.paymentMethod}
