@@ -1,11 +1,15 @@
+import { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AddOns from "../../../components/ui/admin/services/AddOns";
+import AddTimeSlotModal from "../../../components/ui/admin/services/AddTimeSlotModal";
 import Bays from "../../../components/ui/admin/services/Bays";
 import Services from "../../../components/ui/admin/services/Services";
 import TimeSlots from "../../../components/ui/admin/services/TimeSlot";
 
 export default function AdminServicesScreen() {
+  const [timeModalVisible, setTimeModalVisible] = useState(false);
+
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       {/* Header */}
@@ -46,10 +50,12 @@ export default function AdminServicesScreen() {
             <Text className="text-2xl font-semibold text-gray-900">
               Time Slots
             </Text>
-            <TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setTimeModalVisible(true)}>
               <Text className="text-[#F9EF08] font-medium">Add Time Slot</Text>
             </TouchableOpacity>
           </View>
+
           <TimeSlots />
         </View>
 
@@ -66,6 +72,16 @@ export default function AdminServicesScreen() {
           <Bays />
         </View>
       </ScrollView>
+
+       {/* MODAL */}
+      <AddTimeSlotModal
+        visible={timeModalVisible}
+        onClose={() => setTimeModalVisible(false)}
+        onAdd={(start, end) => {
+          console.log("New Time Slot:", start, "to", end);
+          setTimeModalVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
