@@ -1,0 +1,111 @@
+# Dependencies
+node_modules/
+
+# Expo Build Artifacts
+.expo/
+dist/
+web-build/
+.expo-shared/
+
+# Generated Files
+expo-env.d.ts
+*.tsbuildinfo
+.expo/types/
+
+# Native Build Folders
+/ios
+/android
+.kotlin/
+
+# Metro Bundler
+.metro-health-check*
+.metro/
+
+# Log Files
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+lerna-debug.log*
+*.log
+
+# Security & Certificate Files
+*.key
+*.p8
+*.p12
+*.jks
+*.mobileprovision
+*.pem
+*.orig.*
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Local Environment Files
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Example/Test Directories
+app-example/
+
+# Build Outputs
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# Coverage Reports
+coverage/
+*.lcov
+.nyc_output/
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Temporary Files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Package Manager Files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript
+*.tsbuildinfo
+
+# React Native
+.react-native/
+*.jks
+*.keystore
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Testing
+.jest/
+coverage/
+

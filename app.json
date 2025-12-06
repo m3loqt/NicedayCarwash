@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "NicedayCarwas",
-    "slug": "NicedayCarwas",
+    "name": "NicedayCarwash",
+    "slug": "NicedayCarwash",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/nd_appicon.png",
-    "scheme": "nicedaycarwas",
+    "scheme": "nicedaycarwash",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -35,6 +35,12 @@
           "dark": {
             "backgroundColor": "#F9EF08"
           }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow NicedayCarwash to use your location to show nearby branches."
         }
       ]
     ],

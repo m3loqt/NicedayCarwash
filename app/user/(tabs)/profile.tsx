@@ -69,15 +69,16 @@ export default function UserProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="white" />
       
       {/* Header */}
       <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200">
         <TouchableOpacity className="p-2 rounded-full border border-gray-300">
-          <Ionicons name="arrow-back" size={24} color="black" />
+          <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold text-gray-900">Account</Text>
+        <Text className="flex-1 text-center text-xl font-bold text-[#1E1E1E]">Account</Text>
         <View className="w-8" />
       </View>
 
@@ -99,7 +100,7 @@ export default function UserProfileScreen() {
             )}
           </View>
           <View className="flex flex-col">
-            <Text className="text-xl font-bold text-gray-900">
+            <Text className="text-xl font-bold text-[#1E1E1E]">
               {user ? `${user.firstName} ${user.lastName}` : 'Loading...'}
             </Text>
             <Text className="text-sm text-gray-500">
@@ -120,9 +121,10 @@ export default function UserProfileScreen() {
         className="bg-white rounded-lg mx-4 mt-4 p-4 flex flex-row items-center"
         onPress={handleSignOut}
       >
-        <Ionicons name="log-out" size={24} color="black" className="mr-3" />
-        <Text className="text-lg text-gray-900">Sign Out</Text>
+        <Ionicons name="log-out" size={24} color="#1E1E1E" className="mr-3" />
+        <Text className="text-lg text-[#1E1E1E]">Sign Out</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }

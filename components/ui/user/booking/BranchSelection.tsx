@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -6,12 +7,16 @@ import {
   Platform,
   Text,
   TextInput,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import BookingFlow from './BookingFlow';
 import BranchDetailsModal from './BranchDetailsModal';
+
+// Verify expo-location is available
+if (!Location) {
+  console.error('expo-location module failed to load');
+}
 
 
 const { height } = Dimensions.get('window');
@@ -37,31 +42,44 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
   const [bookingBranch, setBookingBranch] = useState<Branch | null>(null);
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const mapRef = useRef(null);
 
   // helper: get current device location (wrap in promise)
-  const getCurrentLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
-    return new Promise((resolve) => {
-      try {
-        // Use the React Native geolocation API
-        // Note: app must have location permission set up in native/Expo config
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const coords = pos.coords;
-            resolve({ latitude: coords.latitude, longitude: coords.longitude });
-          },
-          (err) => {
-            console.warn('Failed to get device location:', err.message);
-            resolve(null);
-          },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
-        );
-      } catch (e) {
-        console.warn('Geolocation not available', e);
-        resolve(null);
+  const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
+    try {
+      // Check if Location module is available
+      if (!Location || !Location.requestForegroundPermissionsAsync) {
+        console.warn('expo-location module not available');
+        return null;
       }
-    });
+
+      // Request location permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.warn('Location permission not granted');
+        return null;
+      }
+
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      if (!location || !location.coords) {
+        console.warn('Location data invalid');
+        return null;
+      }
+
+      return {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+    } catch (e) {
+      console.warn('Failed to get device location:', e);
+      return null;
+    }
   };
 
   // haversine distance in meters
@@ -135,6 +153,8 @@ const handleSearch = (q: string) => {
   let unsub = () => {};
   (async () => {
     const userLoc = await getCurrentLocation();
+    console.log('Initial user location fetched:', userLoc);
+    setUserLocation(userLoc); // Store user location in state
 
     const unsubscribe = onValue(branchesRef, snapshot => {
       const list: Branch[] = [];
@@ -191,16 +211,10 @@ const handleSearch = (q: string) => {
 
       {/* Header */}
       <View
-        className="flex-row items-center justify-between px-4 pb-4 mt-4 bg-[#F8F8F8] border-b border-[#E0E0E0]"
+        className="flex-row items-center justify-center px-4 pb-4 mt-4 bg-[#F8F8F8] border-b border-[#E0E0E0]"
         style={{ paddingTop: Platform.OS === 'ios' ? 50 : 20 }}
       >
-        <TouchableOpacity className="p-2">
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-
         <Text className="text-lg font-semibold text-[#333]">Choose a Branch</Text>
-
-        <View className="w-10" />
       </View>
 
       {/* Map */}
@@ -225,15 +239,42 @@ const handleSearch = (q: string) => {
             <Marker
               key={branch.id}
               coordinate={{ latitude: lat, longitude: lng }}
-              onPress={() => {
+              onPress={async () => {
                 if (!isFinite(lat) || !isFinite(lng)) {
                   console.warn('Marker pressed but coords invalid for', branch.id);
                   return;
                 }
                 try {
                   console.log('Marker pressed:', branch.id);
-                  setSelectedBranch(branch);
-                  if (onBranchSelect) onBranchSelect(branch);
+                  // Recalculate distance using current user location
+                  const currentUserLoc = userLocation || await getCurrentLocation();
+                  console.log('Current user location:', currentUserLoc);
+                  console.log('Branch coordinates:', { lat, lng });
+                  
+                  if (currentUserLoc) {
+                    setUserLocation(currentUserLoc); // Update stored location
+                    const distanceMeters = haversineMeters(
+                      currentUserLoc.latitude,
+                      currentUserLoc.longitude,
+                      lat,
+                      lng
+                    );
+                    console.log('Calculated distance (meters):', distanceMeters);
+                    const distanceText = formatDistance(distanceMeters);
+                    console.log('Formatted distance:', distanceText);
+                    
+                    const updatedBranch = {
+                      ...branch,
+                      distance: distanceText,
+                    };
+                    setSelectedBranch(updatedBranch);
+                    if (onBranchSelect) onBranchSelect(updatedBranch);
+                  } else {
+                    console.warn('Location unavailable, using branch distance as-is:', branch.distance);
+                    // If location unavailable, use branch as-is
+                    setSelectedBranch(branch);
+                    if (onBranchSelect) onBranchSelect(branch);
+                  }
                 } catch (err) {
                   console.error('Error handling marker press', err);
                 }

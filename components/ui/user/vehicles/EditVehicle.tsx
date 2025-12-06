@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Modal,
   ScrollView,
   Text,
   TextInput,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
+import VehicleClassificationModal from './modals/VehicleClassificationModal';
 
 interface VehicleClassification {
   id: string;
@@ -162,7 +162,7 @@ export default function EditVehicle() {
             <Ionicons name="arrow-back" size={24} color="#666" />
           </TouchableOpacity>
 
-          <Text className="text-xl font-bold text-gray-900">Edit Vehicle</Text>
+          <Text className="text-xl font-bold text-[#1E1E1E]">Edit Vehicle</Text>
 
           <View className="w-10" />
         </View>
@@ -193,48 +193,15 @@ export default function EditVehicle() {
           </TouchableOpacity>
 
           {/* Dropdown Modal */}
-          <Modal
+          <VehicleClassificationModal
             visible={showClassificationModal}
-            transparent={true}
-            animationType="none"
-            onRequestClose={() => setShowClassificationModal(false)}
-          >
-            <TouchableOpacity
-              className="flex-1"
-              activeOpacity={1}
-              onPress={() => setShowClassificationModal(false)}
-            >
-              <TouchableOpacity
-                activeOpacity={1}
-                onPress={(e) => e.stopPropagation()}
-                className="absolute left-6 right-6 bg-white rounded-xl shadow-lg border border-gray-200 mt-2"
-                style={{ top: 185 }}
-              >
-                <ScrollView scrollEnabled={vehicleClassifications.length > 5} nestedScrollEnabled={true}>
-                  {vehicleClassifications.map((classification, index) => (
-                    <TouchableOpacity
-                      key={classification.id}
-                      className={`flex-row items-center p-4 ${index < vehicleClassifications.length - 1 ? 'border-b border-gray-200' : ''}`}
-                      onPress={() => handleClassificationSelect(classification)}
-                    >
-                      <Image
-                        source={getVehicleIcon(classification.id)}
-                        className="w-8 h-8 mr-4"
-                        resizeMode="contain"
-                      />
-                      <View className="flex-1">
-                        <Text className="text-lg font-semibold text-gray-800">{classification.name}</Text>
-                        <Text className="text-sm text-gray-500 mt-1">{classification.examples || classification.details}</Text>
-                      </View>
-                      {selectedClassification?.id === classification.id && (
-                        <Ionicons name="checkmark" size={24} color="#F9EF08" />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          </Modal>
+            classifications={vehicleClassifications}
+            selectedClassification={selectedClassification}
+            getVehicleIcon={getVehicleIcon}
+            onSelect={handleClassificationSelect}
+            onClose={() => setShowClassificationModal(false)}
+            topPosition={185}
+          />
         </View>
 
         {/* VEHICLE NAME */}
