@@ -46,7 +46,7 @@ export default function AdminTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="customers"
+        name="services"
         options={{
           title: 'Services',
           tabBarIcon: ({ focused }) => (
