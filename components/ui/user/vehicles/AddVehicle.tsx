@@ -4,14 +4,14 @@ import { getAuth } from "firebase/auth";
 import { get, getDatabase, ref, set } from "firebase/database";
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
@@ -78,14 +78,14 @@ export default function AddVehicle() {
       const normalizedPlate = plateNumber.toUpperCase();
       const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${normalizedPlate}`);
 
-      // 🔒 Check if the plate number already exists
+      // Verify plate number doesn't already exist
       const snapshot = await get(vehicleRef);
       if (snapshot.exists()) {
         Alert.alert("Error", `Vehicle with plate number ${normalizedPlate} already exists.`);
         return;
       }
 
-      // ✅ Save vehicle using plate number as key
+      // Store vehicle data with plate number as the key
       await set(vehicleRef, {
         vname: vehicleName,
         vplateNumber: normalizedPlate,

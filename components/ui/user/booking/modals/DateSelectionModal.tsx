@@ -29,7 +29,7 @@ export default function DateSelectionModal({
   loadBranchSchedule,
   onUnavailableDate,
 }: DateSelectionModalProps) {
-  // Calendar helper functions
+  // Calendar utility functions
   const getMonthName = (date: Date): string => {
     const months = [
       "January", "February", "March", "April", "May", "June",
@@ -42,32 +42,32 @@ export default function DateSelectionModal({
     const year = date.getFullYear();
     const month = date.getMonth();
     
-    // First day of the month
+    // Calculate first and last day of the month
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     
-    // Day of week for first day (0 = Sunday, 6 = Saturday)
+    // Get weekday index of first day (0 = Sunday, 6 = Saturday)
     const startDayOfWeek = firstDay.getDay();
     
-    // Days in the month
+    // Count total days in the month
     const daysInMonth = lastDay.getDate();
     
-    // Previous month's last days
+    // Get last day number of previous month
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     
     const days: (Date | null)[] = [];
     
-    // Add previous month's trailing days
+    // Prepend previous month's trailing days to align first day with correct weekday
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       days.push(new Date(year, month - 1, prevMonthLastDay - i));
     }
     
-    // Add current month's days
+    // Add all days of the current month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
     
-    // Add next month's leading days to fill the grid (6 rows x 7 days = 42)
+    // Append next month's leading days to complete 42-day grid (6 weeks x 7 days)
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
       days.push(new Date(year, month + 1, i));
@@ -170,7 +170,7 @@ export default function DateSelectionModal({
                         className="flex-1 items-center justify-center py-2"
                         onPress={async () => {
                           if (isSelectable) {
-                            // If selecting same day, reload schedule to check availability
+                            // Reload schedule when selecting the same day to verify current availability
                             const isSelectingSameDay = isSameDay(date, selectedDate);
                             let currentSchedule = branchSchedule;
                             
@@ -178,16 +178,16 @@ export default function DateSelectionModal({
                               currentSchedule = await loadBranchSchedule();
                             }
                             
-                            // Check if date is available based on schedule
+                            // Verify selected date is within branch operating schedule
                             const availability = checkDateAvailability(date, currentSchedule || undefined);
                             
                             if (!availability.available) {
-                              // Show unavailable modal but keep calendar open
+                              // Display unavailability message without closing calendar
                               onUnavailableDate(availability.reason);
                               return;
                             }
                             
-                            // Date is available, proceed with selection
+                            // Date is valid, confirm selection and close modal
                             onDateSelect(date);
                             onClose();
                           }

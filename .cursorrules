@@ -22,6 +22,10 @@ app/                    # File-based routes (expo-router)
     └── (tabs)/        # User tab navigation
 components/            # Reusable components
 └── ui/                # UI components organized by feature
+    ├── admin/         # Admin-facing widgets (dashboard, profile, appointments, etc.)
+    │   ├── dashboard/ # Dashboard components (headers, cards, notifications)
+    │   ├── profile/   # Admin profile components (account info, transaction summary)
+    │   └── appointments/ # Admin appointments components (header, tabs, search, cards, list)
     └── user/          # User-facing widgets (booking, history, vehicles, etc.)
 constants/             # App constants (theme, colors, fonts)
 hooks/                 # Custom React hooks
@@ -50,9 +54,14 @@ firebase/              # Firebase configuration
 
 ## Component Organization
 
-- **Feature-based structure**: Organize UI components by feature in `components/ui/user/*`
-  - Examples: `booking/`, `history/`, `home/`, `profile/`, `vehicles/`
+- **Feature-based structure**: Organize UI components by feature in `components/ui/user/*` and `components/ui/admin/*`
+  - User examples: `booking/`, `history/`, `home/`, `profile/`, `vehicles/`
+  - Admin examples: `dashboard/`, `profile/`, `appointments/`
 - **Mirror pattern**: When adding new features, follow the existing feature-based organization
+  - Admin profile components mirror user profile structure: `components/ui/admin/profile/`
+  - Admin profile includes: `TransactionSummaryCard`, `AdminAccountInfo`
+  - Admin appointments components mirror user history structure: `components/ui/admin/appointments/`
+  - Admin appointments includes: `AppointmentsHeader`, `AppointmentsTabs`, `AppointmentsSearchBar`, `AppointmentCard`, `AppointmentsList`
 - **Reusable components**: Place shared components in `components/` root
 - **Component naming**: Use PascalCase for component files and exports
 
@@ -112,6 +121,13 @@ firebase/              # Firebase configuration
 - `package.json` - Scripts and dependencies
 - `app/_layout.tsx` - Global ThemeProvider, splash handling, NativeWind initialization
 - `app/admin/_layout.tsx`, `app/user/_layout.tsx` - Per-area navigation stacks
+- `app/admin/(tabs)/settings.tsx` - Admin account/profile screen (uses modular profile components)
+- `app/admin/(tabs)/bookings.tsx` - Admin appointments/bookings screen (uses modular appointments components)
+- `app/user/(tabs)/profile.tsx` - User account/profile screen
+- `app/user/(tabs)/history.tsx` - User appointments/history screen
+- `components/ui/admin/profile/` - Modular admin profile components (TransactionSummaryCard, AdminAccountInfo)
+- `components/ui/admin/appointments/` - Modular admin appointments components (Header, Tabs, SearchBar, Card, List)
+- `components/ui/user/profile/` - Modular user profile components (EditProfile)
 - `tailwind.config.js` - NativeWind/Tailwind configuration
 - `global.css` - Global Tailwind styles
 - `tsconfig.json` - TypeScript configuration

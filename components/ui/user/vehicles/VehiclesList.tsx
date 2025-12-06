@@ -25,7 +25,7 @@ export default function VehiclesList() {
     const db = getDatabase();
     const vehicleRef = ref(db, `users/${userId}/Vehicle Information`);
 
-    // Exactly like Kotlin addValueEventListener
+    // Subscribe to real-time vehicle data changes
     const unsubscribe = onValue(vehicleRef, (snapshot) => {
       const list: VehicleProfile[] = [];
 
@@ -74,9 +74,9 @@ const handleDelete = (plateNumber: string) => {
             const db = getDatabase();
             const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${plateNumber}`);
 
-            await remove(vehicleRef); // remove vehicle from Firebase
+            await remove(vehicleRef);
 
-            // Update local state
+            // Remove deleted vehicle from local state
             setVehicles(prev => prev.filter(v => v.vplateNumber !== plateNumber));
 
             setShowDeleteSuccess(true);

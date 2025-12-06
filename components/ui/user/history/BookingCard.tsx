@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
-// Format date from MM-DD-YYYY to "Dec. 6, 2025" format
+// Convert MM-DD-YYYY date string to abbreviated format (e.g., "Dec. 6, 2025")
 const formatDateForHistory = (dateString: string): string => {
-  // Parse MM-DD-YYYY format
+  // Split date string into month, day, and year components
   const parts = dateString.split('-');
   if (parts.length !== 3) return dateString; // Return as-is if format is unexpected
   
