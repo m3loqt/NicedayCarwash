@@ -2,8 +2,8 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 import BookingCard from './BookingCard';
+import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 
 interface Booking {
   id: string;
@@ -19,7 +19,7 @@ interface Booking {
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
-  // New fields from DB
+  // Additional booking details from database
   addOns?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number }>;
   services?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number; status?: string }>;
   estCompletion?: string | number;
@@ -56,7 +56,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
         dateSnap.forEach((bookingSnap) => {
           const data = bookingSnap.val();
           if (data && data.status === activeTab) {
-            // normalize addOns (may be null, array, or object with numeric keys)
+            // Convert addOns to array format (handles null, array, or object with numeric keys)
             const addOnsObj = data.addOns;
             let addOns: any[] = [];
             if (Array.isArray(addOnsObj)) {
@@ -65,7 +65,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
             }
 
-            // normalize services (may be null, array, or object with numeric keys)
+            // Convert services to array format (handles null, array, or object with numeric keys)
             const servicesObj = data.services;
             let services: any[] = [];
             if (Array.isArray(servicesObj)) {
@@ -74,10 +74,10 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               services = Object.keys(servicesObj).map((k) => servicesObj[k]);
             }
 
-            // estCompletion pulled from timeSlot
+            // Extract estimated completion time from timeSlot object
             const estCompletion = data.timeSlot?.estCompletion ?? null;
 
-            // appointmentId is now the key itself (ND-XXXXXX format)
+            // Use Firebase snapshot key as appointment ID (ND-XXXXXX format)
             const appointmentId = bookingSnap.key || '';
             
             list.push({

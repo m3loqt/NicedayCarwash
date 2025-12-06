@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Image,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import DateSelectionModal from "./modals/DateSelectionModal";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
@@ -87,10 +87,9 @@ export default function ServicesStep({
       );
       if (snapshot.exists()) {
         const profile = snapshot.val();
-        // Parse schedule - assuming format like "8:00 AM - 6:00 PM" or similar
+        // Extract open and close times from schedule string (format: "8:00 AM - 6:00 PM")
         const schedule = profile.schedule || "";
-        // Extract open and close times from schedule string
-        // This is a basic parser - adjust based on actual format
+        // Parse schedule string using regex to extract time components
         const timeMatch = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
         let scheduleData: { openTime: string; closeTime: string };
         if (timeMatch) {
@@ -99,7 +98,7 @@ export default function ServicesStep({
             closeTime: `${timeMatch[4]}:${timeMatch[5]} ${timeMatch[6]}`
           };
         } else {
-          // Default schedule if parsing fails
+          // Fallback to default hours when schedule format is invalid
           scheduleData = { openTime: "8:00 AM", closeTime: "6:00 PM" };
         }
         setBranchSchedule(scheduleData);
@@ -107,7 +106,7 @@ export default function ServicesStep({
       }
     } catch (err) {
       console.error("Failed to load branch schedule:", err);
-      // Default schedule on error
+      // Return default schedule when loading fails
       const defaultSchedule = { openTime: "8:00 AM", closeTime: "6:00 PM" };
       setBranchSchedule(defaultSchedule);
       return defaultSchedule;
@@ -115,7 +114,7 @@ export default function ServicesStep({
     return null;
   };
 
-  // ------------------ Firebase Loaders ------------------
+  // Load data from Firebase
   const loadServices = async () => {
     try {
       const snapshot = await get(
@@ -165,7 +164,7 @@ export default function ServicesStep({
   };
 
   const parseTimeTo24Hour = (timeStr: string): number => {
-    // Parse "8:00 AM" or "6:00 PM" to 24-hour format (0-23)
+    // Convert 12-hour time string to 24-hour integer (0-23)
     const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
     if (!match) return 8; // Default to 8 AM
     
@@ -193,14 +192,14 @@ export default function ServicesStep({
     selectedDateOnly.setHours(0, 0, 0, 0);
     const isToday = selectedDateOnly.getTime() === today.getTime();
     
-    // Get current hour if selecting today
+    // Use current hour for today's date, otherwise use 0
     const currentHour = isToday ? new Date().getHours() : 0;
     
-    // Get branch schedule hours
+    // Convert schedule times to 24-hour format
     const openHour = parseTimeTo24Hour(scheduleToUse.openTime);
     const closeHour = parseTimeTo24Hour(scheduleToUse.closeTime);
     
-    // Check if store is already closed today
+    // Reject dates when store is already closed today
     if (isToday && currentHour >= closeHour) {
       return {
         available: false,
@@ -208,7 +207,7 @@ export default function ServicesStep({
       };
     }
     
-    // Check if there are any available time slots
+    // Verify schedule has valid time range with available slots
     let hasAvailableSlots = false;
     for (let h = openHour; h < closeHour; h++) {
       if (isToday && h <= currentHour) {
@@ -235,17 +234,17 @@ export default function ServicesStep({
     selectedDateOnly.setHours(0, 0, 0, 0);
     const isToday = selectedDateOnly.getTime() === today.getTime();
     
-    // Get current hour if selecting today
+    // Use current hour for today, otherwise start from 0
     const currentHour = isToday ? new Date().getHours() : 0;
     
-    // Get branch schedule hours
+    // Convert schedule to 24-hour format (default to 8 AM - 6 PM if missing)
     const openHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.openTime) : 8;
     const closeHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.closeTime) : 18;
     
-    // Generate time slots from open to close hour
+    // Create hourly time slots between open and close hours
     const slots: TimeSlot[] = [];
     for (let h = openHour; h < closeHour; h++) {
-      // If today, only show future hours
+      // Skip past hours when selecting today's date
       if (isToday && h <= currentHour) {
         continue;
       }
@@ -259,13 +258,13 @@ export default function ServicesStep({
     }
     
     setTimeSlots(slots);
-    // Reset selected time slot if it's no longer available
+    // Clear selected time slot if it's not in the available slots
     if (selectedTimeSlot && !slots.find(s => s.time === selectedTimeSlot.time)) {
       setSelectedTimeSlot(null);
     }
   };
 
-  // ------------------ Helpers ------------------
+  // Price and formatting utilities
   const getPriceForClassification = (service: Service) => {
     switch (selectedVehicle.classification) {
       case "Sedan":
@@ -297,7 +296,7 @@ export default function ServicesStep({
       : setSelectedAddons([...selectedAddons, a]);
   };
 
-  // Format date as "Dec. 7, 2025"
+  // Convert Date object to abbreviated format (e.g., "Dec. 7, 2025")
   const formatDate = (date: Date): string => {
     const months = [
       "Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
@@ -321,7 +320,7 @@ export default function ServicesStep({
     });
   };
 
-  // ------------------ Confirm Booking ------------------
+  // Validate selections and proceed to confirmation step
   const handleNext = () => {
     if (!selectedServices.length || !selectedTimeSlot) {
       Alert.alert("Error", "Please select a service and time slot");

@@ -44,8 +44,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const [currentStep, setCurrentStep] = useState(0);
 
   const handleSkip = () => {
-    // TODO: Mark onboarding as completed in storage
-    // Call the completion handler instead of navigating
+    // Trigger completion callback (onboarding completion storage handled by parent)
     if (onComplete) {
       onComplete();
     }
@@ -55,8 +54,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     if (currentStep < onboardingSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // TODO: Mark onboarding as completed in storage
-      // Call the completion handler instead of navigating
+      // Trigger completion callback when reaching final step (onboarding completion storage handled by parent)
       if (onComplete) {
         onComplete();
       }

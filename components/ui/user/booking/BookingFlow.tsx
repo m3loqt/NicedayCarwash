@@ -31,13 +31,18 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
 
+  // Exit early if no branch is provided
+  if (!branch) {
+    return null;
+  }
+
 const handleNext = (data?: any) => {
   if (step === 1 && !selectedVehicle) {
     Alert.alert('Select Vehicle', 'Please select or add a vehicle before continuing.');
     return;
   }
 
-  // Step 2: Save ServicesStep selections and advance to confirmation
+  // Capture service selections from step 2 and move to confirmation step
   if (step === 2) {
     if (data) {
       setSelectedServices(data.services ?? []);
@@ -142,15 +147,15 @@ const handleNext = (data?: any) => {
         }}
       />
 
-      {step === 2 && (
+      {step === 2 && branch && (
         <ServicesStep
-          branchId={branch?.id ?? ''}
+          branchId={branch.id}
           selectedVehicle={selectedVehicle}
           onNext={handleNext}
         />
       )}
 
-      {step === 3 && branch && (
+      {step === 3 && (
         <ConfirmationStep
           branch={branch}
           vehicle={selectedVehicle}

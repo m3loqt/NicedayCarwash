@@ -3,17 +3,17 @@ import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Dimensions,
-  Platform,
-  Text,
-  TextInput,
-  View
+    Dimensions,
+    Platform,
+    Text,
+    TextInput,
+    View
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import BookingFlow from './BookingFlow';
 import BranchDetailsModal from './BranchDetailsModal';
 
-// Verify expo-location is available
+// Ensure expo-location module is loaded before using location features
 if (!Location) {
   console.error('expo-location module failed to load');
 }
@@ -46,23 +46,23 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
 
   const mapRef = useRef(null);
 
-  // helper: get current device location (wrap in promise)
+  // Retrieve device's current GPS coordinates
   const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
     try {
-      // Check if Location module is available
+      // Verify expo-location module is available
       if (!Location || !Location.requestForegroundPermissionsAsync) {
         console.warn('expo-location module not available');
         return null;
       }
 
-      // Request location permissions
+      // Request foreground location permission from user
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.warn('Location permission not granted');
         return null;
       }
 
-      // Get current location
+      // Fetch current device coordinates
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
@@ -82,7 +82,7 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
     }
   };
 
-  // haversine distance in meters
+  // Calculate distance between two coordinates using Haversine formula (returns meters)
   const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const toRad = (x: number) => (x * Math.PI) / 180;
     const R = 6371000; // Earth radius in meters
@@ -149,12 +149,12 @@ const handleSearch = (q: string) => {
   useEffect(() => {
   const db = getDatabase();
   const branchesRef = ref(db, 'Branches');
-  // get device location once, then subscribe to branches and compute distances
+  // Fetch user location once, then subscribe to branch updates and calculate distances
   let unsub = () => {};
   (async () => {
     const userLoc = await getCurrentLocation();
     console.log('Initial user location fetched:', userLoc);
-    setUserLocation(userLoc); // Store user location in state
+    setUserLocation(userLoc);
 
     const unsubscribe = onValue(branchesRef, snapshot => {
       const list: Branch[] = [];
@@ -164,17 +164,17 @@ const handleSearch = (q: string) => {
         const profile = branchSnap.child('profile').val();
 
         if (profile) {
-          // Coerce latitude/longitude to numbers and validate
+          // Convert coordinates to numbers and validate they are finite
           const lat = Number(profile.latitude);
           const lng = Number(profile.longitude);
 
           if (!isFinite(lat) || !isFinite(lng)) {
-            // skip branches with invalid coordinates; helps avoid AIRMapMarker errors
+            // Skip branches with invalid coordinates to prevent map rendering errors
             console.warn(`Skipping branch ${branchId} due to invalid coordinates:`, profile.latitude, profile.longitude);
             return;
           }
 
-          // compute distance from user location (if available)
+          // Calculate distance from user's location to branch (0 if location unavailable)
           const distanceMeters = userLoc ? haversineMeters(userLoc.latitude, userLoc.longitude, lat, lng) : 0;
           const distanceText = userLoc ? formatDistance(distanceMeters) : '0 km';
 
@@ -320,17 +320,22 @@ const handleSearch = (q: string) => {
         branch={selectedBranch}
         onClose={() => setSelectedBranch(null)}
         onMakeOrder={() => {
-          // close details modal and open booking flow
-          setBookingBranch(selectedBranch);
-          setSelectedBranch(null);
-          setShowBookingFlow(true);
+          // Dismiss branch details modal and initiate booking flow
+          if (selectedBranch) {
+            setBookingBranch(selectedBranch);
+            setSelectedBranch(null);
+            setShowBookingFlow(true);
+          }
         }}
       />
 
-      {showBookingFlow && (
+      {showBookingFlow && bookingBranch && (
         <BookingFlow
           branch={bookingBranch}
-          onClose={() => setShowBookingFlow(false)}
+          onClose={() => {
+            setShowBookingFlow(false);
+            setBookingBranch(null);
+          }}
         />
       )}
     </View>
