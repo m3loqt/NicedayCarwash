@@ -47,7 +47,6 @@ export default function ConfirmationStep({
   dateTime,
   paymentMethod,
   note,
-  onBack,
   onDone,
 }: ConfirmationStepProps) {
   const [submitting, setSubmitting] = React.useState(false);

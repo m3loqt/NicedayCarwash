@@ -36,6 +36,8 @@ const handleNext = (data?: any) => {
 
   // Step 2: Save ServicesStep selections
   if (step === 2 && data) {
+    console.log('ServicesStep data received:', data);
+    
     setSelectedServices(data.services ?? []);
     setSelectedAddons(data.addons ?? []);
     setDateTime(data.date ? `${data.date.toLocaleDateString()} - ${data.timeSlot?.time}` : null);
