@@ -1,8 +1,8 @@
 import {
-    AdminDashboardHeader,
-    ManageServicesCard,
-    NotificationsList,
-    TransactionSummaryCards,
+  AdminDashboardHeader,
+  ManageServicesCard,
+  NotificationsList,
+  TransactionSummaryCards,
 } from '@/components/ui/admin/dashboard';
 import { auth, db } from '@/firebase/firebase';
 import { get, onValue, ref } from 'firebase/database';
@@ -33,6 +33,39 @@ interface TransactionCounts {
   completed: number;
   cancelled: number;
 }
+
+// Parse appointment date and time to a Date object
+// appointmentDate format: "MM-DD-YYYY"
+// time format: "H:00 AM/PM" or "HH:00 AM/PM"
+const parseAppointmentDateTime = (appointmentDate: string, time: string): Date => {
+  try {
+    // Parse date: MM-DD-YYYY
+    const [month, day, year] = appointmentDate.split('-').map(Number);
+    
+    // Parse time: "H:00 AM/PM" or "HH:00 AM/PM"
+    const timeMatch = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!timeMatch) {
+      throw new Error('Invalid time format');
+    }
+    
+    let hours = parseInt(timeMatch[1], 10);
+    const minutes = parseInt(timeMatch[2], 10);
+    const meridiem = timeMatch[3].toUpperCase();
+    
+    // Convert to 24-hour format
+    if (meridiem === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (meridiem === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return new Date(year, month - 1, day, hours, minutes);
+  } catch (error) {
+    // Fallback: return current date if parsing fails
+    console.error('Error parsing appointment date/time:', error);
+    return new Date();
+  }
+};
 
 export default function AdminDashboardScreen() {
   const [transactionCounts, setTransactionCounts] = useState<TransactionCounts>({
@@ -128,8 +161,8 @@ export default function AdminDashboardScreen() {
       const pending = bookings
         .filter((b) => b.status === 'pending')
         .sort((a, b) => {
-          const dateA = new Date(`${a.timeSlot.appointmentDate} ${a.timeSlot.time}`);
-          const dateB = new Date(`${b.timeSlot.appointmentDate} ${b.timeSlot.time}`);
+          const dateA = parseAppointmentDateTime(a.timeSlot.appointmentDate, a.timeSlot.time);
+          const dateB = parseAppointmentDateTime(b.timeSlot.appointmentDate, b.timeSlot.time);
           return dateB.getTime() - dateA.getTime();
         })
         .slice(0, 10);
