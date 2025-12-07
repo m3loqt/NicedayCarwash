@@ -57,6 +57,7 @@ interface AppointmentCardProps {
   status: 'pending' | 'ongoing' | 'completed' | 'cancelled';
   onAccept?: () => void;
   onCancel?: () => void;
+  onComplete?: () => void;
   onViewMore?: () => void;
 }
 
@@ -70,6 +71,7 @@ export default function AppointmentCard({
   status,
   onAccept,
   onCancel,
+  onComplete,
   onViewMore,
 }: AppointmentCardProps) {
   const formattedDate = formatDate(date);
@@ -110,7 +112,7 @@ export default function AppointmentCard({
         </View>
       </View>
 
-      {/* Action Buttons and View More - Only show buttons for pending status */}
+      {/* Action Buttons and View More - Show buttons for pending and ongoing status */}
       {status === 'pending' ? (
         <View className="flex-row items-center gap-3">
           <TouchableOpacity
@@ -118,6 +120,24 @@ export default function AppointmentCard({
             onPress={onAccept}
           >
             <Text className="text-white font-semibold">Accept</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 border border-[#F9EF08] rounded-md py-3 items-center bg-white"
+            onPress={onCancel}
+          >
+            <Text className="text-[#F9EF08] font-semibold">Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onViewMore}>
+            <Text className="text-sm text-gray-700 underline">View More</Text>
+          </TouchableOpacity>
+        </View>
+      ) : status === 'ongoing' ? (
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity
+            className="flex-1 bg-[#F9EF08] rounded-md py-3 items-center"
+            onPress={onComplete}
+          >
+            <Text className="text-white font-semibold">Complete</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="flex-1 border border-[#F9EF08] rounded-md py-3 items-center bg-white"

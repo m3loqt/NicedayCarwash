@@ -1,4 +1,5 @@
 import { SelectBayModal, type Bay } from '@/components/ui/admin/dashboard';
+import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
 import { get, onValue, ref, set, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
@@ -6,6 +7,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import AppointmentCard from './AppointmentCard';
 import CancelReasonModal, { CancelReason } from './CancelReasonModal';
 import CompleteConfirmationModal from './CompleteConfirmationModal';
+import SuccessModal from './SuccessModal';
 
 interface Booking {
   appointmentId: string;
@@ -25,12 +27,37 @@ interface Booking {
   amountDue: number;
   key: string; // Firebase key for updates
   dateKey: string; // Date key in Firebase structure
+  // Additional booking details from database
+  addOns?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number }>;
+  services?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number; status?: string }>;
+  paymentMethod?: string;
+  note?: string;
 }
 
 interface AppointmentsListProps {
   activeTab: string;
   searchQuery: string;
 }
+
+// Format date from MM-DD-YYYY to "December 6, 2025" format
+const formatDateForDisplay = (dateString?: string): string => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString;
+  
+  const month = parseInt(parts[0], 10);
+  const day = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+  
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  if (month < 1 || month > 12) return dateString;
+  
+  return `${monthNames[month - 1]} ${day}, ${year}`;
+};
 
 // Parse appointment date and time to a Date object
 // appointmentDate format: "MM-DD-YYYY"
@@ -65,6 +92,168 @@ const parseAppointmentDateTime = (appointmentDate: string, time: string): Date =
   }
 };
 
+/**
+ * Converts a Date object to ISO string format preserving local time values
+ * Extracts local time components and formats as YYYY-MM-DDTHH:mm:ss.SSS (no timezone suffix)
+ * Used to store appointment times without UTC conversion
+ */
+const toLocalISOString = (date: Date): string => {
+  // Extract local timezone components from Date object
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1; // 0-11 -> 1-12
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  const milliseconds = date.getMilliseconds();
+  
+  // Format components as zero-padded strings
+  const monthStr = String(month).padStart(2, '0');
+  const dayStr = String(day).padStart(2, '0');
+  const hoursStr = String(hours).padStart(2, '0');
+  const minutesStr = String(minutes).padStart(2, '0');
+  const secondsStr = String(seconds).padStart(2, '0');
+  const msStr = String(milliseconds).padStart(3, '0');
+  
+  // Return ISO-like string without timezone suffix (no 'Z')
+  return `${year}-${monthStr}-${dayStr}T${hoursStr}:${minutesStr}:${secondsStr}.${msStr}`;
+};
+
+/**
+ * Parses an ISO string (without timezone) back to a Date object
+ * Interprets the time components as local time, not UTC
+ */
+const parseLocalISOString = (isoString: string): Date => {
+  if (!isoString) return new Date();
+  // Remove timezone indicators ('Z' or offset) to parse as local time
+  const cleanString = isoString.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+  const [datePart, timePart] = cleanString.split('T');
+  if (!datePart || !timePart) return new Date(isoString); // Fallback to standard parsing
+  
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [time, ms] = timePart.split('.');
+  const [hours, minutes, seconds] = time.split(':').map(Number);
+  const milliseconds = ms ? parseInt(ms, 10) : 0;
+  
+  // Create date in local timezone
+  return new Date(year, month - 1, day, hours, minutes, seconds || 0, milliseconds);
+};
+
+/**
+ * Converts date from MM-DD-YYYY to YYYY-MM-DD format
+ */
+const convertDateToCalendarFormat = (dateString: string): string => {
+  if (!dateString) return '';
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return dateString;
+  // MM-DD-YYYY -> YYYY-MM-DD
+  return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+};
+
+/**
+ * Extracts hour number from time string (e.g., "8:00 AM" -> "8", "11:00 PM" -> "11")
+ */
+const extractTimeSlotHour = (timeString: string): string => {
+  if (!timeString) return '';
+  const timeMatch = timeString.match(/(\d{1,2}):/);
+  if (timeMatch) {
+    return timeMatch[1];
+  }
+  // If it's already just a number, return it
+  const numMatch = timeString.match(/^(\d+)$/);
+  return numMatch ? numMatch[1] : '';
+};
+
+/**
+ * Formats bay number for calendar (handles both number and string formats)
+ */
+const formatBayNumberForCalendar = (bayNumber: number | string | undefined): string => {
+  if (!bayNumber) return '';
+  if (typeof bayNumber === 'number') {
+    return `Bay${bayNumber}`;
+  }
+  if (typeof bayNumber === 'string') {
+    // If it already has "Bay" prefix, return as is, otherwise add it
+    if (bayNumber.toLowerCase().startsWith('bay')) {
+      return bayNumber;
+    }
+    return `Bay${bayNumber}`;
+  }
+  return '';
+};
+
+/**
+ * Finds userId for an appointment from ReservationsByUser
+ */
+const findUserIdForAppointment = async (appointmentId: string): Promise<string> => {
+  try {
+    const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
+    const usersSnapshot = await get(reservationsByUserRef);
+    
+    if (usersSnapshot.exists()) {
+      for (const userId in usersSnapshot.val()) {
+        const userSnap = usersSnapshot.val()[userId];
+        if (userSnap) {
+          for (const dateKey in userSnap) {
+            const dateSnap = userSnap[dateKey];
+            if (dateSnap) {
+              for (const bookingKey in dateSnap) {
+                const bookingData = dateSnap[bookingKey];
+                if (bookingData && bookingData.appointmentId === appointmentId) {
+                  return userId;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return '';
+  } catch (error) {
+    console.error('Error finding userId:', error);
+    return '';
+  }
+};
+
+/**
+ * Updates or creates calendar entry for cancelled or completed appointments
+ */
+const updateCalendarEntry = async (
+  branchId: string,
+  booking: Booking,
+  status: 'cancelled' | 'completed',
+  bayNumber?: number | string
+) => {
+  try {
+    const calendarDate = convertDateToCalendarFormat(booking.timeSlot.appointmentDate);
+    const timeSlot = extractTimeSlotHour(booking.timeSlot.time);
+    const estCompletion = String(booking.timeSlot.estCompletion || '');
+    const plateNumber = booking.vehicleDetails.plateNumber || '';
+    const vehicleClassification = booking.vehicleDetails.classification || '';
+    const formattedBayNumber = formatBayNumberForCalendar(bayNumber);
+    const userId = await findUserIdForAppointment(booking.appointmentId);
+
+    const calendarRef = ref(
+      db,
+      `Calendar/${branchId}/${calendarDate}/${booking.appointmentId}`
+    );
+
+    await set(calendarRef, {
+      appointmentId: booking.appointmentId,
+      bayNumber: formattedBayNumber,
+      estCompletion: estCompletion,
+      plateNumber: plateNumber,
+      status: status,
+      timeSlot: timeSlot,
+      userId: userId,
+      vehicleClassification: vehicleClassification,
+    });
+  } catch (error) {
+    console.error('Error updating calendar entry:', error);
+    // Don't throw error, just log it so it doesn't break the main flow
+  }
+};
+
 export default function AppointmentsList({ activeTab, searchQuery }: AppointmentsListProps) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +270,15 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const [selectedBay, setSelectedBay] = useState<number | null>(null);
   const [bays, setBays] = useState<Bay[]>([]);
   const [loadingBays, setLoadingBays] = useState(false);
+  
+  // Appointment Details Modal state
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [customerName, setCustomerName] = useState<string>('');
+  
+  // Success Modal state
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const fetchAdminBranch = async () => {
@@ -125,6 +323,24 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         dateSnap.forEach((bookingSnap) => {
           const data = bookingSnap.val();
           if (data) {
+            // Convert addOns to array format (handles null, array, or object with numeric keys)
+            const addOnsObj = data.addOns;
+            let addOns: any[] = [];
+            if (Array.isArray(addOnsObj)) {
+              addOns = addOnsObj;
+            } else if (addOnsObj && typeof addOnsObj === 'object') {
+              addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
+            }
+
+            // Convert services to array format (handles null, array, or object with numeric keys)
+            const servicesObj = data.services;
+            let services: any[] = [];
+            if (Array.isArray(servicesObj)) {
+              services = servicesObj;
+            } else if (servicesObj && typeof servicesObj === 'object') {
+              services = Object.keys(servicesObj).map((k) => servicesObj[k]);
+            }
+
             const booking: Booking = {
               appointmentId: data.appointmentId || bookingSnap.key || '',
               branchName: data.branchName || '',
@@ -139,6 +355,10 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               amountDue: data.amountDue || 0,
               key: bookingSnap.key || '',
               dateKey: dateKey,
+              addOns: addOns,
+              services: services,
+              paymentMethod: data.paymentMethod || '',
+              note: data.note || '',
             };
 
             // Filter by active tab
@@ -190,13 +410,14 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         dateSnap.forEach((bookingSnap) => {
           const data = bookingSnap.val();
           if (data && data.status === 'ongoing' && data.bayNumber) {
-            // Check if this appointment overlaps with the new appointment
+            // Check for time overlap between existing and new appointment
             const existingDateTime = parseAppointmentDateTime(
               data.timeSlot?.appointmentDate || '',
               data.timeSlot?.time || ''
             );
-            const estCompletion = parseInt(data.timeSlot?.estCompletion || '0', 10);
-            const existingEndTime = new Date(existingDateTime.getTime() + estCompletion * 60000);
+            // Convert estCompletion hours to milliseconds for time calculation
+            const estCompletionHours = parseFloat(String(data.timeSlot?.estCompletion || '0').replace(/[^\d.]/g, '')) || 0;
+            const existingEndTime = new Date(existingDateTime.getTime() + estCompletionHours * 60 * 60 * 1000);
 
             // If appointments overlap, mark bay as unavailable
             if (
@@ -220,7 +441,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             if (occupancy && occupancy.status === 'ongoing' && occupancy.bayNumber) {
               // Check if occupancy overlaps
               if (occupancy.estimatedEndTime) {
-                const endTime = new Date(occupancy.estimatedEndTime);
+                // Parse as local time (stored without timezone)
+                const endTime = parseLocalISOString(occupancy.estimatedEndTime);
                 if (appointmentDateTime < endTime) {
                   occupiedBays.add(occupancy.bayNumber);
                 }
@@ -330,13 +552,20 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         return;
       }
 
-      const acceptedAt = new Date().toISOString();
-      const estCompletion = parseInt((bookingToAccept.timeSlot as any)?.estCompletion || '0', 10);
+      const acceptedAt = toLocalISOString(new Date());
+      // Parse estCompletion: value represents hours (converted from totalEstimatedTime in booking flow)
+      const estCompletionStr = (bookingToAccept.timeSlot as any)?.estCompletion || '0';
+      const estCompletionHours = typeof estCompletionStr === 'number' 
+        ? estCompletionStr 
+        : parseFloat(String(estCompletionStr).replace(/[^\d.]/g, '')) || 0;
+      
       const appointmentDateTime = parseAppointmentDateTime(
         bookingToAccept.timeSlot.appointmentDate,
         bookingToAccept.timeSlot.time
       );
-      const estimatedEndTime = new Date(appointmentDateTime.getTime() + estCompletion * 60000);
+      
+      // Calculate end time by adding estimated completion hours (convert hours to milliseconds)
+      const estimatedEndTime = new Date(appointmentDateTime.getTime() + estCompletionHours * 60 * 60 * 1000);
 
       // Update in ReservationsByBranch
       const branchBookingRef = ref(
@@ -350,38 +579,54 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         assignedBy: adminUserId,
       });
 
-      // Find and update in ReservationsByUser
+      // Find and update in ReservationsByUser, also fetch customer name
       const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
       const usersSnapshot = await get(reservationsByUserRef);
       
       const updatePromises: Promise<void>[] = [];
+      let customerName = 'Customer';
       
       if (usersSnapshot.exists()) {
-        usersSnapshot.forEach((userSnap) => {
-          const userId = userSnap.key;
-          if (userId) {
-            userSnap.forEach((dateSnap) => {
-              const dateKey = dateSnap.key;
-              dateSnap.forEach((bookingSnap) => {
-                const bookingData = bookingSnap.val();
-                if (bookingData && bookingData.appointmentId === bookingToAccept.appointmentId) {
-                  const userBookingRef = ref(
-                    db,
-                    `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingSnap.key}`
-                  );
-                  updatePromises.push(
-                    update(userBookingRef, {
-                      status: 'ongoing',
-                      bayNumber: selectedBay,
-                      acceptedAt: acceptedAt,
-                      assignedBy: adminUserId,
-                    }).then(() => {})
-                  );
+        for (const userId in usersSnapshot.val()) {
+          const userSnap = usersSnapshot.val()[userId];
+          if (userSnap) {
+            for (const dateKey in userSnap) {
+              const dateSnap = userSnap[dateKey];
+              if (dateSnap) {
+                for (const bookingKey in dateSnap) {
+                  const bookingData = dateSnap[bookingKey];
+                  if (bookingData && bookingData.appointmentId === bookingToAccept.appointmentId) {
+                    // Fetch customer name
+                    try {
+                      const userInfoSnapshot = await get(ref(db, `users/${userId}`));
+                      if (userInfoSnapshot.exists()) {
+                        const userInfo = userInfoSnapshot.val();
+                        const firstName = userInfo.firstName || '';
+                        const lastName = userInfo.lastName || '';
+                        customerName = `${firstName} ${lastName}`.trim() || 'Customer';
+                      }
+                    } catch (error) {
+                      console.error('Error fetching customer name:', error);
+                    }
+                    
+                    const userBookingRef = ref(
+                      db,
+                      `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingKey}`
+                    );
+                    updatePromises.push(
+                      update(userBookingRef, {
+                        status: 'ongoing',
+                        bayNumber: selectedBay,
+                        acceptedAt: acceptedAt,
+                        assignedBy: adminUserId,
+                      }).then(() => {})
+                    );
+                  }
                 }
-              });
-            });
+              }
+            }
           }
-        });
+        }
       }
       
       // Wait for all user updates to complete
@@ -394,8 +639,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       await set(bayRef, {
         status: 'unavailable',
         currentAppointmentId: bookingToAccept.appointmentId,
-        occupiedUntil: estimatedEndTime.toISOString(),
-        lastUpdated: new Date().toISOString(),
+        // Stores estimated end time when bay becomes available (local time, no UTC conversion)
+        occupiedUntil: toLocalISOString(estimatedEndTime),
+        lastUpdated: toLocalISOString(new Date()),
       });
 
       // Create bay occupancy record
@@ -403,17 +649,28 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         db,
         `Branches/${branchId}/BayOccupancy/${bookingToAccept.dateKey}/${bookingToAccept.appointmentId}`
       );
+      const startTimeValue = toLocalISOString(appointmentDateTime);
+      const estimatedEndTimeValue = toLocalISOString(estimatedEndTime);
       await set(bayOccupancyRef, {
         bayNumber: selectedBay,
         appointmentId: bookingToAccept.appointmentId,
-        startTime: appointmentDateTime.toISOString(),
-        estimatedEndTime: estimatedEndTime.toISOString(),
+        // Appointment times stored as local time values (no UTC conversion)
+        startTime: startTimeValue,
+        estimatedEndTime: estimatedEndTimeValue,
         status: 'ongoing',
         assignedBy: adminUserId,
         acceptedAt: acceptedAt,
       });
 
-      Alert.alert('Success', `Appointment accepted and assigned to Bay ${selectedBay}`);
+      // Format date for display
+      const formattedDate = formatDateForDisplay(bookingToAccept.timeSlot.appointmentDate);
+      const formattedTime = bookingToAccept.timeSlot.time;
+      const vehiclePlate = bookingToAccept.vehicleDetails.plateNumber || 'N/A';
+      
+      setSuccessMessage(
+        `Appointment for ${customerName} (${vehiclePlate}) on ${formattedDate} at ${formattedTime} has been accepted and assigned to Bay ${selectedBay}.`
+      );
+      setShowSuccessModal(true);
       handleCloseBayModal();
     } catch (error) {
       console.error('Error accepting appointment:', error);
@@ -432,7 +689,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       if (baySnapshot.exists()) {
         const bayData = baySnapshot.val();
         if (bayData.status === 'unavailable') {
-          // Check if it's unavailable due to this appointment (re-selecting same bay is OK)
+          // Allow re-selecting same bay for same appointment, but block if different appointment
           if (bayData.currentAppointmentId && bayData.currentAppointmentId !== booking.appointmentId) {
             return { hasConflict: true, reason: 'Bay is currently unavailable' };
           }
@@ -444,8 +701,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         booking.timeSlot.appointmentDate,
         booking.timeSlot.time
       );
-      const estCompletion = parseInt((booking.timeSlot as any)?.estCompletion || '0', 10);
-      const appointmentEndTime = new Date(appointmentDateTime.getTime() + estCompletion * 60000);
+      // estCompletion is stored in HOURS, convert to milliseconds
+      const estCompletionHours = parseFloat(String((booking.timeSlot as any)?.estCompletion || '0').replace(/[^\d.]/g, '')) || 0;
+      const appointmentEndTime = new Date(appointmentDateTime.getTime() + estCompletionHours * 60 * 60 * 1000);
 
       const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
       const snapshot = await get(bookingsRef);
@@ -514,7 +772,19 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         `Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}`
       );
       const bookingSnapshot = await get(branchBookingRef);
-      const bayNumber = bookingSnapshot.val()?.bayNumber;
+      let bayNumber = bookingSnapshot.val()?.bayNumber;
+
+      // If bayNumber not found in booking, try to get it from bayOccupancy
+      if (!bayNumber) {
+        const bayOccupancyRef = ref(
+          db,
+          `Branches/${branchId}/BayOccupancy/${bookingToComplete.dateKey}/${bookingToComplete.appointmentId}`
+        );
+        const occupancySnapshot = await get(bayOccupancyRef);
+        if (occupancySnapshot.exists()) {
+          bayNumber = occupancySnapshot.val()?.bayNumber;
+        }
+      }
 
       // Update in ReservationsByBranch
       await update(branchBookingRef, { status: 'completed' });
@@ -562,7 +832,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           status: 'available',
           currentAppointmentId: null,
           occupiedUntil: null,
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: toLocalISOString(new Date()),
         });
 
         // Update bay occupancy record
@@ -574,12 +844,16 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         if (occupancySnapshot.exists()) {
           await update(bayOccupancyRef, {
             status: 'completed',
-            completedAt: new Date().toISOString(),
+            completedAt: toLocalISOString(new Date()),
           });
         }
       }
 
-      Alert.alert('Success', 'Appointment completed successfully');
+      // Update calendar entry
+      await updateCalendarEntry(branchId, bookingToComplete, 'completed', bayNumber);
+
+      setSuccessMessage('Appointment completed successfully');
+      setShowSuccessModal(true);
       handleCompleteModalClose();
     } catch (error) {
       console.error('Error completing appointment:', error);
@@ -617,8 +891,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         cancelReason: selectedCancelReason,
       });
 
-      // Find and update in ReservationsByUser
-      // Search through all users to find the one with this appointmentId
+      // Find and update corresponding booking in ReservationsByUser
+      // Iterates through all users to locate matching appointmentId
       const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
       const usersSnapshot = await get(reservationsByUserRef);
       
@@ -663,7 +937,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           status: 'available',
           currentAppointmentId: null,
           occupiedUntil: null,
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: toLocalISOString(new Date()),
         });
 
         // Update bay occupancy record
@@ -675,12 +949,16 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         if (occupancySnapshot.exists()) {
           await update(bayOccupancyRef, {
             status: 'cancelled',
-            cancelledAt: new Date().toISOString(),
+            cancelledAt: toLocalISOString(new Date()),
           });
         }
       }
 
-      Alert.alert('Success', 'Appointment cancelled successfully');
+      // Update calendar entry
+      await updateCalendarEntry(branchId, bookingToCancel, 'cancelled', bayNumber);
+
+      setSuccessMessage(`Appointment cancelled successfully. Reason: "${selectedCancelReason}"`);
+      setShowSuccessModal(true);
       handleCancelModalClose();
     } catch (error) {
       console.error('Error cancelling appointment:', error);
@@ -688,9 +966,51 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     }
   };
 
-  const handleViewMore = (booking: Booking) => {
-    // TODO: Navigate to appointment details screen or show modal
-    console.log('View more for appointment:', booking.appointmentId);
+  const handleViewMore = async (booking: Booking) => {
+    setSelectedBooking(booking);
+    setShowDetailsModal(true);
+    
+    // Fetch customer name from appointmentId
+    try {
+      const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
+      const usersSnapshot = await get(reservationsByUserRef);
+      
+      if (usersSnapshot.exists()) {
+        for (const userId in usersSnapshot.val()) {
+          const userSnap = usersSnapshot.val()[userId];
+          if (userSnap) {
+            for (const dateKey in userSnap) {
+              const dateSnap = userSnap[dateKey];
+              if (dateSnap) {
+                for (const bookingKey in dateSnap) {
+                  const bookingData = dateSnap[bookingKey];
+                  if (bookingData && bookingData.appointmentId === booking.appointmentId) {
+                    // Found the user, fetch their name
+                    const userInfoSnapshot = await get(ref(db, `users/${userId}`));
+                    if (userInfoSnapshot.exists()) {
+                      const userInfo = userInfoSnapshot.val();
+                      const firstName = userInfo.firstName || '';
+                      const lastName = userInfo.lastName || '';
+                      setCustomerName(`${firstName} ${lastName}`.trim() || 'Customer');
+                      return;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      setCustomerName('Customer');
+    } catch (error) {
+      console.error('Error fetching customer name:', error);
+      setCustomerName('Customer');
+    }
+  };
+
+  const handleCloseDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedBooking(null);
   };
 
   if (loading) {
@@ -764,6 +1084,51 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         onBaySelect={handleBaySelect}
         onFinish={handleFinishBaySelection}
         loading={loadingBays}
+      />
+
+      {/* Appointment Details Modal */}
+      {selectedBooking && (
+        <AppointmentDetailsModal
+          visible={showDetailsModal}
+          branchName={selectedBooking.branchName}
+          branchAddress={selectedBooking.branchAddress}
+          branchImage={require('../../../../assets/images/samplebranch.png')}
+          customerName={customerName}
+          vehicleName={selectedBooking.vehicleDetails.vehicleName}
+          plateNumber={selectedBooking.vehicleDetails.plateNumber}
+          classification={selectedBooking.vehicleDetails.classification}
+          date={selectedBooking.timeSlot.appointmentDate}
+          time={selectedBooking.timeSlot.time}
+          orderSummary={[
+            ...(selectedBooking.services?.map((s) => ({
+              label: (s?.name ?? 'Service') as string,
+              price: `₱${s?.price ?? '0'}`,
+            })) ?? []),
+            ...(selectedBooking.addOns?.map((a) => ({
+              label: (a?.name ?? 'Add-on') as string,
+              price: `₱${a?.price ?? '0'}`,
+            })) ?? []),
+            { label: 'Booking Fee', price: '₱25' },
+          ]}
+          amountDue={`₱${selectedBooking.amountDue.toFixed(2)}`}
+          paymentMethod={selectedBooking.paymentMethod || ''}
+          estimatedCompletion={
+            selectedBooking.timeSlot.estCompletion
+              ? typeof selectedBooking.timeSlot.estCompletion === "number"
+                ? `${selectedBooking.timeSlot.estCompletion} Hours`
+                : selectedBooking.timeSlot.estCompletion
+              : undefined
+          }
+          note={selectedBooking.note}
+          onClose={handleCloseDetailsModal}
+        />
+      )}
+
+      {/* Branded Success Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        message={successMessage}
+        onClose={() => setShowSuccessModal(false)}
       />
     </View>
   );
