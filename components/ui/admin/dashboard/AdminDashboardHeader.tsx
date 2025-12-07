@@ -34,12 +34,12 @@ export default function AdminDashboardHeader() {
   }, []);
 
   return (
-    <View className="px-4 pt-4 pb-4 flex-row justify-between items-start">
+    <View className="bg-white px-6 pt-6 pb-4 mb-4 flex-row justify-between items-start">
       <View>
         <Text className="text-gray-900 text-3xl font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
           Hello Branch
         </Text>
-        <Text className="text-gray-900 text-lg font-normal mt-1" style={{ fontFamily: 'Inter_400Regular' }}>
+        <Text className="text-gray-900 text-lg font-semibold mt-1" style={{ fontFamily: 'Inter_600SemiBold' }}>
           {branchName}
         </Text>
       </View>
