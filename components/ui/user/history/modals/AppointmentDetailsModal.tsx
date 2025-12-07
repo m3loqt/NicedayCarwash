@@ -6,6 +6,7 @@ interface AppointmentDetailsModalProps {
   branchName: string;
   branchAddress: string;
   branchImage: any;
+  customerName?: string;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
@@ -24,6 +25,7 @@ export default function AppointmentDetailsModal({
   branchName,
   branchAddress,
   branchImage,
+  customerName,
   vehicleName,
   plateNumber,
   classification,
@@ -46,6 +48,7 @@ export default function AppointmentDetailsModal({
         branchName={branchName}
         branchAddress={branchAddress}
         branchImage={branchImage}
+        customerName={customerName}
         vehicleName={vehicleName}
         plateNumber={plateNumber}
         classification={classification}

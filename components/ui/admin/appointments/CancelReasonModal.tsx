@@ -41,7 +41,16 @@ export default function CancelReasonModal({
         />
 
         {/* Modal Content */}
-        <View className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10">
+        <View 
+          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-200"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
+        >
           {/* Close Button - Top Right */}
           <TouchableOpacity
             className="absolute top-4 right-4 z-10"
