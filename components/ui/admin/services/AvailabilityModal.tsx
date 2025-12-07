@@ -27,7 +27,17 @@ export default function AvailabilityModal({
         className="flex-1 bg-black/50 justify-center items-center px-6"
       >
         {/* CARD */}
-        <Pressable className="w-full bg-white rounded-2xl p-6" onPress={() => {}}>
+        <Pressable 
+          className="w-full bg-white rounded-2xl p-6 border border-gray-200"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
+          onPress={() => {}}
+        >
           <Text className="text-xl font-bold text-center text-gray-900 mb-6">
             Set Availability
           </Text>

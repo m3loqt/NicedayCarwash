@@ -11,6 +11,7 @@ export interface AppointmentDetailsProps {
   branchName: string;
   branchAddress?: string;
   branchImage?: any; // require(...) or { uri: string }
+  customerName?: string;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
@@ -105,6 +106,7 @@ export default function AppointmentDetails({
   branchName,
   branchAddress,
   branchImage,
+  customerName,
   vehicleName,
   plateNumber,
   classification,
@@ -172,6 +174,21 @@ export default function AppointmentDetails({
           <View className="px-4">
             <View className="h-[0.5px] bg-gray-200" />
           </View>
+
+          {/* Customer Name Section */}
+          {customerName && (
+            <>
+              <View className="p-4">
+                <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Name</Text>
+                <Text className="text-gray-500" style={{ fontSize: 16 }}>{customerName}</Text>
+              </View>
+
+              {/* Separator Line */}
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+            </>
+          )}
 
           {/* Vehicle Information Section */}
           {(vehicleName || plateNumber || classification) && (

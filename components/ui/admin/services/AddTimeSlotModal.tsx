@@ -69,7 +69,14 @@ export default function AddTimeSlotModal({
       >
         <Pressable
           onPress={() => {}}
-          className="w-full bg-white rounded-2xl p-6"
+          className="w-full bg-white rounded-2xl p-6 border border-gray-200"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
         >
           <Text className="text-xl font-bold text-center text-gray-900 mb-6">
             Add Time Slot

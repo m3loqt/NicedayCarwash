@@ -1,7 +1,7 @@
 import { AdminAccountInfo, TransactionSummaryCard } from '@/components/ui/admin/profile';
 import { auth, db } from '@/firebase/firebase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { get, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
@@ -67,7 +67,7 @@ export default function AdminSettingsScreen() {
   }, [branchId]);
 
   const handleEditAccount = () => {
-    router.push('/user/edit-profile');
+    router.push('/admin/edit-profile');
   };
 
   const handleSignOut = async () => {
