@@ -13,48 +13,49 @@ export default function TransactionCard({ label, count, icon, isLarge = false }:
     switch (icon) {
       case 'pending':
         return (
-          <View className="bg-[#F9EF08] rounded-full relative items-center justify-center" style={{ width: 64, height: 64 }}>
-            <Ionicons name="person" size={36} color="white" />
-            <View className="absolute bottom-0 right-0 bg-[#F9EF08] rounded-full" style={{ width: 24, height: 24, borderWidth: 2, borderColor: 'white' }}>
-              <Ionicons name="time" size={14} color="white" style={{ position: 'absolute', top: 2, left: 2 }} />
-            </View>
+          <View className="relative justify-center">
+            <Ionicons name="person" size={90} color="#F9EF08" />
           </View>
         );
       case 'ongoing':
-        return <Ionicons name="hourglass" size={24} color="white" />;
+        return <Ionicons name="hourglass" size={24} color="#F9EF08" />;
       case 'completed':
-        return <MaterialIcons name="assignment-turned-in" size={24} color="white" />;
+        return <MaterialIcons name="assignment-turned-in" size={24} color="#F9EF08" />;
       case 'cancelled':
-        return <MaterialIcons name="assignment" size={24} color="white" />;
+        return <MaterialIcons name="assignment" size={24} color="#F9EF08" />;
     }
   };
 
   if (isLarge) {
     return (
-      <View className="bg-white rounded-xl p-4 flex-1 shadow-sm border border-gray-100">
-        <Text className="text-gray-900 text-sm font-normal mb-2" style={{ fontFamily: 'Inter_400Regular' }}>
+      <View className="bg-white rounded-md p-4 shadow-sm border border-gray-100" style={{ flex: 1 }}>
+        <Text className="text-gray-500 text-base font-normal" style={{ fontFamily: 'Inter_400Regular' }}>
           {label}
         </Text>
-        <Text className="text-gray-900 text-4xl font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
+        <Text className="text-[#1E1E1E] font-bold" style={{ fontFamily: 'Inter_700Bold', fontSize: 48 }}>
           {count}
         </Text>
-        <View className="mt-4 items-center">{renderIcon()}</View>
+        <View style={{ position: 'absolute', bottom: -8, right: -4 }}>
+          {renderIcon()}
+        </View>
       </View>
     );
   }
 
   return (
-    <View className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-      <View className="flex-row justify-between items-center">
+    <View className="bg-white rounded-md px-3 py-2 mr-2 shadow-sm border border-gray-100">
+      <View className="flex-row justify-between items-end" style={{ position: 'relative' }}>
         <View className="flex-1">
-          <Text className="text-gray-900 text-xs font-normal mb-1" style={{ fontFamily: 'Inter_400Regular' }}>
+          <Text className="text-gray-500 text-sm font-normal" style={{ fontFamily: 'Inter_400Regular' }}>
             {label}
           </Text>
-          <Text className="text-gray-900 text-2xl font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
+          <Text className="text-[#1E1E1E] text-2xl font-semibold" style={{ fontFamily: 'Inter_600SemiBold' }}>
             {count}
           </Text>
         </View>
-        {renderIcon()}
+        <View style={{ position: 'absolute', bottom: -10, right: -8 }}>
+          {renderIcon()}
+        </View>
       </View>
     </View>
   );
