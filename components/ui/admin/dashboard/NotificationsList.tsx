@@ -21,26 +21,31 @@ interface NotificationsListProps {
 
 export default function NotificationsList({ reservations, formatDate, formatPrice }: NotificationsListProps) {
   return (
-    <View className="px-4 mt-6 mb-6">
-      <Text className="text-gray-900 text-lg font-bold mb-4" style={{ fontFamily: 'Inter_700Bold' }}>
-        Notifications
-      </Text>
-
+    <View className="mt-2 mb-2">
       {reservations.length === 0 ? (
-        <View className="bg-white rounded-xl p-6 items-center">
+        <View className="bg-white rounded-md p-6 items-center shadow-sm border border-gray-100">
+          <Text className="text-[#1E1E1E] text-xl font-bold mb-1" style={{ fontFamily: 'Inter_700Bold' }}>
+            Notifications
+          </Text>
           <Text className="text-gray-500 text-sm" style={{ fontFamily: 'Inter_400Regular' }}>
             No pending reservations
           </Text>
         </View>
       ) : (
-        <View>
-          {reservations.map((reservation) => (
+        <View className="bg-white shadow-sm border-y border-gray-200">
+          <View className="px-6 pt-4 pb-2">
+            <Text className="text-[#1E1E1E] text-xl font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
+              Notifications
+            </Text>
+          </View>
+          {reservations.map((reservation, index) => (
             <NotificationItem
               key={reservation.appointmentId}
               appointmentId={reservation.appointmentId}
               vehicleClassification={reservation.vehicleDetails.classification || 'Vehicle'}
               dateTime={formatDate(reservation.timeSlot.appointmentDate, reservation.timeSlot.time)}
               amount={formatPrice(reservation.amountDue)}
+              isLast={index === reservations.length - 1}
             />
           ))}
         </View>
