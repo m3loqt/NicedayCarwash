@@ -6,6 +6,7 @@ interface NotificationItemProps {
   vehicleClassification: string;
   dateTime: string;
   amount: string;
+  isLast?: boolean;
 }
 
 export default function NotificationItem({
@@ -13,29 +14,29 @@ export default function NotificationItem({
   vehicleClassification,
   dateTime,
   amount,
+  isLast = false,
 }: NotificationItemProps) {
   return (
-    <View className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-3">
-      <View className="flex-row items-center mb-2">
-        <Ionicons name="person" size={16} color="white" />
-        <Text className="text-[#F9EF08] text-xs font-normal ml-1" style={{ fontFamily: 'Inter_400Regular' }}>
+    <View className={`px-6 py-2 mb-2 mt-1 ${isLast ? '' : 'border-b border-gray-100'}`} style={{ backgroundColor: 'transparent' }}>
+      <View className="flex-row items-center mb-1">
+        <Ionicons name="notifications" size={16} color="#F9EF08" />
+        <Text className="text-[#F9EF08] text-base font-normal ml-1" style={{ fontFamily: 'Inter_400Regular' }}>
           Pending Reservation
         </Text>
       </View>
 
-      <Text className="text-gray-900 text-base font-bold mb-1" style={{ fontFamily: 'Inter_700Bold' }}>
-        {appointmentId} - {vehicleClassification || 'Vehicle'}
-      </Text>
-
-      <Text className="text-gray-900 text-sm font-normal mb-2" style={{ fontFamily: 'Inter_400Regular' }}>
-        {dateTime}
-      </Text>
-
-      <View className="flex-row justify-end">
-        <Text className="text-gray-900 text-base font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
+      <View className="flex-row justify-between items-center">
+        <Text className="text-[#1E1E1E] text-xl font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
+          {appointmentId} - {vehicleClassification || 'Vehicle'}
+        </Text>
+        <Text className="text-[#1E1E1E] text-xl font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
           {amount}
         </Text>
       </View>
+
+      <Text className="text-gray-500 text-sm font-normal" style={{ fontFamily: 'Inter_400Regular' }}>
+        {dateTime}
+      </Text>
     </View>
   );
 }
