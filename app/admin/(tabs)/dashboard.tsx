@@ -262,14 +262,14 @@ export default function AdminDashboardScreen() {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+    <View className="flex-1" style={{ backgroundColor: '#F8F8F8' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F8F8F8' }} edges={['top']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           bounces={false}
-          style={{ backgroundColor: 'white', flex: 1 }}
+          style={{ backgroundColor: '#F8F8F8', flex: 1 }}
           contentContainerStyle={{
-            backgroundColor: 'white',
+            backgroundColor: '#F8F8F8',
             paddingBottom: 80,
             flexGrow: 1,
           }}
