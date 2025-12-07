@@ -4,40 +4,60 @@ import AvailabilityModal from "./AvailabilityModal";
 
 export default function AddOns() {
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedAddonId, setSelectedAddonId] = useState<number | null>(null);
 
   const data = [
     { id: 1, name: "Armour All", price: 400 },
     { id: 2, name: "Under Chassis", price: 100 },
   ];
 
+  const handleEditAvailability = (itemId: number) => {
+    setSelectedAddonId(itemId);
+    setModalVisible(true);
+  };
+
   return (
     <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ alignItems: 'center' }}
+      >
         {data.map((item) => (
-          <View key={item.id} className="bg-white rounded-xl p-4 mr-4 w-56 shadow">
-            <Text className="text-lg font-bold text-gray-900 mb-2">{item.name}</Text>
-
-            <Text className="text-gray-800 mb-3">₱{item.price}</Text>
-
-            <TouchableOpacity
-              className="bg-[#F9EF08] py-2 rounded-full"
-              onPress={() => setModalVisible(true)}
-            >
-              <Text className="text-center font-semibold text-white">
-                Edit Availability
+          <TouchableOpacity
+            key={item.id}
+            onPress={() => handleEditAvailability(item.id)}
+            style={{ 
+              width: 170, 
+              height: 90,
+            }}
+            className="rounded-2xl bg-white mx-2 border-2 border-transparent flex-col p-1"
+          >
+            <View className="flex-1 justify-center px-5">
+              <Text className="text-xl font-semibold text-gray-400 text-center">
+                {item.name}
               </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+            <View className="bg-yellow-300 px-4 py-3 rounded-b-2xl items-center justify-center">
+              <Text className="text-white font-medium text-center text-xl">
+                ₱{item.price}.00
+              </Text>
+            </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* MODAL */}
       <AvailabilityModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          setSelectedAddonId(null);
+        }}
         onFinish={(status) => {
           console.log("Selected availability:", status);
           setModalVisible(false);
+          setSelectedAddonId(null);
         }}
       />
     </>
