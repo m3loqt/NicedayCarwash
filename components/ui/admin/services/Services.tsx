@@ -1,37 +1,134 @@
-import { useState } from "react";
+import { auth, db } from "@/firebase/firebase";
+import { get, onValue, ref } from "firebase/database";
+import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import AvailabilityModal from "./AvailabilityModal";
 
+interface Service {
+  id: string;
+  name: string;
+  sedan: number;
+  suv: number;
+  pickup: number;
+  isAvailable?: boolean;
+}
+
 export default function Services() {
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [branchId, setBranchId] = useState<string | null>(null);
 
-  const data = [
-    { id: 1, name: "Body Wash", sedan: 180, suv: 220, pickup: 270 },
-    { id: 2, name: "Value Wash", sedan: 150, suv: 200, pickup: 250 },
-  ];
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
 
-  const handleEditAvailability = (itemId: number) => {
+    let unsubscribeServices: (() => void) | null = null;
+
+    // First, get the branchId
+    const getUserBranchId = async () => {
+      try {
+        const userSnapshot = await get(ref(db, `users/${uid}`));
+        if (!userSnapshot.exists()) {
+          setLoading(false);
+          return;
+        }
+
+        const userData = userSnapshot.val();
+        const fetchedBranchId = userData.branchId || userData.branch;
+        if (!fetchedBranchId) {
+          setLoading(false);
+          return;
+        }
+
+        setBranchId(fetchedBranchId);
+
+        // Set up real-time listener for services
+        const servicesRef = ref(db, `Branches/${fetchedBranchId}/Services`);
+        
+        unsubscribeServices = onValue(servicesRef, (snapshot) => {
+          setLoading(false);
+          
+          if (snapshot.exists()) {
+            const data: Service[] = [];
+            snapshot.forEach((child) => {
+              const val = child.val();
+              data.push({
+                id: child.key!,
+                name: val.name,
+                sedan: val.sedanPrice || 0,
+                suv: val.suvPrice || 0,
+                pickup: val.pickupPrice || 0,
+                isAvailable: val.isAvailable !== undefined ? val.isAvailable : true,
+              });
+            });
+            setServices(data);
+          } else {
+            setServices([]);
+          }
+        }, (error) => {
+          console.error("Error listening to services:", error);
+          setLoading(false);
+        });
+      } catch (error) {
+        console.error("Error fetching user branch ID:", error);
+        setLoading(false);
+      }
+    };
+
+    getUserBranchId();
+
+    // Cleanup: unsubscribe when component unmounts
+    return () => {
+      if (unsubscribeServices) {
+        unsubscribeServices();
+      }
+    };
+  }, []);
+
+  const handleEditAvailability = (itemId: string) => {
     setSelectedServiceId(itemId);
     setModalVisible(true);
   };
+
+  if (loading) {
+    return (
+      <View className="py-4">
+        <Text className="text-center text-gray-400">Loading services...</Text>
+      </View>
+    );
+  }
+
+  if (services.length === 0) {
+    return (
+      <View className="py-4">
+        <Text className="text-center text-gray-400">No services available</Text>
+      </View>
+    );
+  }
 
   return (
     <>
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ alignItems: 'center' }}
+        contentContainerStyle={{ paddingRight: 16 }}
       >
-        {data.map((item) => (
+        {services.map((item, index) => (
           <TouchableOpacity
             key={item.id}
             onPress={() => handleEditAvailability(item.id)}
             style={{ 
               width: 220, 
               height: 140,
+              marginLeft: index === 0 ? 0 : 8,
+              opacity: item.isAvailable === false ? 0.5 : 1,
             }}
-            className="rounded-2xl bg-white mx-2 border-2 border-transparent flex-col p-1"
+            className="rounded-2xl bg-white border-2 border-transparent flex-col p-1"
           >
             <View className="flex-1 justify-center px-5">
               <Text className="text-2xl font-semibold text-gray-400 text-center">
@@ -68,8 +165,11 @@ export default function Services() {
           setModalVisible(false);
           setSelectedServiceId(null);
         }}
-        onFinish={(status) => {
-          console.log("Selected availability:", status);
+        branchId={branchId}
+        itemId={selectedServiceId}
+        itemName={selectedServiceId ? services.find(s => s.id === selectedServiceId)?.name || null : null}
+        type="service"
+        onFinish={() => {
           setModalVisible(false);
           setSelectedServiceId(null);
         }}
