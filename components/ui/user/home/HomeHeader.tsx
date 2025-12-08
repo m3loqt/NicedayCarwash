@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../../../firebase/firebase';
 import PromotionalBanner from './PromotionalBanner';
 
@@ -11,6 +12,7 @@ type UserData = {
 };
 
 export default function HomeHeader() {
+  const insets = useSafeAreaInsets();
   const [showFilter, setShowFilter] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
 
@@ -29,7 +31,7 @@ export default function HomeHeader() {
           });
         }
       } catch (error) {
-        console.log('Error fetching user data:', error);
+        console.error('Error fetching user data:', error);
       }
     };
 
@@ -41,14 +43,13 @@ export default function HomeHeader() {
   };
 
   const handleRegionSelect = (region: string) => {
-    console.log('Selected region:', region);
     setShowFilter(false);
   };
 
   return (
     <View className="mb-8">
       {/* Yellow Header Background */}
-      <View className="bg-[#F9EF08] px-4 pt-8 pb-36 relative z-20 ">
+      <View className="bg-[#F9EF08] px-4 pt-8 pb-36 relative z-20" style={{ marginTop: -insets.top, paddingTop: insets.top + 32 }}>
         {/* Greeting + Logo */}
         <View className="flex-row justify-between items-center mb-4">
           <View>
