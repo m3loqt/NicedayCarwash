@@ -1,19 +1,19 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from "firebase/auth";
 import { get, getDatabase, ref, set } from "firebase/database";
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
 import VehicleClassificationModal from './modals/VehicleClassificationModal';
 
@@ -34,6 +34,8 @@ const vehicleClassifications: VehicleClassification[] = [
 ];
 
 export default function AddVehicle() {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const [vehicleName, setVehicleName] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
   const [selectedClassification, setSelectedClassification] = useState<VehicleClassification | null>(null);
@@ -61,7 +63,7 @@ export default function AddVehicle() {
 
   const handleSave = async () => {
     if (!vehicleName.trim() || !plateNumber.trim() || !selectedClassification) {
-      Alert.alert("Error", "Please fill all fields and select a vehicle classification.");
+      alert("Error", "Please fill all fields and select a vehicle classification.");
       return;
     }
 
@@ -70,7 +72,7 @@ export default function AddVehicle() {
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        Alert.alert("Error", "User not authenticated.");
+        alert("Error", "User not authenticated.");
         return;
       }
 
@@ -81,7 +83,7 @@ export default function AddVehicle() {
       // Verify plate number doesn't already exist
       const snapshot = await get(vehicleRef);
       if (snapshot.exists()) {
-        Alert.alert("Error", `Vehicle with plate number ${normalizedPlate} already exists.`);
+        alert("Error", `Vehicle with plate number ${normalizedPlate} already exists.`);
         return;
       }
 
@@ -95,7 +97,7 @@ export default function AddVehicle() {
       setShowSuccessPanel(true);
     } catch (err) {
       console.error("Failed to add vehicle:", err);
-      Alert.alert("Error", "Failed to add vehicle.");
+      alert("Error", "Failed to add vehicle.");
     } finally {
       setLoading(false);
     }
@@ -122,14 +124,15 @@ export default function AddVehicle() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100" edges={['top']}>
-      {/* Header */}
-      <View className="bg-white border-b border-gray-200">
-        <View className="flex-row items-center justify-between p-4">
-          <TouchableOpacity className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center" onPress={handleBack}>
-            <Ionicons name="arrow-back" size={24} color="#666" />
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        {/* Header */}
+        <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
+        <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
+          <TouchableOpacity className="p-2 rounded-full border border-gray-300" onPress={handleBack}>
+            <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-[#1E1E1E]">Add Vehicle</Text>
+          <Text className="text-2xl font-semibold text-[#1E1E1E]">Add Vehicle</Text>
           <View className="w-10" />
         </View>
       </View>
@@ -200,6 +203,8 @@ export default function AddVehicle() {
       >
         <Ionicons name="checkmark" size={40} color="white" />
       </TouchableOpacity>
-    </SafeAreaView>
+      </SafeAreaView>
+      {AlertComponent}
+    </View>
   );
 }

@@ -1,3 +1,4 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
@@ -5,7 +6,6 @@ import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   ScrollView,
   Text,
@@ -13,9 +13,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EditProfile() {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -37,11 +39,11 @@ export default function EditProfile() {
           setLastName(data.lastName || '');
           setProfileImage(data.profileImage || null);
         } else {
-          Alert.alert('Error', 'User data not found');
+          alert('Error', 'User data not found');
         }
       } catch (err) {
         console.error(err);
-        Alert.alert('Error', 'Failed to load user data');
+        alert('Error', 'Failed to load user data');
       } finally {
         setLoading(false);
       }
@@ -54,7 +56,7 @@ export default function EditProfile() {
 
   const handleSaveChanges = async () => {
     if (!firstName || !lastName) {
-      Alert.alert('Validation', 'All fields must be filled');
+      alert('Validation', 'All fields must be filled');
       return;
     }
 
@@ -66,12 +68,12 @@ export default function EditProfile() {
         lastName,
         profileImage: profileImage || '',
       });
-      Alert.alert('Success', 'Changes saved successfully', [
+      alert('Success', 'Changes saved successfully', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Failed to save changes');
+      alert('Error', 'Failed to save changes');
     }
   };
 
@@ -97,18 +99,19 @@ export default function EditProfile() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100" edges={['top']}>
-      {/* Header */}
-      <View className="bg-white border-b border-gray-200">
-        <View className="flex-row items-center justify-between p-4">
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        {/* Header */}
+        <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
+        <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
           <TouchableOpacity 
-            className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center"
+            className="p-2 rounded-full border border-gray-300"
             onPress={handleBack}
           >
-            <Ionicons name="arrow-back" size={24} color="#666" />
+            <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
           </TouchableOpacity>
           
-          <Text className="text-xl font-bold text-[#1E1E1E]">Edit Account</Text>
+          <Text className="text-2xl font-semibold text-[#1E1E1E]">Edit Account</Text>
           <View className="w-10" />
         </View>
       </View>
@@ -148,7 +151,7 @@ export default function EditProfile() {
           </View>
 
           <View>
-            <Text className="text-lg font-semibold text-gray-800 mb-3">Last Name</Text>
+            <Text className="text-lg font-semibold text-gray-800 my-3">Last Name</Text>
             <TextInput
               className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg text-gray-800"
               placeholder="Enter last name"
@@ -172,6 +175,8 @@ export default function EditProfile() {
           <Text className="text-lg font-bold text-white">Save Changes</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+      {AlertComponent}
+    </View>
   );
 }

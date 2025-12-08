@@ -1,10 +1,11 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Alert, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../../firebase/firebase';
 
 type UserData = {
@@ -15,6 +16,8 @@ type UserData = {
 };
 
 export default function UserProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const [user, setUser] = useState<UserData | null>(null);
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export default function UserProfileScreen() {
           });
         }
       } catch (error) {
-        console.log('Error fetching user data:', error);
+        console.error('Error fetching user data:', error);
       }
     };
 
@@ -48,7 +51,7 @@ export default function UserProfileScreen() {
   const handleSignOut = async () => {
     try {
       // Confirm before signing out
-      Alert.alert('Logout', 'Are you sure you want to sign out?', [
+      alert('Logout', 'Are you sure you want to sign out?', [
         {
           text: 'Cancel',
           style: 'cancel',
@@ -57,28 +60,32 @@ export default function UserProfileScreen() {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
+            // Preserve onboarding status before clearing storage
+            const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
             await auth.signOut();
             await AsyncStorage.clear();
+            // Restore onboarding status after clearing
+            if (hasSeenOnboarding === 'true') {
+              await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+            }
             router.replace('/'); // replace with your login route
           },
         },
       ]);
     } catch (error) {
-      console.log('Error signing out:', error);
+      console.error('Error signing out:', error);
     }
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor="white" />
+    <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F5F5F5' }} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F5F5F5" />
       
       {/* Header */}
-      <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200">
-        <TouchableOpacity className="p-2 rounded-full border border-gray-300">
-          <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
-        </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold text-[#1E1E1E]">Account</Text>
+      <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200" style={{ marginTop: -insets.top, paddingTop: insets.top + 16 }}>
+        <View className="w-8" />
+        <Text className="flex-1 text-center text-2xl font-semibold text-[#1E1E1E]">Account</Text>
         <View className="w-8" />
       </View>
 
@@ -100,7 +107,7 @@ export default function UserProfileScreen() {
             )}
           </View>
           <View className="flex flex-col">
-            <Text className="text-xl font-bold text-[#1E1E1E]">
+            <Text className="text-2xl font-semibold text-[#1E1E1E]">
               {user ? `${user.firstName} ${user.lastName}` : 'Loading...'}
             </Text>
             <Text className="text-sm text-gray-500">
@@ -124,6 +131,7 @@ export default function UserProfileScreen() {
         <Ionicons name="log-out" size={24} color="#1E1E1E" className="mr-3" />
         <Text className="text-lg text-[#1E1E1E]">Sign Out</Text>
       </TouchableOpacity>
+      {AlertComponent}
       </SafeAreaView>
     </View>
   );

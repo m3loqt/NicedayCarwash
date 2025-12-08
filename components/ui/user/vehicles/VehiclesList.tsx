@@ -1,8 +1,9 @@
+import { useAlert } from '@/hooks/use-alert';
 import { router } from 'expo-router';
 import { getAuth } from "firebase/auth";
 import { getDatabase, onValue, ref, remove } from "firebase/database";
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import VehicleCard from './VehicleCard';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
 
@@ -13,6 +14,7 @@ interface VehicleProfile {
 }
 
 export default function VehiclesList() {
+  const { alert, AlertComponent } = useAlert();
   const [vehicles, setVehicles] = useState<VehicleProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
@@ -51,7 +53,7 @@ const handleEdit = (id: string) => {
 
 
 const handleDelete = (plateNumber: string) => {
-  Alert.alert(
+  alert(
     "Confirm Delete",
     `Are you sure you want to delete vehicle ${plateNumber}?`,
     [
@@ -67,7 +69,7 @@ const handleDelete = (plateNumber: string) => {
             const auth = getAuth();
             const userId = auth.currentUser?.uid;
             if (!userId) {
-              Alert.alert("Error", "User not authenticated.");
+              alert("Error", "User not authenticated.");
               return;
             }
 
@@ -82,7 +84,7 @@ const handleDelete = (plateNumber: string) => {
             setShowDeleteSuccess(true);
           } catch (err) {
             console.error("Failed to delete vehicle:", err);
-            Alert.alert("Error", "Failed to delete vehicle.");
+            alert("Error", "Failed to delete vehicle.");
           }
         }
       }
@@ -109,13 +111,13 @@ const handleDelete = (plateNumber: string) => {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+    <View className="flex-1" style={{ backgroundColor: 'transparent' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={false}
-        style={{ backgroundColor: 'white', flex: 1 }}
+        style={{ backgroundColor: 'transparent', flex: 1 }}
         className="pt-4"
-        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'white' }}
+        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'transparent' }}
       >
         {vehicles.map((vehicle) => (
           <VehicleCard
@@ -129,6 +131,7 @@ const handleDelete = (plateNumber: string) => {
           />
         ))}
       </ScrollView>
+      {AlertComponent}
     </View>
   );
 }

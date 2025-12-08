@@ -1,3 +1,4 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from "firebase/auth";
@@ -12,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
 import VehicleClassificationModal from './modals/VehicleClassificationModal';
 
@@ -33,6 +34,8 @@ const vehicleClassifications: VehicleClassification[] = [
 ];
 
 export default function EditVehicle() {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   /** GET VEHICLE ID FROM URL PARAM */
   const { id } = useLocalSearchParams();
   const vehicleId = String(id);
@@ -85,7 +88,7 @@ export default function EditVehicle() {
       if (!userId) return;
 
       if (!selectedClassification) {
-        alert("Please select a vehicle classification");
+        alert("Error", "Please select a vehicle classification");
         return;
       }
 
@@ -101,7 +104,7 @@ export default function EditVehicle() {
       setShowSuccessPanel(true);
     } catch (err) {
       console.error("Failed to update:", err);
-      alert("Failed to update vehicle.");
+      alert("Error", "Failed to update vehicle.");
     }
   };
 
@@ -151,10 +154,11 @@ export default function EditVehicle() {
 
   /** UI */
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      {/* HEADER */}
-      <View className="bg-white border-b border-gray-200">
-        <View className="flex-row items-center justify-between p-4">
+    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        {/* HEADER */}
+        <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
+        <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
           <TouchableOpacity
             className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center"
             onPress={handleBack}
@@ -162,7 +166,7 @@ export default function EditVehicle() {
             <Ionicons name="arrow-back" size={24} color="#666" />
           </TouchableOpacity>
 
-          <Text className="text-xl font-bold text-[#1E1E1E]">Edit Vehicle</Text>
+          <Text className="text-2xl font-semibold text-[#1E1E1E]">Edit Vehicle</Text>
 
           <View className="w-10" />
         </View>
@@ -236,7 +240,8 @@ export default function EditVehicle() {
       >
         <Ionicons name="checkmark" size={40} color="white" />
       </TouchableOpacity>
-
-    </SafeAreaView>
+      {AlertComponent}
+      </SafeAreaView>
+    </View>
   );
 }
