@@ -1,20 +1,21 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { useState } from 'react';
 import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ForgotPasswordScreen() {
+  const { alert, AlertComponent } = useAlert();
   const [email, setEmail] = useState('');
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
@@ -24,7 +25,7 @@ export default function ForgotPasswordScreen() {
 
   const handleResetPassword = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      alert('Error', 'Please enter your email');
       return;
     }
 
@@ -33,8 +34,8 @@ export default function ForgotPasswordScreen() {
       await sendPasswordResetEmail(auth, email);
       setShowSuccessScreen(true);
     } catch (error: any) {
-      console.log('Reset password error:', error);
-      Alert.alert(
+      console.error('Reset password error:', error);
+      alert(
         'Failed',
         error.message || 'Failed to send password reset email'
       );
@@ -43,7 +44,6 @@ export default function ForgotPasswordScreen() {
 
   const handleOpenEmailApp = () => {
     // Optional: open email app using Linking
-    console.log('Open email app pressed');
   };
 
   const handleResend = () => {
@@ -158,6 +158,7 @@ export default function ForgotPasswordScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+      {AlertComponent}
     </SafeAreaView>
   );
 }
