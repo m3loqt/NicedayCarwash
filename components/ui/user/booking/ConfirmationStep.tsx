@@ -1,9 +1,10 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface ServiceOrAddon {
   id: string;
@@ -28,7 +29,7 @@ interface ConfirmationStepProps {
   onDone?: () => void;
 }
 
-// Convert vehicle type ID to human-readable classification name
+// Converts vehicle type ID to human-readable classification name
 const getClassificationName = (vtype?: string): string => {
   if (!vtype) return '';
   const classificationMap: { [key: string]: string } = {
@@ -86,7 +87,7 @@ const formatDate = (date: Date): string => {
 const formatTimeRange = (timeSlot: { time: string } | null, estimatedHours: number): string => {
   if (!timeSlot) return '';
   const startTime = timeSlot.time;
-  // Extract hour, minute, and AM/PM from time string
+  // Extracting hour, minute, and AM/PM from time string
   const match = startTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!match) return startTime;
   
@@ -94,14 +95,14 @@ const formatTimeRange = (timeSlot: { time: string } | null, estimatedHours: numb
   const minute = parseInt(match[2], 10);
   const period = match[3].toUpperCase();
   
-  // Convert 12-hour format to 24-hour format
+  // Converting 12-hour format to 24-hour format
   if (period === 'PM' && hour !== 12) hour += 12;
   if (period === 'AM' && hour === 12) hour = 0;
   
-  // Calculate end time by adding estimated hours
+  // Calculating end time by adding estimated hours
   const endHour = hour + estimatedHours;
   
-  // Convert 24-hour format back to 12-hour format
+  // Converting 24-hour format back to 12-hour format
   const endHour12 = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour === 12 ? 12 : endHour);
   const endPeriod = endHour >= 12 ? 'pm' : 'am';
   
@@ -121,17 +122,18 @@ export default function ConfirmationStep({
   onBack,
   onDone,
 }: ConfirmationStepProps) {
+  const { alert, AlertComponent } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState('');
 
   const generateAppointmentId = (): string => {
-    // Generate 6 random digits
+    // Generating 6 random digits
     const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
     return `ND-${random}`;
   };
 
   const formatDateForPath = (date: Date): string => {
-    // Format as MM-DD-YYYY for database path (matches database structure)
+    // Formatting as MM-DD-YYYY for database path (matches database structure)
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -139,7 +141,7 @@ export default function ConfirmationStep({
   };
 
   const formatDateForDisplay = (date: Date): string => {
-    // Format as MM-DD-YYYY for appointmentDate field (same as database path)
+    // Formatting as MM-DD-YYYY for appointmentDate field (same as database path)
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -148,7 +150,7 @@ export default function ConfirmationStep({
 
   const handleConfirm = async () => {
     if (!date || !timeSlot) {
-      Alert.alert('Error', 'Please select a date and time slot');
+      alert('Error', 'Please select a date and time slot');
       return;
     }
 
@@ -158,33 +160,33 @@ export default function ConfirmationStep({
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated');
+        alert('Error', 'User not authenticated');
         setSubmitting(false);
         return;
       }
 
       const db = getDatabase();
       
-      // Create unique appointment identifier
+      // Creating unique appointment identifier
       const appointmentId = generateAppointmentId();
       
-      // Use current date for database path organization, not appointment date
+      // Using current date for database path organization, not appointment date
       const creationDate = new Date();
       const datePath = formatDateForPath(creationDate);
       
-      // Determine vehicle classification for pricing (prefer vtype ID, fallback to classification)
+      // Determining vehicle classification for pricing (preferring vtype ID, falling back to classification)
       const classificationForPrice = vehicle.vtype || vehicle.classification?.toLowerCase() || '';
       
-      // Sum booking fee, services, and addons to get total amount
+      // Summing booking fee, services, and addons to get total amount
       const bookingFee = 25.00;
       const servicesTotal = services.reduce((sum, s) => sum + getPriceForClassification(s, classificationForPrice), 0);
       const addonsTotal = addons.reduce((sum, a) => sum + getPriceForClassification(a, classificationForPrice), 0);
       const amountDue = servicesTotal + addonsTotal + bookingFee;
 
-      // Get human-readable classification name (convert vtype ID if needed)
+      // Getting human-readable classification name (converting vtype ID if needed)
       const classification = vehicle.classification || getClassificationName(vehicle.vtype) || '';
       
-      // Construct booking object with all required fields
+      // Constructing booking object with all required fields
       const bookingData = {
         appointmentId: appointmentId,
         branchName: branch.name,
@@ -216,11 +218,11 @@ export default function ConfirmationStep({
         })),
       };
 
-      // Store booking in user's reservation path (appointmentId used as both key and field)
+      // Storing booking in user's reservation path (appointmentId used as both key and field)
       const userBookingRef = ref(db, `Reservations/ReservationsByUser/${userId}/${datePath}/${appointmentId}`);
       await set(userBookingRef, bookingData);
 
-      // Store booking in branch's reservation path for admin dashboard access
+      // Storing booking in branch's reservation path for admin dashboard access
       const branchBookingRef = ref(db, `Reservations/ReservationsByBranch/${branch.id}/${datePath}/${appointmentId}`);
       await set(branchBookingRef, bookingData);
 
@@ -232,7 +234,7 @@ export default function ConfirmationStep({
       } as any);
     } catch (error) {
       console.error('Failed to save booking:', error);
-      Alert.alert('Error', 'Failed to save booking. Please try again.');
+      alert('Error', 'Failed to save booking. Please try again.');
       setSubmitting(false);
     }
   };
@@ -241,7 +243,7 @@ export default function ConfirmationStep({
     return `₱ ${value.toFixed(2)}`;
   };
 
-  // Apply same vehicle classification logic as booking submission for price calculation
+  // Applying same vehicle classification logic as booking submission for price calculation
   const classificationForPrice = vehicle?.vtype || vehicle?.classification?.toLowerCase() || '';
   const bookingFee = 25.00;
   const orderSummary = [
@@ -425,6 +427,7 @@ export default function ConfirmationStep({
           )}
         </TouchableOpacity>
       </View>
+      {AlertComponent}
     </View>
   );
 }

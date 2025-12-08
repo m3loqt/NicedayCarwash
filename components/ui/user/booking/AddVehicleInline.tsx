@@ -1,17 +1,17 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Image,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import VehicleClassificationModal from '../vehicles/modals/VehicleClassificationModal';
 
@@ -40,6 +40,7 @@ export default function AddVehicleInline({
   onClose: () => void;
   onSaved: (vehicle: any) => void;
 }) {
+  const { alert, AlertComponent } = useAlert();
   const [vehicleName, setVehicleName] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
   const [selectedClassification, setSelectedClassification] = useState<VehicleClassification | null>(null);
@@ -70,7 +71,7 @@ export default function AddVehicleInline({
 
   const handleSave = async () => {
     if (!vehicleName.trim() || !plateNumber.trim() || !selectedClassification) {
-      Alert.alert('Error', 'Please fill all fields and select a vehicle classification.');
+      alert('Error', 'Please fill all fields and select a vehicle classification.');
       return;
     }
 
@@ -79,7 +80,7 @@ export default function AddVehicleInline({
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        Alert.alert('Error', 'User not authenticated.');
+        alert('Error', 'User not authenticated.');
         return;
       }
 
@@ -89,7 +90,7 @@ export default function AddVehicleInline({
 
       const snapshot = await get(vehicleRef);
       if (snapshot.exists()) {
-        Alert.alert('Error', `Vehicle with plate number ${normalizedPlate} already exists.`);
+        alert('Error', `Vehicle with plate number ${normalizedPlate} already exists.`);
         return;
       }
 
@@ -105,7 +106,7 @@ export default function AddVehicleInline({
       onClose();
     } catch (err) {
       console.error('Failed to add vehicle:', err);
-      Alert.alert('Error', 'Failed to add vehicle.');
+      alert('Error', 'Failed to add vehicle.');
     } finally {
       setLoading(false);
     }
@@ -208,6 +209,7 @@ export default function AddVehicleInline({
         </View>
 
       </View>
+      {AlertComponent}
     </Modal>
   );
 }

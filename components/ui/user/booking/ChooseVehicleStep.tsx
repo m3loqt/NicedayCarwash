@@ -37,23 +37,19 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <View className="flex-1 justify-center items-center bg-[#F8F8F8]">
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
-      <ScrollView 
-        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }} 
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Section Title */}
-        <View className="px-5 pt-6 pb-4">
-          <Text className="text-xl font-bold text-[#1E1E1E]">Choose Vehicle</Text>
-        </View>
+    <View className="flex-1 bg-[#F8F8F8] px-4">
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* ------------------- VEHICLES ------------------- */}
+        <Text className="text-xl font-semibold mt-4 mb-3">
+          Choose Vehicle
+        </Text>
 
         {/* Vehicle List */}
         {vehicles.map((v) => {
@@ -61,7 +57,7 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
 
           return (
             <Pressable
-              className="mx-5 my-2"
+              className="mb-4"
               key={v.vplateNumber}
               onPress={() => onSelectVehicle(v)}
               style={({ pressed }) => [

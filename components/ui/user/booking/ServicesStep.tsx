@@ -1,13 +1,13 @@
+import { useAlert } from "@/hooks/use-alert";
 import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import DateSelectionModal from "./modals/DateSelectionModal";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
@@ -19,6 +19,7 @@ interface Service {
   suv: number;
   pickup: number;
   estimatedTime: number;
+  isAvailable?: boolean;
 }
 
 interface Addon {
@@ -26,11 +27,12 @@ interface Addon {
   name: string;
   price: number;
   estimatedTime: number;
+  isAvailable?: boolean;
 }
 
 interface TimeSlot {
   time: string;
-  isAvailable: boolean;
+  status: "available" | "unavailable";
 }
 
 interface Vehicle {
@@ -48,6 +50,7 @@ export default function ServicesStep({
   selectedVehicle: Vehicle;
   onNext: (data: any) => void;
 }) {
+  const { alert, AlertComponent } = useAlert();
   const [services, setServices] = useState<Service[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
@@ -75,10 +78,8 @@ export default function ServicesStep({
   }, []);
 
   useEffect(() => {
-    if (branchSchedule) {
-      loadTimeSlots(selectedDate);
-    }
-  }, [selectedDate, branchSchedule]);
+    loadTimeSlots(selectedDate);
+  }, [selectedDate]);
 
   const loadBranchSchedule = async (): Promise<{ openTime: string; closeTime: string } | null> => {
     try {
@@ -87,9 +88,9 @@ export default function ServicesStep({
       );
       if (snapshot.exists()) {
         const profile = snapshot.val();
-        // Extract open and close times from schedule string (format: "8:00 AM - 6:00 PM")
+        // Extracting open and close times from schedule string (format: "8:00 AM - 6:00 PM")
         const schedule = profile.schedule || "";
-        // Parse schedule string using regex to extract time components
+        // Parsing schedule string using regex to extract time components
         const timeMatch = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
         let scheduleData: { openTime: string; closeTime: string };
         if (timeMatch) {
@@ -98,7 +99,7 @@ export default function ServicesStep({
             closeTime: `${timeMatch[4]}:${timeMatch[5]} ${timeMatch[6]}`
           };
         } else {
-          // Fallback to default hours when schedule format is invalid
+          // Falling back to default hours when schedule format is invalid
           scheduleData = { openTime: "8:00 AM", closeTime: "6:00 PM" };
         }
         setBranchSchedule(scheduleData);
@@ -106,7 +107,7 @@ export default function ServicesStep({
       }
     } catch (err) {
       console.error("Failed to load branch schedule:", err);
-      // Return default schedule when loading fails
+      // Returning default schedule when loading fails
       const defaultSchedule = { openTime: "8:00 AM", closeTime: "6:00 PM" };
       setBranchSchedule(defaultSchedule);
       return defaultSchedule;
@@ -114,29 +115,61 @@ export default function ServicesStep({
     return null;
   };
 
-  // Load data from Firebase
+  // Loading services data from Firebase
   const loadServices = async () => {
     try {
-      const snapshot = await get(
-        ref(db, `Branches/${sanitizePath(branchId)}/Services`)
-      );
+      const path = `Branches/${sanitizePath(branchId)}/Services`;
+      const snapshot = await get(ref(db, path));
+      
       if (snapshot.exists()) {
         const data: Service[] = [];
+        
         snapshot.forEach((child) => {
           const val = child.val();
-          data.push({
-            id: child.key!,
-            name: val.name,
-            sedan: val.sedanPrice,
-            suv: val.suvPrice,
-            pickup: val.pickupPrice,
-            estimatedTime: val.estimatedTime,
-          });
+          const key = child.key;
+          
+          // Including only available services (isAvailable !== false)
+          // Defaulting to true if isAvailable is undefined (for backward compatibility)
+          // Handling both boolean and string values
+          let isAvailable = true;
+          if (val.isAvailable !== undefined) {
+            if (typeof val.isAvailable === 'boolean') {
+              isAvailable = val.isAvailable;
+            } else if (typeof val.isAvailable === 'string') {
+              isAvailable = val.isAvailable.toLowerCase() === 'true';
+            } else {
+              isAvailable = Boolean(val.isAvailable);
+            }
+          }
+          
+          if (isAvailable) {
+            // Checking for required fields (supports both camelCase and standard field names)
+            const hasPrices = val.sedanPrice !== undefined || val.suvPrice !== undefined || val.pickupPrice !== undefined ||
+                             val.sedan !== undefined || val.suv !== undefined || val.pickup !== undefined;
+            
+            if (val.name && hasPrices) {
+              const service = {
+                id: key!,
+                name: val.name,
+                sedan: val.sedanPrice || val.sedan || 0,
+                suv: val.suvPrice || val.suv || 0,
+                pickup: val.pickupPrice || val.pickup || 0,
+                estimatedTime: val.estimatedTime || 0,
+                isAvailable: true,
+              };
+              data.push(service);
+            }
+          }
         });
+        
         setServices(data);
+      } else {
+        setServices([]);
       }
     } catch (err) {
-      Alert.alert("Error", "Failed to load services");
+      console.error("Error loading services:", err);
+      alert("Error", "Failed to load services");
+      setServices([]);
     }
   };
 
@@ -149,24 +182,29 @@ export default function ServicesStep({
         const data: Addon[] = [];
         snapshot.forEach((child) => {
           const val = child.val();
-          data.push({
-            id: child.key!,
-            name: val.name,
-            price: val.price,
-            estimatedTime: val.estimatedTime,
-          });
+          // Including only available add-ons (isAvailable !== false)
+          const isAvailable = val.isAvailable !== undefined ? val.isAvailable : true;
+          if (isAvailable) {
+            data.push({
+              id: child.key!,
+              name: val.name,
+              price: val.price,
+              estimatedTime: val.estimatedTime,
+              isAvailable: true,
+            });
+          }
         });
         setAddons(data);
       }
     } catch (err) {
-      Alert.alert("Error", "Failed to load add-ons");
+      alert("Error", "Failed to load add-ons");
     }
   };
 
   const parseTimeTo24Hour = (timeStr: string): number => {
-    // Convert 12-hour time string to 24-hour integer (0-23)
+    // Converting 12-hour time string to 24-hour integer (0-23)
     const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!match) return 8; // Default to 8 AM
+    if (!match) return 8; // Defaulting to 8 AM
     
     let hour = parseInt(match[1], 10);
     const period = match[3].toUpperCase();
@@ -192,14 +230,14 @@ export default function ServicesStep({
     selectedDateOnly.setHours(0, 0, 0, 0);
     const isToday = selectedDateOnly.getTime() === today.getTime();
     
-    // Use current hour for today's date, otherwise use 0
+    // Using current hour for today's date, otherwise using 0
     const currentHour = isToday ? new Date().getHours() : 0;
     
-    // Convert schedule times to 24-hour format
+    // Converting schedule times to 24-hour format
     const openHour = parseTimeTo24Hour(scheduleToUse.openTime);
     const closeHour = parseTimeTo24Hour(scheduleToUse.closeTime);
     
-    // Reject dates when store is already closed today
+    // Rejecting dates when store is already closed today
     if (isToday && currentHour >= closeHour) {
       return {
         available: false,
@@ -207,7 +245,7 @@ export default function ServicesStep({
       };
     }
     
-    // Verify schedule has valid time range with available slots
+    // Verifying schedule has valid time range with available slots
     let hasAvailableSlots = false;
     for (let h = openHour; h < closeHour; h++) {
       if (isToday && h <= currentHour) {
@@ -227,40 +265,161 @@ export default function ServicesStep({
     return { available: true, reason: "" };
   };
 
-  const loadTimeSlots = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDateOnly = new Date(date);
-    selectedDateOnly.setHours(0, 0, 0, 0);
-    const isToday = selectedDateOnly.getTime() === today.getTime();
-    
-    // Use current hour for today, otherwise start from 0
-    const currentHour = isToday ? new Date().getHours() : 0;
-    
-    // Convert schedule to 24-hour format (default to 8 AM - 6 PM if missing)
-    const openHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.openTime) : 8;
-    const closeHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.closeTime) : 18;
-    
-    // Create hourly time slots between open and close hours
-    const slots: TimeSlot[] = [];
-    for (let h = openHour; h < closeHour; h++) {
-      // Skip past hours when selecting today's date
-      if (isToday && h <= currentHour) {
-        continue;
+  const loadTimeSlots = async (date: Date) => {
+    try {
+      // First, try to load time slots from database array
+      const timeSlotsRef = ref(db, `Branches/${sanitizePath(branchId)}/TimeSlots`);
+      const timeSlotsSnapshot = await get(timeSlotsRef);
+      
+      if (timeSlotsSnapshot.exists()) {
+        const timeSlotsData = timeSlotsSnapshot.val();
+        const slots: TimeSlot[] = [];
+        
+        // Handle array format: [null, {time: "10:00 AM", status: "available"}, ...]
+        if (Array.isArray(timeSlotsData)) {
+          timeSlotsData.forEach((slot: any) => {
+            if (slot && slot.time && slot.status === "available") {
+              slots.push({
+                time: slot.time,
+                status: "available",
+              });
+            }
+          });
+        } else if (typeof timeSlotsData === 'object' && timeSlotsData !== null) {
+          // Handle object format as fallback
+          Object.keys(timeSlotsData).forEach((key) => {
+            const slot = timeSlotsData[key];
+            if (slot && slot.time && slot.status === "available") {
+              slots.push({
+                time: slot.time,
+                status: "available",
+              });
+            }
+          });
+        }
+        
+        // Filter out past time slots if selecting today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDateOnly = new Date(date);
+        selectedDateOnly.setHours(0, 0, 0, 0);
+        const isToday = selectedDateOnly.getTime() === today.getTime();
+        const currentHour = isToday ? new Date().getHours() : 0;
+        
+        const filteredSlots = slots.filter((slot) => {
+          if (!isToday) return true;
+          
+          // Parse time string to compare with current hour
+          const timeMatch = slot.time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+          if (!timeMatch) return true;
+          
+          let hour = parseInt(timeMatch[1], 10);
+          const period = timeMatch[3].toUpperCase();
+          
+          if (period === "PM" && hour !== 12) hour += 12;
+          if (period === "AM" && hour === 12) hour = 0;
+          
+          return hour > currentHour;
+        });
+        
+        setTimeSlots(filteredSlots);
+        // Clearing selected time slot if it's not in the available slots
+        if (selectedTimeSlot && !filteredSlots.find(s => s.time === selectedTimeSlot.time)) {
+          setSelectedTimeSlot(null);
+        }
+        return;
       }
       
-      const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
-      const period = h >= 12 ? "PM" : "AM";
-      slots.push({
-        time: `${hour12}:00 ${period}`,
-        isAvailable: true,
-      });
-    }
-    
-    setTimeSlots(slots);
-    // Clear selected time slot if it's not in the available slots
-    if (selectedTimeSlot && !slots.find(s => s.time === selectedTimeSlot.time)) {
-      setSelectedTimeSlot(null);
+      // Fallback to dynamic generation if TimeSlots array doesn't exist
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDateOnly = new Date(date);
+      selectedDateOnly.setHours(0, 0, 0, 0);
+      const isToday = selectedDateOnly.getTime() === today.getTime();
+      
+      // Using current hour for today, otherwise starting from 0
+      const currentHour = isToday ? new Date().getHours() : 0;
+      
+      // Fetching schedule from database: Branches/{branchId}/profile/schedule
+      const scheduleRef = ref(db, `Branches/${sanitizePath(branchId)}/profile/schedule`);
+      const scheduleSnapshot = await get(scheduleRef);
+      
+      const slots: TimeSlot[] = [];
+      let openHour = 8; // Default fallback
+      let closeHour = 18; // Default fallback
+      
+      if (scheduleSnapshot.exists()) {
+        const scheduleString = scheduleSnapshot.val();
+        
+        // Extract time range from schedule string (e.g., "8:00 AM - 6:00 PM" or "Mon-Sat: 9:00 AM - 6:00 PM")
+        // Handle various formats: "8:00 am - 6:00 pm", "Mon-Sat: 9:00 AM - 6:00 PM", etc.
+        const timeMatch = String(scheduleString).match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)/i);
+        
+        if (timeMatch) {
+          openHour = parseTimeTo24Hour(`${timeMatch[1]}:${timeMatch[2]} ${timeMatch[3].toUpperCase()}`);
+          closeHour = parseTimeTo24Hour(`${timeMatch[4]}:${timeMatch[5]} ${timeMatch[6].toUpperCase()}`);
+        } else {
+          // If parsing fails, use branchSchedule if available, otherwise use defaults
+          if (branchSchedule) {
+            openHour = parseTimeTo24Hour(branchSchedule.openTime);
+            closeHour = parseTimeTo24Hour(branchSchedule.closeTime);
+          }
+        }
+      } else {
+        // No schedule found in database, use branchSchedule if available
+        if (branchSchedule) {
+          openHour = parseTimeTo24Hour(branchSchedule.openTime);
+          closeHour = parseTimeTo24Hour(branchSchedule.closeTime);
+        }
+      }
+      
+      // Generate hourly time slots from openHour to closeHour
+      // Example: 8 AM to 6 PM generates: 8 AM, 9 AM, 10 AM, ..., 5 PM
+      for (let h = openHour; h < closeHour; h++) {
+        // Skip past hours when selecting today's date
+        if (isToday && h <= currentHour) {
+          continue;
+        }
+        
+        // Convert 24-hour format to 12-hour format with AM/PM
+        const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+        const period = h >= 12 ? "PM" : "AM";
+        slots.push({
+          time: `${hour12}:00 ${period}`,
+          status: "available",
+        });
+      }
+      
+      setTimeSlots(slots);
+      // Clearing selected time slot if it's not in the available slots
+      if (selectedTimeSlot && !slots.find(s => s.time === selectedTimeSlot.time)) {
+        setSelectedTimeSlot(null);
+      }
+    } catch (err) {
+      console.error("Failed to load timeslots:", err);
+      // Fallback to default behavior on error
+      const openHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.openTime) : 8;
+      const closeHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.closeTime) : 18;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDateOnly = new Date(date);
+      selectedDateOnly.setHours(0, 0, 0, 0);
+      const isToday = selectedDateOnly.getTime() === today.getTime();
+      const currentHour = isToday ? new Date().getHours() : 0;
+      
+      const slots: TimeSlot[] = [];
+      for (let h = openHour; h < closeHour; h++) {
+        if (isToday && h <= currentHour) {
+          continue;
+        }
+        const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+        const period = h >= 12 ? "PM" : "AM";
+        slots.push({
+          time: `${hour12}:00 ${period}`,
+          status: "available",
+        });
+      }
+      setTimeSlots(slots);
     }
   };
 
@@ -296,7 +455,7 @@ export default function ServicesStep({
       : setSelectedAddons([...selectedAddons, a]);
   };
 
-  // Convert Date object to abbreviated format (e.g., "Dec. 7, 2025")
+  // Converting Date object to abbreviated format (e.g., "Dec. 7, 2025")
   const formatDate = (date: Date): string => {
     const months = [
       "Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",
@@ -320,14 +479,14 @@ export default function ServicesStep({
     });
   };
 
-  // Validate selections and proceed to confirmation step
+  // Validating selections and proceeding to confirmation step
   const handleNext = () => {
     if (!selectedServices.length || !selectedTimeSlot) {
-      Alert.alert("Error", "Please select a service and time slot");
+      alert("Error", "Please select a service and time slot");
       return;
     }
     if (!paymentMethod) {
-      Alert.alert("Error", "Please select a payment method");
+      alert("Error", "Please select a payment method");
       return;
     }
 
@@ -352,53 +511,61 @@ export default function ServicesStep({
           Choose Service <Text className="text-gray-500">(Choose 1)</Text>
         </Text>
 
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ alignItems: 'center' }}
-        >
-          {services.map((s) => {
-            const selected = selectedServices.some((x) => x.id === s.id);
-            return (
-              <TouchableOpacity
-                key={s.id}
-                onPress={() => toggleService(s)}
-                style={{ 
-                  width: 220, 
-                  height: 140,
-                }}
-                className={`rounded-2xl bg-white mx-2 border-2 flex-col p-1 ${
-                  selected ? "border-yellow-300" : "border-transparent"
-                }`}
-              >
-                <View className="flex-1 justify-center px-5">
-                  <Text className="text-2xl font-semibold text-gray-400 text-center">
-                    {s.name}
-                  </Text>
-                </View>
+        {services.length === 0 ? (
+          <View className="bg-white rounded-xl p-4 mb-4">
+            <Text className="text-gray-500 text-center">
+              No services available at this time.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ alignItems: 'center' }}
+          >
+            {services.map((s) => {
+              const selected = selectedServices.some((x) => x.id === s.id);
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  onPress={() => toggleService(s)}
+                  style={{ 
+                    width: 220, 
+                    height: 140,
+                  }}
+                  className={`rounded- bg-white mx-2 border-2 flex-col p-1 ${
+                    selected ? "border-yellow-300" : "border-transparent"
+                  }`}
+                >
+                  <View className="flex-1 justify-center px-5">
+                    <Text className="text-2xl font-semibold text-gray-400 text-center">
+                      {s.name}
+                    </Text>
+                  </View>
 
-                <View className="bg-yellow-300 px-4 py-2 rounded-b-2xl">
-                  <View className="flex-row justify-between mb-1.5">
-                    <Text className="text-white font-medium text-lg">Sedan</Text>
-                    <Text className="text-white font-medium text-lg">
-                      ₱{s.sedan}.00
-                    </Text>
+                  <View className="bg-yellow-300 px-4 py-2 rounded-b-2xl">
+                    <View className="flex-row justify-between mb-1.5">
+                      <Text className="text-white font-medium text-lg">Sedan</Text>
+                      <Text className="text-white font-medium text-lg">
+                        ₱{s.sedan}.00
+                      </Text>
+                    </View>
+                    <View className="flex-row justify-between mb-1">
+                      <Text className="text-white font-medium text-lg">SUV</Text>
+                      <Text className="text-white font-medium text-lg">₱{s.suv}.00</Text>
+                    </View>
+                    <View className="flex-row justify-between">
+                      <Text className="text-white font-medium text-lg">Pick Up</Text>
+                      <Text className="text-white font-medium text-lg">
+                        ₱{s.pickup}.00
+                      </Text>
+                    </View>
                   </View>
-                  <View className="flex-row justify-between mb-1">
-                    <Text className="text-white font-medium text-lg">SUV</Text>
-                    <Text className="text-white font-medium text-lg">₱{s.suv}.00</Text>
-                  </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-white font-medium text-lg">Pick Up</Text>
-                    <Text className="text-white font-medium text-lg">
-                      ₱{s.pickup}.00
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* ------------------- ADD ONS ------------------- */}
         <Text className="text-xl font-semibold mt-6 mb-3">
@@ -420,7 +587,7 @@ export default function ServicesStep({
                   width: 170, 
                   height: 90,
                 }}
-                className={`rounded-2xl bg-white mx-2 border-2 flex-col p-1 ${
+                className={`rounded-xl bg-white mx-2 border-2 flex-col p-1 ${
                   selected ? "border-yellow-300" : "border-transparent"
                 }`}
               >
@@ -490,14 +657,24 @@ export default function ServicesStep({
           {timeSlots.map((t) => (
             <TouchableOpacity
               key={t.time}
-              onPress={() => setSelectedTimeSlot(t)}
+              onPress={() => {
+                if (t.status === "available") {
+                  setSelectedTimeSlot(t);
+                }
+              }}
+              disabled={t.status === "unavailable"}
               className={`px-5 py-3 rounded-xl bg-white border mr-3 ${
                 selectedTimeSlot?.time === t.time
                   ? "border-yellow-300 border-2"
                   : "border-transparent border-2"
               }`}
+              style={{
+                opacity: t.status === "unavailable" ? 0.5 : 1,
+              }}
             >
-              <Text className="font-medium text-center text-gray-400">{t.time}</Text>
+              <Text className={`font-medium text-center ${t.status === "unavailable" ? "text-gray-300" : "text-gray-400"}`}>
+                {t.time}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -560,6 +737,7 @@ export default function ServicesStep({
       >
         <Ionicons name="chevron-forward" size={46} color="white" style={{ marginLeft: 4 }} />
       </TouchableOpacity>
+      {AlertComponent}
     </View>
   );
 }

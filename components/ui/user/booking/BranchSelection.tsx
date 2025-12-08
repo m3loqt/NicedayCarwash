@@ -3,11 +3,11 @@ import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import {
-    Dimensions,
-    Platform,
-    Text,
-    TextInput,
-    View
+  Dimensions,
+  Platform,
+  Text,
+  TextInput,
+  View
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import BookingFlow from './BookingFlow';
@@ -153,7 +153,6 @@ const handleSearch = (q: string) => {
   let unsub = () => {};
   (async () => {
     const userLoc = await getCurrentLocation();
-    console.log('Initial user location fetched:', userLoc);
     setUserLocation(userLoc);
 
     const unsubscribe = onValue(branchesRef, snapshot => {
@@ -214,7 +213,7 @@ const handleSearch = (q: string) => {
         className="flex-row items-center justify-center px-4 pb-4 mt-4 bg-[#F8F8F8] border-b border-[#E0E0E0]"
         style={{ paddingTop: Platform.OS === 'ios' ? 50 : 20 }}
       >
-        <Text className="text-lg font-semibold text-[#333]">Choose a Branch</Text>
+        <Text className="text-2xl font-semibold text-[#333]">Choose a Branch</Text>
       </View>
 
       {/* Map */}
@@ -245,11 +244,8 @@ const handleSearch = (q: string) => {
                   return;
                 }
                 try {
-                  console.log('Marker pressed:', branch.id);
-                  // Recalculate distance using current user location
+                  // Recalculating distance using current user location
                   const currentUserLoc = userLocation || await getCurrentLocation();
-                  console.log('Current user location:', currentUserLoc);
-                  console.log('Branch coordinates:', { lat, lng });
                   
                   if (currentUserLoc) {
                     setUserLocation(currentUserLoc); // Update stored location
@@ -259,9 +255,7 @@ const handleSearch = (q: string) => {
                       lat,
                       lng
                     );
-                    console.log('Calculated distance (meters):', distanceMeters);
                     const distanceText = formatDistance(distanceMeters);
-                    console.log('Formatted distance:', distanceText);
                     
                     const updatedBranch = {
                       ...branch,

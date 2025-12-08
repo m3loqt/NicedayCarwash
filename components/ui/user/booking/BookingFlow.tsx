@@ -1,8 +1,9 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Dimensions, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Dimensions, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddVehicleInline from './AddVehicleInline';
 import ChooseVehicleStep from './ChooseVehicleStep';
 import ConfirmationStep from './ConfirmationStep';
@@ -20,6 +21,8 @@ interface Branch {
 }
 
 export default function BookingFlow({ branch, onClose }: { branch: Branch | null; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const [step, setStep] = useState(1);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
@@ -38,7 +41,7 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
 
 const handleNext = (data?: any) => {
   if (step === 1 && !selectedVehicle) {
-    Alert.alert('Select Vehicle', 'Please select or add a vehicle before continuing.');
+    alert('Select Vehicle', 'Please select or add a vehicle before continuing.');
     return;
   }
 
@@ -66,14 +69,15 @@ const handleNext = (data?: any) => {
   };
 
   return (
-    <SafeAreaView className="absolute inset-0 bg-gray-100" edges={['top']}>
-      {/* Header */}
-      <View className="bg-white pt-5">
-        <View className="flex-row items-center justify-between p-4">
+    <View className="absolute inset-0" style={{ backgroundColor: 'white' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+        {/* Header */}
+        <View className="bg-white" style={{ marginTop: -insets.top }}>
+        <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
           <TouchableOpacity className="w-10 h-10 rounded-full bg-white border items-center justify-center" style={{ borderColor: 'rgba(179, 179, 179, 0.20)' }} onPress={handleBack}>
             <Ionicons name="arrow-back" size={24} color="#B3B3B3" />
           </TouchableOpacity>
-          <Text className="text-2xl font-bold text-[#1E1E1E]">
+          <Text className="text-2xl font-semibold text-[#1E1E1E]">
             {step === 1 ? 'Choose Vehicle' : step === 2 ? 'Choose Services' : 'Confirmation'}
           </Text>
           {step === 1 ? (
@@ -185,6 +189,8 @@ const handleNext = (data?: any) => {
           <Ionicons name="chevron-forward" size={46} color="white" style={{ marginLeft: 4 }} />
         </TouchableOpacity>
       )}
-    </SafeAreaView>
+      {AlertComponent}
+      </SafeAreaView>
+    </View>
   );
 }
