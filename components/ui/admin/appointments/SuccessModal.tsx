@@ -14,17 +14,16 @@ interface SuccessModalProps {
  * Uses nested Text components to apply font-semibold to specific parts
  */
 const formatMessageWithBold = (message: string): React.ReactNode => {
-  // Pattern to match: (plateNumber), dates like "December 7, 2025", times like "7:00 AM", and "Bay X"
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   
-  // Match patterns: (PLATE), dates (Month Day, Year), times (H:MM AM/PM), Bay numbers, and cancel reasons in quotes
+  // Regex patterns matching plate numbers, dates, times, bay numbers, and quoted text
   const patterns = [
-    /\(([A-Z0-9]+)\)/g, // Plate number in parentheses
-    /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d+,\s+\d{4}/g, // Date
-    /\d{1,2}:\d{2}\s*(AM|PM)/gi, // Time
-    /Bay\s+\d+/gi, // Bay number
-    /"([^"]+)"/g, // Text in quotes (for cancel reasons and other quoted text)
+    /\(([A-Z0-9]+)\)/g, // Matches plate numbers in parentheses
+    /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d+,\s+\d{4}/g, // Matches full date format
+    /\d{1,2}:\d{2}\s*(AM|PM)/gi, // Matches 12-hour time format
+    /Bay\s+\d+/gi, // Matches bay number references
+    /"([^"]+)"/g, // Matches quoted text
   ];
   
   const matches: Array<{ start: number; end: number; text: string }> = [];
@@ -40,10 +39,10 @@ const formatMessageWithBold = (message: string): React.ReactNode => {
     }
   });
   
-  // Sort matches by start position
+  // Sorting matches by their start position in the message
   matches.sort((a, b) => a.start - b.start);
   
-  // Remove overlapping matches (keep the first one)
+  // Filtering out overlapping matches, keeping the first occurrence
   const filteredMatches: Array<{ start: number; end: number; text: string }> = [];
   matches.forEach(match => {
     const overlaps = filteredMatches.some(
@@ -54,14 +53,14 @@ const formatMessageWithBold = (message: string): React.ReactNode => {
     }
   });
   
-  // Build the formatted message
+  // Building formatted message with bold styling for matched patterns
   filteredMatches.forEach((match, index) => {
-    // Add text before match
+    // Adding text segment before the current match
     if (match.start > lastIndex) {
       parts.push(message.substring(lastIndex, match.start));
     }
     
-    // Add semi-bold match
+    // Adding matched text with semi-bold styling
     parts.push(
       <Text key={`bold-${index}`} className="font-semibold">
         {match.text}
@@ -71,7 +70,7 @@ const formatMessageWithBold = (message: string): React.ReactNode => {
     lastIndex = match.end;
   });
   
-  // Add remaining text
+  // Adding remaining text after all matches
   if (lastIndex < message.length) {
     parts.push(message.substring(lastIndex));
   }
@@ -97,13 +96,13 @@ export default function SuccessModal({
       onRequestClose={onClose}
     >
       <BlurView intensity={80} tint="light" className="flex-1 justify-center items-center">
-        {/* Backdrop: tapping this closes the modal */}
+        {/* Backdrop pressable area that closes the modal */}
         <Pressable 
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
           onPress={onClose} 
         />
 
-        {/* Modal Content */}
+        {/* Modal content container */}
         <View 
           className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-200"
           style={{
@@ -114,7 +113,7 @@ export default function SuccessModal({
             elevation: 4,
           }}
         >
-          {/* Close Button - Top Right */}
+          {/* Close button in top right corner */}
           <TouchableOpacity
             className="absolute top-4 right-4 z-10"
             onPress={onClose}
@@ -122,13 +121,13 @@ export default function SuccessModal({
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
 
-          {/* Success Icon */}
+          {/* Success icon display */}
           <View className="items-center mb-6 mt-2">
             <View className="w-24 h-24 bg-[#F9EF08] rounded-full items-center justify-center mb-4 shadow-lg">
               <Ionicons name="checkmark" size={48} color="white" />
             </View>
 
-            {/* Success Message */}
+            {/* Success message text with formatted bold sections */}
             <Text className="text-3xl font-bold text-[#1E1E1E] text-center mb-2">
               Success!
             </Text>

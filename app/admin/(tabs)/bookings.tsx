@@ -17,19 +17,22 @@ export default function AdminBookingsScreen() {
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+    <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F5F5F5' }} edges={['top']}>
         {/* Header */}
         <AppointmentsHeader />
 
         {/* Status Tabs */}
         <AppointmentsTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-        {/* Search Bar */}
-        <AppointmentsSearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        {/* Content Area with Gray Background */}
+        <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
+          {/* Search Bar */}
+          <AppointmentsSearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
-        {/* Appointments List */}
-        <AppointmentsList activeTab={activeTab} searchQuery={searchQuery} />
+          {/* Appointments List */}
+          <AppointmentsList activeTab={activeTab} searchQuery={searchQuery} />
+        </View>
       </SafeAreaView>
     </View>
   );

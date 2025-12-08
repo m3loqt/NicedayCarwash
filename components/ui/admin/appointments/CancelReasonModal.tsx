@@ -42,7 +42,7 @@ export default function CancelReasonModal({
 
         {/* Modal Content */}
         <View 
-          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-200"
+          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-100"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -73,8 +73,8 @@ export default function CancelReasonModal({
               return (
                 <TouchableOpacity
                   key={reason}
-                  className={`bg-white rounded-xl py-2.5 px-4 mb-3 border-2 ${
-                    isSelected ? 'border-[#F9EF08]' : 'border-transparent'
+                  className={`bg-white rounded-xl py-2.5 px-4 mb-3 border ${
+                    isSelected ? 'border-[#F9EF08]' : 'border-gray-100'
                   }`}
                   onPress={() => onReasonSelect(reason)}
                 >
