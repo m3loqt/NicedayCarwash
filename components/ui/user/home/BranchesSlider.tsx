@@ -24,7 +24,7 @@ const branches = [
 
 export default function BranchesSlider() {
   const handleBranchPress = (branch: any) => {
-    console.log('Branch pressed:', branch.name);
+    // Branch press handler
   };
 
   return (

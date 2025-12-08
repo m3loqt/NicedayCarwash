@@ -23,11 +23,11 @@ const services = [
 
 export default function ServicesSlider() {
   const handleServicePress = (service: any) => {
-    console.log('Service pressed:', service.title);
+    // Service press handler
   };
 
   const handleBookNow = () => {
-    console.log('Book now pressed');
+    // Book now handler
   };
 
   return (
