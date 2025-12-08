@@ -19,6 +19,8 @@ interface Booking {
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
+  cancelledAt?: string;
+  completedAt?: string;
   // Additional booking details from database
   addOns?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number }>;
   services?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number; status?: string }>;
@@ -40,14 +42,12 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
     const auth = getAuth();
     const userId = auth.currentUser?.uid;
     if (!userId) {
-      console.log('No user logged in');
       setLoading(false);
       return;
     }
 
     const db = getDatabase();
     const userBookingsRef = ref(db, `Reservations/ReservationsByUser/${userId}`);
-    console.log('Fetching bookings for user:', userId);
 
     const unsubscribe = onValue(userBookingsRef, (snapshot) => {
       const list: Booking[] = [];
@@ -56,7 +56,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
         dateSnap.forEach((bookingSnap) => {
           const data = bookingSnap.val();
           if (data && data.status === activeTab) {
-            // Convert addOns to array format (handles null, array, or object with numeric keys)
+            // Converting addOns to array format (handles null, array, or object with numeric keys)
             const addOnsObj = data.addOns;
             let addOns: any[] = [];
             if (Array.isArray(addOnsObj)) {
@@ -65,7 +65,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
             }
 
-            // Convert services to array format (handles null, array, or object with numeric keys)
+            // Converting services to array format (handles null, array, or object with numeric keys)
             const servicesObj = data.services;
             let services: any[] = [];
             if (Array.isArray(servicesObj)) {
@@ -74,10 +74,10 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               services = Object.keys(servicesObj).map((k) => servicesObj[k]);
             }
 
-            // Extract estimated completion time from timeSlot object
+            // Extracting estimated completion time from timeSlot object
             const estCompletion = data.timeSlot?.estCompletion ?? null;
 
-            // Use Firebase snapshot key as appointment ID (ND-XXXXXX format)
+            // Using Firebase snapshot key as appointment ID (ND-XXXXXX format)
             const appointmentId = bookingSnap.key || '';
             
             list.push({
@@ -93,6 +93,8 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               vehicleName: data.vehicleDetails?.vehicleName || '',
               plateNumber: data.vehicleDetails?.plateNumber || '',
               classification: data.vehicleDetails?.classification || '',
+              cancelledAt: data.cancelledAt || undefined,
+              completedAt: data.completedAt || undefined,
               addOns: addOns,
               note: data.note || '',
               services: services,
@@ -102,7 +104,6 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
         });
       });
 
-      console.log('Fetched bookings:', list);
       setBookings(list);
       setLoading(false);
     });
@@ -111,7 +112,6 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
   }, [activeTab]);
 
   const handleBookingPress = (booking: Booking) => {
-    console.log('Booking pressed:', booking.id);
     setSelectedBooking(booking);
     setShowDetails(true);
   };
@@ -130,13 +130,13 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
+    <View className="flex-1" style={{ backgroundColor: 'transparent' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={false}
-        style={{ backgroundColor: 'white', flex: 1 }}
+        style={{ backgroundColor: 'transparent', flex: 1 }}
         className="pt-4"
-        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'white' }}
+        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'transparent' }}
       >
         {bookings.length > 0 ? (
           bookings.map((booking) => (
@@ -152,6 +152,8 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               vehicleName={booking.vehicleName}
               plateNumber={booking.plateNumber}
               classification={booking.classification}
+              cancelledAt={booking.cancelledAt}
+              completedAt={booking.completedAt}
               onPress={() => handleBookingPress(booking)}
               onViewMore={() => handleBookingPress(booking)}
             />
