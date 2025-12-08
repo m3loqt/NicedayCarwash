@@ -244,7 +244,6 @@ export default function AdminDashboardScreen() {
 
   const handleManageServicesPress = () => {
     // Placeholder: navigation to services management screen not yet implemented
-    console.log('Navigate to manage services');
   };
 
   if (loading) {
