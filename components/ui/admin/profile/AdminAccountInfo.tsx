@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 interface AdminAccountInfoProps {
@@ -18,10 +17,10 @@ export default function AdminAccountInfo({
   onEditAccount,
 }: AdminAccountInfoProps) {
   return (
-    <View className="bg-white rounded-lg shadow-md mx-4 mt-4 p-4">
+    <View className="bg-white rounded-lg shadow-md mx-6 mt-4 p-4">
       <View className="flex flex-row items-center">
         {/* Profile Image or Placeholder */}
-        <View className="w-20 h-20 rounded-full bg-gray-200 overflow-hidden mr-4">
+        <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden mr-4">
           {profileImage ? (
             <Image
               source={{ uri: profileImage }}
@@ -30,19 +29,19 @@ export default function AdminAccountInfo({
             />
           ) : (
             <View className="w-full h-full flex items-center justify-center bg-gray-200">
-              <Ionicons name="person" size={50} color="#9CA3AF" />
+              <Ionicons name="person" size={36} color="#9CA3AF" />
             </View>
           )}
         </View>
         <View className="flex flex-col">
-          <Text className="text-xl font-bold text-[#1E1E1E]">
+          <Text className="text-2xl font-semibold text-[#1E1E1E]">
             {firstName} {lastName}
           </Text>
           <Text className="text-sm text-gray-500">{email}</Text>
         </View>
       </View>
       <TouchableOpacity
-        className="mt-4 px-6 py-4 mx-2 text-center border border-[#F9EF08] rounded-md w-full bg-white self-start"
+        className="mt-4 px-6 py-4 border border-[#F9EF08] rounded-md bg-white"
         onPress={onEditAccount}
       >
         <Text className="text-[#F9EF08] text-center font-semibold">Edit Account</Text>
