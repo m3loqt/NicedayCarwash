@@ -29,7 +29,7 @@ export default function AddBayModal({
       return;
     }
     onAdd(id);
-    setBayId(""); // Reset after adding
+    setBayId(""); // Resetting after adding
   };
 
   return (
@@ -40,13 +40,13 @@ export default function AddBayModal({
       onRequestClose={onClose}
     >
       <BlurView intensity={80} tint="light" className="flex-1 justify-center items-center">
-        {/* Backdrop: tapping this closes the modal */}
+        {/* Backdrop pressable area that closes the modal */}
         <Pressable 
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
           onPress={onClose} 
         />
 
-        {/* Modal Content */}
+        {/* Modal content container */}
         <View 
           className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-100"
           style={{
@@ -57,7 +57,7 @@ export default function AddBayModal({
             elevation: 4,
           }}
         >
-          {/* Close Button - Top Right */}
+          {/* Close button in top right corner */}
           <TouchableOpacity
             className="absolute top-4 right-4 z-10"
             onPress={onClose}
@@ -65,7 +65,7 @@ export default function AddBayModal({
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
 
-          {/* Title - Centered and Bigger */}
+          {/* Title display */}
           <View className="items-center mb-6 mt-2">
             <Text className="text-3xl font-bold text-[#1E1E1E]" numberOfLines={1}>
               Add Bay
@@ -79,7 +79,7 @@ export default function AddBayModal({
               placeholder="eg. 1"
               value={bayId}
               onChangeText={(text) => {
-                // Only allow numeric input
+                // Allowing only numeric input
                 const numericValue = text.replace(/[^0-9]/g, '');
                 setBayId(numericValue);
               }}
@@ -87,7 +87,7 @@ export default function AddBayModal({
             />
           </View>
 
-          {/* Button */}
+          {/* Add button */}
           <TouchableOpacity
             onPress={handleAdd}
             className="bg-[#F9EF08] rounded-xl py-4 items-center"

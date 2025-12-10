@@ -41,7 +41,7 @@ export default function EditTimeSlotModal({
   const [selectedTime, setSelectedTime] = useState(initialTime || "8:00 AM");
   const [openDropdown, setOpenDropdown] = useState(false);
 
-  // Update selected time when initialTime changes
+  // Updating selected time when initialTime changes
   useEffect(() => {
     if (initialTime) {
       setSelectedTime(initialTime);

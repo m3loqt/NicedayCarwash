@@ -20,7 +20,7 @@ export default function TimeSlots() {
   const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
 
-  // Helper function to parse time slots data
+  // Parsing time slots data from database
   const parseTimeSlotsData = (timeSlotsData: any): TimeSlot[] => {
     const slots: TimeSlot[] = [];
     
@@ -49,7 +49,7 @@ export default function TimeSlots() {
       });
     }
     
-    // Sort by time
+    // Sorting by time
     slots.sort((a, b) => {
       const parseTime = (timeStr: string): number => {
         const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)/i);
@@ -79,7 +79,7 @@ export default function TimeSlots() {
 
     let unsubscribeTimeSlots: (() => void) | null = null;
 
-    // First, get the branchId
+    // Getting branchId first
     const getUserBranchId = async () => {
       try {
         const userSnapshot = await get(ref(db, `users/${uid}`));
@@ -97,7 +97,7 @@ export default function TimeSlots() {
 
         setBranchId(branchIdValue);
 
-        // Set up real-time listener for time slots
+        // Setting up real-time listener for time slots
         const timeSlotsRef = ref(db, `Branches/${branchIdValue}/TimeSlots`);
         
         unsubscribeTimeSlots = onValue(timeSlotsRef, (snapshot) => {
@@ -122,7 +122,7 @@ export default function TimeSlots() {
 
     getUserBranchId();
 
-    // Cleanup: unsubscribe when component unmounts
+    // Unsubscribing when component unmounts
     return () => {
       if (unsubscribeTimeSlots) {
         unsubscribeTimeSlots();
@@ -154,23 +154,23 @@ export default function TimeSlots() {
           updates[`${index}/status`] = newStatus;
           await update(timeSlotsRef, updates);
         } else if (typeof timeSlotsData === 'object') {
-          // For object format - update status directly
+          // Updating status directly for object format
           const slotRef = ref(db, `Branches/${branchId}/TimeSlots/${selectedSlot.originalKey}`);
-          // Get current slot data to preserve structure
+          // Getting current slot data to preserve structure
           const slotSnapshot = await get(slotRef);
           if (slotSnapshot.exists()) {
             const currentSlot = slotSnapshot.val();
             if (typeof currentSlot === 'object') {
               await update(slotRef, { ...currentSlot, status: newStatus });
             } else {
-              // If it's just a string or primitive, convert to object
+              // Converting to object if it's just a string or primitive
               await set(slotRef, { time: selectedSlot.time, status: newStatus });
             }
           }
         }
       }
 
-      // No need to refresh - real-time listener will update automatically
+      // Real-time listener will update automatically
       setAvailabilityModalVisible(false);
       setSelectedSlot(null);
       alert("Success", `Timeslot ${selectedSlot.time} availability has been updated.`);

@@ -31,7 +31,7 @@ export default function AvailabilityModal({
   const [loading, setLoading] = useState(false);
   const [currentAvailability, setCurrentAvailability] = useState<boolean | null>(null);
 
-  // Fetch current availability when modal opens
+  // Fetching current availability when modal opens
   useEffect(() => {
     if (visible && branchId && itemId) {
       fetchCurrentAvailability();
@@ -56,7 +56,7 @@ export default function AvailabilityModal({
         setCurrentAvailability(isAvailable === true);
         setSelected(isAvailable === true);
       } else {
-        // Default to available if not found
+        // Defaulting to available if not found
         setCurrentAvailability(true);
         setSelected(true);
       }
@@ -103,13 +103,13 @@ export default function AvailabilityModal({
       onRequestClose={onClose}
     >
       <BlurView intensity={80} tint="light" className="flex-1 justify-center items-center">
-        {/* Backdrop: tapping this closes the modal */}
+        {/* Backdrop pressable area that closes the modal */}
         <Pressable 
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
           onPress={onClose} 
         />
 
-        {/* Modal Content */}
+        {/* Modal content container */}
         <View 
           className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-100"
           style={{
@@ -120,7 +120,7 @@ export default function AvailabilityModal({
             elevation: 4,
           }}
         >
-          {/* Close Button - Top Right */}
+          {/* Close button in top right corner */}
           <TouchableOpacity
             className="absolute top-4 right-4 z-10"
             onPress={onClose}
@@ -128,14 +128,14 @@ export default function AvailabilityModal({
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
 
-          {/* Title - Centered and Bigger */}
+          {/* Title display */}
           <View className="items-center mb-6 mt-2">
             <Text className="text-3xl font-bold text-[#1E1E1E]" numberOfLines={1}>
               Set Availability
             </Text>
           </View>
 
-          {/* DROPDOWN */}
+          {/* Availability dropdown */}
           <View className="mb-6">
             <Text className="text-gray-700 font-medium mb-2">Availability</Text>
 
@@ -151,7 +151,7 @@ export default function AvailabilityModal({
               />
             </TouchableOpacity>
 
-            {/* DROPDOWN ITEMS */}
+            {/* Dropdown items list */}
             {dropdownOpen && (
               <View className="mt-2 border border-gray-100 rounded-lg bg-white">
                 {["Available", "Unavailable"].map((option) => (

@@ -29,7 +29,7 @@ export default function Services() {
 
     let unsubscribeServices: (() => void) | null = null;
 
-    // First, get the branchId
+    // Getting branchId first
     const getUserBranchId = async () => {
       try {
         const userSnapshot = await get(ref(db, `users/${uid}`));
@@ -47,7 +47,7 @@ export default function Services() {
 
         setBranchId(fetchedBranchId);
 
-        // Set up real-time listener for services
+        // Setting up real-time listener for services
         const servicesRef = ref(db, `Branches/${fetchedBranchId}/Services`);
         
         unsubscribeServices = onValue(servicesRef, (snapshot) => {
@@ -82,7 +82,7 @@ export default function Services() {
 
     getUserBranchId();
 
-    // Cleanup: unsubscribe when component unmounts
+    // Unsubscribing when component unmounts
     return () => {
       if (unsubscribeServices) {
         unsubscribeServices();

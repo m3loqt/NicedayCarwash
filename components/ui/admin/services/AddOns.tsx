@@ -78,7 +78,7 @@ export default function AddOns() {
 
     getUserBranchId();
 
-    // Cleanup: unsubscribe when component unmounts
+    // Unsubscribing when component unmounts
     return () => {
       if (unsubscribeAddons) {
         unsubscribeAddons();

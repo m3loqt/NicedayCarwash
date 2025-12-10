@@ -37,7 +37,7 @@ export default function EditBayModal({
       return;
     }
 
-    // Extract numeric ID if the name contains a number, otherwise use the entered ID
+    // Extracting numeric ID if the name contains a number, otherwise using the entered ID
     const numericId = bayId ? (isNaN(Number(bayId)) ? parseInt(bayId.replace(/[^\d]/g, '')) || bayId : Number(bayId)) : (parseInt(bayName.replace(/[^\d]/g, '')) || 1);
     
     onSave(numericId, bayName.trim());

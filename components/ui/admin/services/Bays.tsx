@@ -21,7 +21,7 @@ export default function Bays() {
   const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
   const [selectedBay, setSelectedBay] = useState<Bay | null>(null);
 
-  // Helper function to parse bays data
+  // Parsing bays data from database
   const parseBaysData = (baysData: any): { bays: Bay[], dataType: 'array' | 'object' } => {
     const data: Bay[] = [];
     let dataType: 'array' | 'object' = 'array';
@@ -31,7 +31,6 @@ export default function Bays() {
       baysData.forEach((bay: any, index: number) => {
         if (bay && bay !== null) {
           // For arrays, the index IS the bay number
-          // Array structure: [null, bay1, bay2, bay3] means index 1 = Bay 1
           const bayId = bay.id || index;
           const status = bay.status || "available";
           data.push({ 
@@ -47,26 +46,25 @@ export default function Bays() {
       Object.keys(baysData).forEach((key) => {
         const bay = baysData[key];
         if (bay !== null && bay !== undefined) {
-          // Key IS the bay number (e.g., "1", "2", "3")
-          // Parse the key directly as the bay number
+          // Parsing the key directly as the bay number
           let bayNum: number;
           let status = "available";
           
-          // Handle numeric keys - key is the bay number directly
+          // Handling numeric keys - key is the bay number directly
           const keyAsNumber = Number(key);
           if (!isNaN(keyAsNumber)) {
             bayNum = keyAsNumber;
           } else {
-            // Handle legacy formats like "Bay 1", "Bay1", etc.
+            // Handling legacy formats like "Bay 1", "Bay1", etc.
             bayNum = parseInt(key.replace(/[^\d]/g, '')) || 0;
           }
           
-          // Get status from bay object (no id field - key is the identifier)
+          // Getting status from bay object (no id field - key is the identifier)
           if (typeof bay === 'object' && bay.status) {
             status = bay.status;
           }
           
-          // Include all bays including bay 0 if it exists
+          // Including all bays including bay 0 if it exists
           if (!isNaN(bayNum)) {
             data.push({ 
               id: bayNum, 
@@ -79,7 +77,7 @@ export default function Bays() {
       });
     }
     
-    // Sort by bay number
+    // Sorting by bay number
     data.sort((a, b) => {
       const numA = typeof a.id === 'number' ? a.id : parseInt(String(a.id).replace(/[^\d]/g, '')) || 0;
       const numB = typeof b.id === 'number' ? b.id : parseInt(String(b.id).replace(/[^\d]/g, '')) || 0;
@@ -98,7 +96,7 @@ export default function Bays() {
 
     let unsubscribeBays: (() => void) | null = null;
 
-    // First, get the branchId
+    // Getting branchId first
     const getUserBranchId = async () => {
       try {
         const userSnapshot = await get(ref(db, `users/${uid}`));
@@ -116,7 +114,7 @@ export default function Bays() {
 
         setBranchId(branchIdValue);
 
-        // Set up real-time listener for bays
+        // Setting up real-time listener for bays
         const baysRef = ref(db, `Branches/${branchIdValue}/Bays`);
         
         unsubscribeBays = onValue(baysRef, (snapshot) => {
@@ -142,7 +140,7 @@ export default function Bays() {
 
     getUserBranchId();
 
-    // Cleanup: unsubscribe when component unmounts
+    // Unsubscribing when component unmounts
     return () => {
       if (unsubscribeBays) {
         unsubscribeBays();
@@ -170,22 +168,22 @@ export default function Bays() {
         updates[`${index}/status`] = newStatus;
         await update(baysRef, updates);
       } else {
-        // For object format - update status directly
+        // Updating status directly for object format
         const bayRef = ref(db, `Branches/${branchId}/Bays/${selectedBay.originalKey}`);
-        // Get current bay data to preserve structure
+        // Getting current bay data to preserve structure
         const baySnapshot = await get(bayRef);
         if (baySnapshot.exists()) {
           const currentBay = baySnapshot.val();
           if (typeof currentBay === 'object') {
             await update(bayRef, { ...currentBay, status: newStatus });
           } else {
-            // If it's just a boolean or primitive, convert to object
+            // Converting to object if it's just a boolean or primitive
             await set(bayRef, { status: newStatus });
           }
         }
       }
 
-      // No need to refresh - real-time listener will update automatically
+      // Real-time listener will update automatically
       setAvailabilityModalVisible(false);
       setSelectedBay(null);
       alert("Success", `${selectedBay.name} availability has been updated.`);
@@ -218,25 +216,25 @@ export default function Bays() {
               const baysRef = ref(db, `Branches/${branchId}/Bays`);
               
               if (baysDataType === 'array') {
-                // For array format, we need to get the array, remove the item, and set it back
+                // Getting the array, removing the item, and setting it back for array format
                 const baysSnapshot = await get(baysRef);
                 if (baysSnapshot.exists()) {
                   const baysArray = baysSnapshot.val();
                   const index = parseInt(bay.originalKey || '0');
-                  // Set the item at index to null
+                  // Setting the item at index to null
                   const updates: any = {};
                   updates[index] = null;
                   await update(baysRef, updates);
                 }
               } else {
-                // For object format, remove the key
+                // Removing the key for object format
                 if (bay.originalKey) {
                   const bayRef = ref(db, `Branches/${branchId}/Bays/${bay.originalKey}`);
                   await remove(bayRef);
                 }
               }
 
-              // No need to refresh - real-time listener will update automatically
+              // Real-time listener will update automatically
               alert("Success", `${bay.name} has been deleted successfully.`);
             } catch (error) {
               console.error("Error deleting bay:", error);
