@@ -14,7 +14,8 @@ interface Booking {
   appointmentId: string;
   branchName: string;
   branchAddress: string;
-  status: 'pending' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
+  isPaid?: boolean;
   timeSlot: {
     appointmentDate: string;
     time: string;
@@ -531,6 +532,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               branchName: data.branchName || '',
               branchAddress: data.branchAddress || '',
               status: data.status || 'pending',
+              isPaid: data.isPaid !== undefined ? data.isPaid : false,
               timeSlot: data.timeSlot || { appointmentDate: '', time: '', estCompletion: undefined },
               vehicleDetails: data.vehicleDetails || {
                 vehicleName: '',
@@ -549,7 +551,13 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             };
 
             // Filtering by active tab
-            if (booking.status === activeTab || (activeTab === 'cancelled' && booking.status === 'cancelled')) {
+            // Accepted bookings should appear in pending tab (until paid)
+            const statusMatchesTab = 
+              booking.status === activeTab || 
+              (activeTab === 'pending' && booking.status === 'accepted') ||
+              (activeTab === 'cancelled' && booking.status === 'cancelled');
+            
+            if (statusMatchesTab) {
               // Filtering by search query
               const searchLower = searchQuery.toLowerCase();
               if (
@@ -871,7 +879,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         `Reservations/ReservationsByBranch/${branchId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`
       );
       await update(branchBookingRef, {
-        status: 'ongoing',
+        status: 'accepted',
+        isPaid: false,
         bayNumber: selectedBay,
         acceptedAt: acceptedAt,
         assignedBy: adminUserId,
@@ -913,7 +922,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
                     );
                     updatePromises.push(
                       update(userBookingRef, {
-                        status: 'ongoing',
+                        status: 'accepted',
+                        isPaid: false,
                         bayNumber: selectedBay,
                         acceptedAt: acceptedAt,
                         assignedBy: adminUserId,
@@ -1365,6 +1375,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               classification={booking.vehicleDetails.classification}
               amountDue={booking.amountDue}
               status={booking.status}
+              isPaid={booking.isPaid}
               cancelledAt={booking.cancelledAt}
               completedAt={booking.completedAt}
               onAccept={() => handleAccept(booking)}
@@ -1446,6 +1457,10 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               : undefined
           }
           note={selectedBooking.note}
+          status={selectedBooking.status}
+          isPaid={selectedBooking.isPaid}
+          appointmentId={selectedBooking.appointmentId}
+          isAdminView={true}
           onClose={handleCloseDetailsModal}
         />
       )}

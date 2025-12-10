@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
-// Format date to "Tue, Dec. 20, 2024" format
+// Formats date to "Tue, Dec. 20, 2024" format
 const formatDate = (dateString: string): string => {
   const parts = dateString.split('-');
   if (parts.length !== 3) return dateString;
@@ -33,14 +33,14 @@ const formatDate = (dateString: string): string => {
   return `${dayName}, ${monthName} ${day}, ${year}`;
 };
 
-// Format time to "8:00 AM" format
+// Formats time to "8:00 AM" format
 const formatTime = (timeString: string): string => {
   if (!timeString) return '';
-  // If time is already in 12-hour format, return as is
+  // Returning as-is if time is already in 12-hour format
   if (timeString.includes('AM') || timeString.includes('PM')) {
     return timeString;
   }
-  // If time is in 24-hour format (HH:MM), convert to 12-hour
+  // Converting 24-hour format (HH:MM) to 12-hour format
   const [hours, minutes] = timeString.split(':');
   const hour = parseInt(hours, 10);
   const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -48,15 +48,15 @@ const formatTime = (timeString: string): string => {
   return `${hour12}:${minutes || '00'} ${ampm}`;
 };
 
-// Format ISO date string to "Month Day, Year" format (e.g., "July 20, 2024")
+// Formats ISO date string to "Month Day, Year" format (e.g., "July 20, 2024")
 const formatStatusDate = (dateString: string): string => {
   if (!dateString) return '';
   
   try {
-    // Handle ISO format dates (e.g., "2024-07-20T10:30:00.000Z")
+    // Handling ISO format dates (e.g., "2024-07-20T10:30:00.000Z")
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
-      // If not a valid ISO date, try MM-DD-YYYY format
+      // Trying MM-DD-YYYY format if not a valid ISO date
       const parts = dateString.split('-');
       if (parts.length === 3) {
         const month = parseInt(parts[0], 10);
@@ -97,7 +97,8 @@ interface AppointmentCardProps {
   vehicleName: string;
   classification: string;
   amountDue: number;
-  status: 'pending' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
+  isPaid?: boolean;
   cancelledAt?: string;
   completedAt?: string;
   onAccept?: () => void;
@@ -114,6 +115,7 @@ export default function AppointmentCard({
   classification,
   amountDue,
   status,
+  isPaid,
   cancelledAt,
   completedAt,
   onAccept,
@@ -131,6 +133,8 @@ export default function AppointmentCard({
         return { text: 'Transaction Completed', color: 'text-green-600', icon: 'checkmark-circle' as keyof typeof Ionicons.glyphMap, useCustomIcon: false };
       case 'pending':
         return { text: 'Pending Transaction', color: 'text-yellow-300', icon: 'pending' as any, useCustomIcon: true };
+      case 'accepted':
+        return { text: 'Pending Transaction', color: 'text-yellow-300', icon: 'pending' as any, useCustomIcon: true };
       case 'cancelled':
         return { text: 'Transaction Cancelled', color: 'text-red-600', icon: 'close-circle' as keyof typeof Ionicons.glyphMap, useCustomIcon: false };
       case 'ongoing':
@@ -141,33 +145,41 @@ export default function AppointmentCard({
   };
 
   const statusInfo = getStatusInfo(status);
+  const showWaitingForPayment = status === 'accepted' && !isPaid;
 
   return (
     <View className="bg-white rounded-xl p-4 mb-4 shadow-md mx-4">
       {/* Status Header */}
-      <View className="flex-row items-center mb-3">
-        {statusInfo.useCustomIcon ? (
-          <Image 
-            source={
-              status === 'pending' 
-                ? require('../../../../assets/images/pending.png')
-                : require('../../../../assets/images/ongoing.png')
-            }
-            className="w-3 h-3 mr-2"
-            resizeMode="contain"
-            style={{ tintColor: status === 'ongoing' ? '#9333EA' : undefined }}
-          />
-        ) : (
-          <Ionicons 
-            name={statusInfo.icon as any} 
-            size={14} 
-            color={status === 'completed' ? '#059669' : status === 'cancelled' ? '#DC2626' : '#6B7280'} 
-            className="mr-2"
-          />
+      <View className="flex-row items-center justify-between mb-3">
+        <View className="flex-row items-center flex-1">
+          {statusInfo.useCustomIcon ? (
+            <Image 
+              source={
+                status === 'pending' || status === 'accepted'
+                  ? require('../../../../assets/images/pending.png')
+                  : require('../../../../assets/images/ongoing.png')
+              }
+              className="w-3 h-3 mr-2"
+              resizeMode="contain"
+              style={{ tintColor: status === 'ongoing' ? '#9333EA' : undefined }}
+            />
+          ) : (
+            <Ionicons 
+              name={statusInfo.icon as any} 
+              size={14} 
+              color={status === 'completed' ? '#059669' : status === 'cancelled' ? '#DC2626' : '#6B7280'} 
+              className="mr-2"
+            />
+          )}
+          <Text className={`text-sm font-semibold ${statusInfo.color}`}>
+            {statusInfo.text}
+          </Text>
+        </View>
+        {showWaitingForPayment && (
+          <View className="bg-amber-100 px-3 py-1 rounded-full">
+            <Text className="text-amber-700 text-xs font-semibold">Waiting for Payment</Text>
+          </View>
         )}
-        <Text className={`text-sm font-semibold ${statusInfo.color}`}>
-          {statusInfo.text}
-        </Text>
       </View>
 
       {/* Appointment Details Grid - Row 1: Appointment ID | Date | Time */}
