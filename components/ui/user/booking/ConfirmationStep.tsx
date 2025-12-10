@@ -193,6 +193,7 @@ export default function ConfirmationStep({
         branchAddress: branch.address || '',
         paymentMethod: paymentMethod || '',
         status: 'pending',
+        isPaid: false,
         note: note.trim() || '',
         amountDue: amountDue, // Store as number, not string
         timeSlot: {
