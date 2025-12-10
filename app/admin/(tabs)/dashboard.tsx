@@ -1,10 +1,11 @@
 import {
-  AdminDashboardHeader,
-  ManageServicesCard,
-  NotificationsList,
-  TransactionSummaryCards,
+    AdminDashboardHeader,
+    ManageServicesCard,
+    NotificationsList,
+    TransactionSummaryCards,
 } from '@/components/ui/admin/dashboard';
 import { auth, db } from '@/firebase/firebase';
+import { router } from 'expo-router';
 import { get, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
@@ -14,7 +15,8 @@ interface Booking {
   appointmentId: string;
   branchName: string;
   branchAddress: string;
-  status: 'pending' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
+  isPaid?: boolean;
   timeSlot: {
     appointmentDate: string;
     time: string;
@@ -34,15 +36,13 @@ interface TransactionCounts {
   cancelled: number;
 }
 
-// Parse appointment date and time to a Date object
-// appointmentDate format: "MM-DD-YYYY"
-// time format: "H:00 AM/PM" or "HH:00 AM/PM"
+// Parses appointment date (MM-DD-YYYY) and time (H:00 AM/PM or HH:00 AM/PM) into a Date object
 const parseAppointmentDateTime = (appointmentDate: string, time: string): Date => {
   try {
-    // Parse date: MM-DD-YYYY
+    // Parsing date components from MM-DD-YYYY format
     const [month, day, year] = appointmentDate.split('-').map(Number);
     
-    // Parse time: "H:00 AM/PM" or "HH:00 AM/PM"
+    // Parsing time components from 12-hour format
     const timeMatch = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
     if (!timeMatch) {
       throw new Error('Invalid time format');
@@ -52,7 +52,7 @@ const parseAppointmentDateTime = (appointmentDate: string, time: string): Date =
     const minutes = parseInt(timeMatch[2], 10);
     const meridiem = timeMatch[3].toUpperCase();
     
-    // Convert to 24-hour format
+    // Converting 12-hour format to 24-hour format
     if (meridiem === 'PM' && hours !== 12) {
       hours += 12;
     } else if (meridiem === 'AM' && hours === 12) {
@@ -61,7 +61,7 @@ const parseAppointmentDateTime = (appointmentDate: string, time: string): Date =
     
     return new Date(year, month - 1, day, hours, minutes);
   } catch (error) {
-    // Fallback: return current date if parsing fails
+    // Returning current date when parsing fails
     console.error('Error parsing appointment date/time:', error);
     return new Date();
   }
@@ -132,6 +132,7 @@ export default function AdminDashboardScreen() {
               branchName: data.branchName || '',
               branchAddress: data.branchAddress || '',
               status: data.status || 'pending',
+              isPaid: data.isPaid !== undefined ? data.isPaid : false,
               timeSlot: data.timeSlot || { appointmentDate: '', time: '' },
               vehicleDetails: data.vehicleDetails || {
                 vehicleName: '',
@@ -143,8 +144,8 @@ export default function AdminDashboardScreen() {
 
             bookings.push(booking);
 
-            // Count by status
-            if (booking.status === 'pending') {
+            // Counting by status (accepted counts as pending for display)
+            if (booking.status === 'pending' || booking.status === 'accepted') {
               counts.pending++;
             } else if (booking.status === 'ongoing') {
               counts.ongoing++;
@@ -157,9 +158,9 @@ export default function AdminDashboardScreen() {
         });
       });
 
-      // Filter pending bookings, sort by appointment datetime (descending), limit to 10
+      // Filtering pending and accepted bookings (accepted = waiting for payment), sorting by appointment datetime (descending), limiting to 10
       const pending = bookings
-        .filter((b) => b.status === 'pending')
+        .filter((b) => b.status === 'pending' || b.status === 'accepted')
         .sort((a, b) => {
           const dateA = parseAppointmentDateTime(a.timeSlot.appointmentDate, a.timeSlot.time);
           const dateB = parseAppointmentDateTime(b.timeSlot.appointmentDate, b.timeSlot.time);
@@ -179,7 +180,7 @@ export default function AdminDashboardScreen() {
     if (!dateStr || !timeStr) return '';
 
     try {
-      // Split MM-DD-YYYY string and convert to Date object
+      // Splitting MM-DD-YYYY string and converting to Date object
       const [month, day, year] = dateStr.split('-').map(Number);
       const date = new Date(year, month - 1, day);
 
@@ -202,12 +203,12 @@ export default function AdminDashboardScreen() {
       const dayName = days[date.getDay()];
       const monthName = months[date.getMonth()];
 
-      // Use provided time string or empty string
+      // Using provided time string or empty string
       const time = timeStr || '';
 
       return `${dayName}, ${monthName} ${day}, ${year} at ${time}`;
     } catch (error) {
-      // Fallback: try parsing as ISO date or return as-is
+      // Falling back to parsing as ISO date or returning as-is
       try {
         const date = new Date(dateStr);
         if (!isNaN(date.getTime())) {
@@ -231,7 +232,7 @@ export default function AdminDashboardScreen() {
           return `${dayName}, ${monthName} ${date.getDate()}, ${date.getFullYear()} at ${timeStr}`;
         }
       } catch (e) {
-        // Return concatenated strings when all parsing attempts fail
+        // Returning concatenated strings when all parsing attempts fail
         return `${dateStr} at ${timeStr}`;
       }
       return `${dateStr} at ${timeStr}`;
@@ -243,7 +244,7 @@ export default function AdminDashboardScreen() {
   };
 
   const handleManageServicesPress = () => {
-    // Placeholder: navigation to services management screen not yet implemented
+    router.push('/admin/services');
   };
 
   if (loading) {

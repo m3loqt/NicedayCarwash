@@ -3,6 +3,8 @@ import NotificationItem from './NotificationItem';
 
 interface Booking {
   appointmentId: string;
+  status?: string;
+  isPaid?: boolean;
   vehicleDetails: {
     classification: string;
   };
@@ -45,6 +47,8 @@ export default function NotificationsList({ reservations, formatDate, formatPric
               vehicleClassification={reservation.vehicleDetails.classification || 'Vehicle'}
               dateTime={formatDate(reservation.timeSlot.appointmentDate, reservation.timeSlot.time)}
               amount={formatPrice(reservation.amountDue)}
+              status={reservation.status}
+              isPaid={reservation.isPaid}
               isLast={index === reservations.length - 1}
             />
           ))}
