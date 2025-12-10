@@ -50,7 +50,7 @@ export default function UserProfileScreen() {
 
   const handleSignOut = async () => {
     try {
-      // Confirm before signing out
+      // Confirming before signing out
       alert('Logout', 'Are you sure you want to sign out?', [
         {
           text: 'Cancel',
@@ -60,15 +60,15 @@ export default function UserProfileScreen() {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
-            // Preserve onboarding status before clearing storage
+            // Preserving onboarding status before clearing storage
             const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
             await auth.signOut();
             await AsyncStorage.clear();
-            // Restore onboarding status after clearing
+            // Restoring onboarding status after clearing
             if (hasSeenOnboarding === 'true') {
               await AsyncStorage.setItem('hasSeenOnboarding', 'true');
             }
-            router.replace('/'); // replace with your login route
+            router.replace('/');
           },
         },
       ]);

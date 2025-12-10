@@ -84,7 +84,7 @@ export default function EditProfile() {
     });
 
     // Newer versions of expo-image-picker return { canceled: boolean, assets: [{ uri, ... }] }
-    // So check `canceled` and read the uri from `assets[0].uri` safely.
+    // Checking `canceled` and reading the uri from `assets[0].uri` safely
     if (!result.canceled && Array.isArray(result.assets) && result.assets.length > 0) {
       setProfileImage(result.assets[0].uri);
     }
