@@ -1,5 +1,5 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
+import { LazyIcon } from './LazyIcon';
 
 interface TransactionCardProps {
   label: string;
@@ -14,15 +14,15 @@ export default function TransactionCard({ label, count, icon, isLarge = false }:
       case 'pending':
         return (
           <View className="relative justify-center">
-            <Ionicons name="person" size={90} color="#F9EF08" />
+            <LazyIcon type="ionicons" name="person" size={90} color="#F9EF08" />
           </View>
         );
       case 'ongoing':
-        return <Ionicons name="hourglass" size={24} color="#F9EF08" />;
+        return <LazyIcon type="ionicons" name="hourglass" size={24} color="#F9EF08" />;
       case 'completed':
-        return <MaterialIcons name="assignment-turned-in" size={24} color="#F9EF08" />;
+        return <LazyIcon type="material" name="assignment-turned-in" size={24} color="#F9EF08" />;
       case 'cancelled':
-        return <MaterialIcons name="assignment" size={24} color="#F9EF08" />;
+        return <LazyIcon type="material" name="assignment" size={24} color="#F9EF08" />;
     }
   };
 
