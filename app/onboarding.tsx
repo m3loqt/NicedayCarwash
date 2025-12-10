@@ -11,15 +11,15 @@ export default function OnboardingScreenRoute() {
       try {
         const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
         if (hasSeenOnboarding === 'true') {
-          // User has already seen onboarding, redirect to login
+          // Redirecting to login if user has already seen onboarding
           router.replace('/');
         } else {
-          // User hasn't seen onboarding yet, show it
+          // Showing onboarding if user hasn't seen it yet
           setIsChecking(false);
         }
       } catch (error) {
         console.error('Error checking onboarding status:', error);
-        // On error, show onboarding screen
+        // Showing onboarding screen on error
         setIsChecking(false);
       }
     };
@@ -33,11 +33,11 @@ export default function OnboardingScreenRoute() {
     } catch (error) {
       console.error('Error saving onboarding status:', error);
     }
-    // Navigate back to login screen after onboarding completion
+    // Navigating back to login screen after onboarding completion
     router.replace('/');
   };
 
-  // Don't render anything while checking to prevent flash of onboarding screen
+  // Not rendering anything while checking to prevent flash of onboarding screen
   if (isChecking) {
     return null;
   }

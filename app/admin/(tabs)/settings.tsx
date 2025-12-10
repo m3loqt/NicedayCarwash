@@ -84,11 +84,11 @@ export default function AdminSettingsScreen() {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
-            // Preserve onboarding status before clearing storage
+            // Preserving onboarding status before clearing storage
             const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
             await auth.signOut();
             await AsyncStorage.clear();
-            // Restore onboarding status after clearing
+            // Restoring onboarding status after clearing
             if (hasSeenOnboarding === 'true') {
               await AsyncStorage.setItem('hasSeenOnboarding', 'true');
             }
