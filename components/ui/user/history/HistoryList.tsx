@@ -15,7 +15,8 @@ interface Booking {
   paymentMethod: string;
   time: string;
   amount: string;
-  status: 'pending' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
+  isPaid?: boolean;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
@@ -55,7 +56,12 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
       snapshot.forEach((dateSnap) => {
         dateSnap.forEach((bookingSnap) => {
           const data = bookingSnap.val();
-          if (data && data.status === activeTab) {
+          // Accepted bookings should appear in pending tab (until paid)
+          const statusMatchesTab = 
+            data.status === activeTab || 
+            (activeTab === 'pending' && data.status === 'accepted');
+          
+          if (data && statusMatchesTab) {
             // Converting addOns to array format (handles null, array, or object with numeric keys)
             const addOnsObj = data.addOns;
             let addOns: any[] = [];
@@ -90,6 +96,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               appointmentDate: data.timeSlot?.appointmentDate || '',
               amount: data.amountDue || '',
               status: data.status,
+              isPaid: data.isPaid !== undefined ? data.isPaid : false,
               vehicleName: data.vehicleDetails?.vehicleName || '',
               plateNumber: data.vehicleDetails?.plateNumber || '',
               classification: data.vehicleDetails?.classification || '',
@@ -149,6 +156,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               appointmentDate={booking.appointmentDate}
               amount={booking.amount}
               status={booking.status}
+              isPaid={booking.isPaid}
               vehicleName={booking.vehicleName}
               plateNumber={booking.plateNumber}
               classification={booking.classification}
@@ -201,6 +209,9 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               : selectedBooking.estCompletion
           }
           note={selectedBooking.note}
+          status={selectedBooking.status}
+          isPaid={selectedBooking.isPaid}
+          appointmentId={selectedBooking.appointmentId}
           onClose={handleCloseDetails}
         />
       )}

@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
+import PaymentBadge from '../payment/PaymentBadge';
+import PaymentButton from '../payment/PaymentButton';
 
-// Convert MM-DD-YYYY date string to abbreviated format (e.g., "Dec. 6, 2025")
+// Converts MM-DD-YYYY date string to abbreviated format (e.g., "Dec. 6, 2025")
 const formatDateForHistory = (dateString: string): string => {
-  // Split date string into month, day, and year components
+  // Splitting date string into month, day, and year components
   const parts = dateString.split('-');
-  if (parts.length !== 3) return dateString; // Return as-is if format is unexpected
+  if (parts.length !== 3) return dateString; // Returning as-is if format is unexpected
   
   const month = parseInt(parts[0], 10);
   const day = parseInt(parts[1], 10);
@@ -21,15 +24,15 @@ const formatDateForHistory = (dateString: string): string => {
   return `${monthNames[month - 1]} ${day}, ${year}`;
 };
 
-// Format ISO date string to "Month Day, Year" format (e.g., "July 20, 2024")
+// Formats ISO date string to "Month Day, Year" format (e.g., "July 20, 2024")
 const formatStatusDate = (dateString: string): string => {
   if (!dateString) return '';
   
   try {
-    // Handle ISO format dates (e.g., "2024-07-20T10:30:00.000Z")
+    // Handling ISO format dates (e.g., "2024-07-20T10:30:00.000Z")
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
-      // If not a valid ISO date, try MM-DD-YYYY format
+      // Trying MM-DD-YYYY format if not a valid ISO date
       const parts = dateString.split('-');
       if (parts.length === 3) {
         const month = parseInt(parts[0], 10);
@@ -70,7 +73,8 @@ interface BookingCardProps {
   appointmentId: string;
   appointmentDate: string;
   amount: string;
-  status: 'completed' | 'pending' | 'cancelled' | 'ongoing';
+  status: 'completed' | 'pending' | 'accepted' | 'cancelled' | 'ongoing';
+  isPaid?: boolean;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
@@ -88,6 +92,7 @@ export default function BookingCard({
   appointmentDate,
   amount,
   status, 
+  isPaid,
   vehicleName,
   plateNumber,
   classification,
@@ -101,6 +106,7 @@ export default function BookingCard({
       case 'completed':
         return { text: 'Transaction Completed', color: 'text-green-600', icon: 'checkmark-circle' as const, useCustomIcon: false };
       case 'pending':
+      case 'accepted':
         return { text: 'Pending Transaction', color: 'text-yellow-300', icon: 'pending', useCustomIcon: true };
       case 'cancelled':
         return { text: 'Transaction Cancelled', color: 'text-red-600', icon: 'close-circle' as const, useCustomIcon: false };
@@ -112,6 +118,15 @@ export default function BookingCard({
   };
 
   const statusInfo = getStatusInfo(status);
+  const showPaymentBadge = status === 'accepted' && !isPaid;
+  const showPaymentButton = status === 'accepted' && !isPaid;
+
+  const handlePaymentPress = () => {
+    router.push({
+      pathname: '/user/payment',
+      params: { appointmentId },
+    } as any);
+  };
 
   return (
     <TouchableOpacity 
@@ -120,29 +135,32 @@ export default function BookingCard({
     >
       {/* Status Header with fixed image position */}
       <View className="relative mb-3">
-        <View className="flex-row items-center">
-          {statusInfo.useCustomIcon ? (
-            <Image 
-              source={
-                status === 'pending' 
-                  ? require('../../../../assets/images/pending.png')
-                  : require('../../../../assets/images/ongoing.png')
-              }
-              className="w-5 h-5 mr-2"
-              resizeMode="contain"
-              style={{ tintColor: status === 'ongoing' ? '#9333EA' : undefined }}
-            />
-          ) : (
-            <Ionicons 
-              name={statusInfo.icon} 
-              size={14} 
-              color={status === 'completed' ? '#059669' : status === 'cancelled' ? '#DC2626' : '#6B7280'} 
-              className="mr-2"
-            />
-          )}
-          <Text className={`text-sm font-semibold ${statusInfo.color}`}>
-            {statusInfo.text}
-          </Text>
+        <View className="flex-row items-center justify-between pr-[68px]">
+          <View className="flex-row items-center flex-1">
+            {statusInfo.useCustomIcon ? (
+              <Image 
+                source={
+                  status === 'pending' || status === 'accepted'
+                    ? require('../../../../assets/images/pending.png')
+                    : require('../../../../assets/images/ongoing.png')
+                }
+                className="w-3 h-3 mr-2"
+                resizeMode="contain"
+                style={{ tintColor: status === 'ongoing' ? '#9333EA' : undefined }}
+              />
+            ) : (
+              <Ionicons 
+                name={statusInfo.icon} 
+                size={14} 
+                color={status === 'completed' ? '#059669' : status === 'cancelled' ? '#DC2626' : '#6B7280'} 
+                className="mr-2"
+              />
+            )}
+            <Text className={`text-sm font-semibold ${statusInfo.color}`}>
+              {statusInfo.text}
+            </Text>
+          </View>
+          {showPaymentBadge && <PaymentBadge />}
         </View>
         <View className="absolute top-0 right-0">
           <Image 
@@ -190,6 +208,13 @@ export default function BookingCard({
             <Text className="text-xs text-gray-500 mb-1">Classification</Text>
             <Text className="text-sm font-bold text-[#1E1E1E]">{classification}</Text>
           </View>
+        </View>
+      )}
+
+      {/* Payment Button */}
+      {showPaymentButton && (
+        <View className="mt-4 mb-3">
+          <PaymentButton onPress={handlePaymentPress} />
         </View>
       )}
 

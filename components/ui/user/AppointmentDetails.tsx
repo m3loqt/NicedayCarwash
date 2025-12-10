@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import PaymentBadge from './payment/PaymentBadge';
+import PaymentButton from './payment/PaymentButton';
 
 export interface OrderItem {
   label: string;
@@ -22,6 +25,10 @@ export interface AppointmentDetailsProps {
   paymentMethod?: string;
   estimatedCompletion?: string;
   note?: string;
+  status?: string;
+  isPaid?: boolean;
+  appointmentId?: string;
+  isAdminView?: boolean;
   onBack?: () => void;
 }
 
@@ -117,6 +124,10 @@ export default function AppointmentDetails({
   paymentMethod,
   estimatedCompletion,
   note,
+  status,
+  isPaid,
+  appointmentId,
+  isAdminView = false,
   onBack,
 }: AppointmentDetailsProps) {
   const insets = useSafeAreaInsets();
@@ -131,6 +142,19 @@ export default function AppointmentDetails({
   const estimatedHours = extractHours(estimatedCompletion);
   const formattedDate = formatDateForDisplay(date);
   const formattedTimeRange = formatTimeRange(time, estimatedHours);
+  
+  const showPaymentSection = status === 'accepted' && !isPaid;
+  const showPaymentPaid = (status === 'ongoing' || status === 'accepted') && isPaid;
+  const bookingFee = 25.00;
+
+  const handlePaymentPress = () => {
+    if (appointmentId) {
+      router.push({
+        pathname: '/user/payment',
+        params: { appointmentId },
+      } as any);
+    }
+  };
 
   return (
     <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
@@ -292,6 +316,61 @@ export default function AppointmentDetails({
               {/* Separator Line */}
               <View className="px-4">
                 <View className="h-[0.5px] bg-gray-200" />
+              </View>
+            </>
+          )}
+
+          {/* Payment Required Section */}
+          {showPaymentSection && (
+            <>
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+              <View className="p-4">
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>
+                    {isAdminView ? 'Payment Status' : 'Payment Required'}
+                  </Text>
+                  <View className="bg-amber-100 px-3 py-1 rounded-full">
+                    <Text className="text-amber-700 text-xs font-semibold">
+                      {isAdminView ? 'Waiting for Payment' : 'Payment Required'}
+                    </Text>
+                  </View>
+                </View>
+                <Text className="text-gray-500 mb-4" style={{ fontSize: 16 }}>
+                  {isAdminView 
+                    ? customerName 
+                      ? `Waiting for payment from ${customerName}. The booking fee must be paid before the service can begin.`
+                      : 'Waiting for payment from customer. The booking fee must be paid before the service can begin.'
+                    : 'Your booking has been accepted! Please pay the booking fee to proceed.'}
+                </Text>
+                <View className="bg-amber-50 rounded-xl p-4 mb-4">
+                  <View className="flex-row justify-between items-center">
+                    <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 18 }}>Booking Fee</Text>
+                    <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 18 }}>
+                      ₱{bookingFee.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+                {!isAdminView && <PaymentButton onPress={handlePaymentPress} />}
+              </View>
+            </>
+          )}
+
+          {/* Payment Paid Confirmation Section */}
+          {showPaymentPaid && (
+            <>
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+              <View className="p-4">
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Booking Fee</Text>
+                  <View className="bg-green-100 px-3 py-1.5 rounded-full flex-row items-center">
+                    <Ionicons name="checkmark-circle" size={14} color="#059669" style={{ marginRight: 4 }} />
+                    <Text className="text-green-700 text-xs font-semibold">Paid</Text>
+                  </View>
+                </View>
               </View>
             </>
           )}
