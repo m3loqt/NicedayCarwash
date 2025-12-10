@@ -17,6 +17,10 @@ interface AppointmentDetailsModalProps {
   paymentMethod: string;
   estimatedCompletion?: string;
   note?: string;
+  status?: string;
+  isPaid?: boolean;
+  appointmentId?: string;
+  isAdminView?: boolean;
   onClose: () => void;
 }
 
@@ -36,6 +40,10 @@ export default function AppointmentDetailsModal({
   paymentMethod,
   estimatedCompletion,
   note,
+  status,
+  isPaid,
+  appointmentId,
+  isAdminView = false,
   onClose,
 }: AppointmentDetailsModalProps) {
   return (
@@ -59,6 +67,10 @@ export default function AppointmentDetailsModal({
         paymentMethod={paymentMethod}
         estimatedCompletion={estimatedCompletion}
         note={note}
+        status={status}
+        isPaid={isPaid}
+        appointmentId={appointmentId}
+        isAdminView={isAdminView}
         onBack={onClose}
       />
     </Modal>
