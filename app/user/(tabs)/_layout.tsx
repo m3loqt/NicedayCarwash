@@ -1,35 +1,39 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-
-import { CustomTabIcon } from '@/components/CustomTabIcon';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Platform, View } from 'react-native';
 
 export default function UserTabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#F9EF08', // Yellow for active
-        tabBarInactiveTintColor: '#9CA3AF', // Gray for inactive
+        tabBarActiveTintColor: '#F9EF08',
+        tabBarInactiveTintColor: '#B0B0B0',
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          height: 70,
-          paddingBottom: 20,
-          paddingTop: 10,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
         },
-      }}>
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 0,
+          height: Platform.OS === 'ios' ? 88 : 68,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          paddingTop: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+          elevation: 8,
+        },
+      }}
+    >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/home.png')} 
-              focused={focused} 
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} />
           ),
         }}
       />
@@ -37,23 +41,31 @@ export default function UserTabLayout() {
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/history_icon_bot.png')} 
-              focused={focused} 
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name={focused ? 'time' : 'time-outline'} color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="book"
         options={{
-          title: 'Booking',
+          title: 'Book',
           tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/add_event_icon.png')} 
-              focused={focused} 
-            />
+            <View
+              className="items-center justify-center rounded-full -mt-4"
+              style={{
+                width: 48,
+                height: 48,
+                backgroundColor: focused ? '#F9EF08' : '#1A1A1A',
+                shadowColor: focused ? '#F9EF08' : '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+            >
+              <Ionicons name="add" size={26} color={focused ? '#1A1A00' : '#FFFFFF'} />
+            </View>
           ),
         }}
       />
@@ -61,11 +73,8 @@ export default function UserTabLayout() {
         name="vehicles"
         options={{
           title: 'Vehicles',
-          tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/vehicles.png')} 
-              focused={focused} 
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} focused={focused} />
           ),
         }}
       />
@@ -73,14 +82,15 @@ export default function UserTabLayout() {
         name="profile"
         options={{
           title: 'Account',
-          tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/account.png')} 
-              focused={focused} 
-            />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />
           ),
         }}
       />
     </Tabs>
   );
+}
+
+function TabIcon({ name, color }: { name: keyof typeof Ionicons.glyphMap; color: string; focused: boolean }) {
+  return <Ionicons name={name} size={22} color={color} />;
 }

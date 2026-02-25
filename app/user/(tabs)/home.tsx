@@ -2,30 +2,22 @@ import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BranchesSlider from '../../../components/ui/user/home/BranchesSlider';
 import HomeHeader from '../../../components/ui/user/home/HomeHeader';
+import MemberPromoCard from '../../../components/ui/user/home/MemberPromoCard';
 import ServicesSlider from '../../../components/ui/user/home/ServicesSlider';
 
 export default function UserHomeScreen() {
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
+    <View className="flex-1 bg-[#F7F7F8]">
+      <SafeAreaView className="flex-1" edges={['top']}>
         <ScrollView 
           showsVerticalScrollIndicator={false}
           bounces={false}
-          style={{ backgroundColor: 'white', flex: 1 }}
-          contentContainerStyle={{ 
-            backgroundColor: 'white', 
-            paddingBottom: 80,
-            flexGrow: 1 
-          }}
+          contentContainerStyle={{ paddingBottom: 100 }}
         >
-          {/* Header with greeting, search, and promotional banner */}
           <HomeHeader />
-          
-          {/* Branches Slider */}
           <BranchesSlider />
-          
-          {/* Services Slider */}
-          <ServicesSlider />
+          {/* <ServicesSlider /> */}
+          <MemberPromoCard />
         </ScrollView>
       </SafeAreaView>
     </View>
