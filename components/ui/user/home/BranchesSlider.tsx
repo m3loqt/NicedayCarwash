@@ -52,22 +52,15 @@ export default function BranchesSlider() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8 }}
+        contentContainerStyle={{ paddingHorizontal: 20 }}
       >
         {branches.map((branch, index) => {
           const isOpen = branch.status === 'Open';
           return (
             <TouchableOpacity
               key={branch.id}
-              className={`bg-white rounded-2xl ${index < branches.length - 1 ? 'mr-4' : ''}`}
-              style={{
-                width: 220,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.07,
-                shadowRadius: 12,
-                elevation: 3,
-              }}
+              className={`bg-[#FAFAFA] rounded-2xl border border-[#EEEEEE] ${index < branches.length - 1 ? 'mr-4' : ''}`}
+              style={{ width: 220 }}
               onPress={() => handleBranchPress(branch)}
               activeOpacity={0.82}
             >

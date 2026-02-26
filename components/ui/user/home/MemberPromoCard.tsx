@@ -9,14 +9,7 @@ export default function MemberPromoCard() {
   return (
     <View className="mx-5 mt-6">
       <View
-        className="bg-[#1E1E1E] rounded-2xl p-6 overflow-hidden"
-        style={{
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 12,
-          elevation: 6,
-        }}
+        className="bg-[#1E1E1E] rounded-2xl p-6 overflow-hidden border border-[#333]"
       >
         {/* Decorative water drops */}
         <View className="absolute right-4 bottom-2 opacity-15">

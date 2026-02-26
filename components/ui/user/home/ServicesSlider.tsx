@@ -63,15 +63,8 @@ export default function ServicesSection() {
         {services.map((service) => (
           <View
             key={service.id}
-            className="bg-white rounded-2xl p-4 mb-3"
-            style={{
-              width: '48.5%',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.04,
-              shadowRadius: 6,
-              elevation: 2,
-            }}
+            className="bg-[#FAFAFA] rounded-2xl p-4 mb-3 border border-[#EEEEEE]"
+            style={{ width: '48.5%' }}
           >
             {/* Icon */}
             <View className="w-11 h-11 rounded-xl bg-[#FFF8E1] items-center justify-center mb-4">

@@ -7,12 +7,12 @@ import ServicesSlider from '../../../components/ui/user/home/ServicesSlider';
 
 export default function UserHomeScreen() {
   return (
-    <View className="flex-1 bg-[#F7F7F8]">
+    <View className="flex-1 bg-white">
       <SafeAreaView className="flex-1" edges={['top']}>
         <ScrollView 
           showsVerticalScrollIndicator={false}
           bounces={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
         >
           <HomeHeader />
           <BranchesSlider />

@@ -3,15 +3,15 @@ import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import VehicleClassificationModal from '../vehicles/modals/VehicleClassificationModal';
 
@@ -55,9 +55,9 @@ export default function AddVehicleInline({
       case 'pickup':
         return require('../../../../assets/images/pickup.png');
       case 'motorcycle-small':
-        return require('../../../../assets/images/motorcycle_small.png');
+        return require('../../../../assets/images/motosmall.png');
       case 'motorcycle-large':
-        return require('../../../../assets/images/motorcycle_large.png');
+        return require('../../../../assets/images/motobig.png');
       default:
         return require('../../../../assets/images/sedan.png');
     }

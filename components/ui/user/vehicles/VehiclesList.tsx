@@ -3,7 +3,17 @@ import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref, remove } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ImageSourcePropType,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import VehicleCard from './VehicleCard';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
 
@@ -13,10 +23,27 @@ interface VehicleProfile {
   vtype: string;
 }
 
+const vehicleImages: Record<string, ImageSourcePropType> = {
+  sedan: require('../../../../assets/images/sedan.png'),
+  suv: require('../../../../assets/images/suv.png'),
+  pickup: require('../../../../assets/images/pickup.png'),
+  'motorcycle-small': require('../../../../assets/images/motosmall.png'),
+  'motorcycle-large': require('../../../../assets/images/motobig.png'),
+};
+
+const vehicleLabels: Record<string, string> = {
+  sedan: 'Sedan',
+  suv: 'SUV',
+  pickup: 'Pickup',
+  'motorcycle-small': 'Motorcycle (S)',
+  'motorcycle-large': 'Motorcycle (L)',
+};
+
 export default function VehiclesList() {
   const [vehicles, setVehicles] = useState<VehicleProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleProfile | null>(null);
 
   useEffect(() => {
     const auth = getAuth();
@@ -40,10 +67,12 @@ export default function VehiclesList() {
   }, []);
 
   const handleEdit = (id: string) => {
+    setSelectedVehicle(null);
     router.push({ pathname: '/user/edit-vehicle', params: { id } });
   };
 
   const handleDelete = (plateNumber: string) => {
+    setSelectedVehicle(null);
     Alert.alert(
       'Confirm Delete',
       `Are you sure you want to delete vehicle ${plateNumber}?`,
@@ -112,7 +141,7 @@ export default function VehiclesList() {
               name={vehicle.vname}
               plateNumber={vehicle.vplateNumber}
               type={vehicle.vtype}
-              onEdit={() => handleEdit(vehicle.vplateNumber)}
+              onEdit={() => setSelectedVehicle(vehicle)}
               onDelete={() => handleDelete(vehicle.vplateNumber)}
             />
           ))
@@ -124,7 +153,6 @@ export default function VehiclesList() {
           </View>
         )}
 
-        {/* Add vehicle button */}
         <TouchableOpacity
           className="bg-[#F9EF08] rounded-2xl mx-5 mt-3 py-4 items-center"
           onPress={handleAdd}
@@ -134,7 +162,57 @@ export default function VehiclesList() {
         </TouchableOpacity>
       </ScrollView>
 
-      
+      {/* Vehicle action modal */}
+      <Modal
+        visible={!!selectedVehicle}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSelectedVehicle(null)}
+      >
+        <View className="flex-1 bg-black/40 justify-end">
+          <TouchableOpacity
+            className="flex-1"
+            activeOpacity={1}
+            onPress={() => setSelectedVehicle(null)}
+          />
+          <View className="bg-white rounded-t-3xl px-5 pb-10 pt-3">
+            {/* Handle bar */}
+            <View className="items-center mb-5">
+              <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
+            </View>
+
+            {/* Vehicle info */}
+            {selectedVehicle && (
+              <View className="items-center mb-6">
+                <Text className="text-xl font-bold text-[#1A1A1A]">
+                  {vehicleLabels[selectedVehicle.vtype] || 'Vehicle'}
+                </Text>
+                <Text className="text-[14px] text-[#999] mt-1">
+                  {selectedVehicle.vname} {selectedVehicle.vplateNumber}
+                </Text>
+              </View>
+            )}
+
+            {/* Edit button */}
+            <TouchableOpacity
+              className="bg-[#F9EF08] rounded-2xl py-4 items-center mb-3"
+              onPress={() => selectedVehicle && handleEdit(selectedVehicle.vplateNumber)}
+              activeOpacity={0.85}
+            >
+              <Text className="text-[#1A1A00] text-[15px] font-bold">Edit</Text>
+            </TouchableOpacity>
+
+            {/* Delete button */}
+            <TouchableOpacity
+              className="rounded-2xl py-4 items-center border border-[#EF4444]"
+              onPress={() => selectedVehicle && handleDelete(selectedVehicle.vplateNumber)}
+              activeOpacity={0.85}
+            >
+              <Text className="text-[#EF4444] text-[15px] font-bold">Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

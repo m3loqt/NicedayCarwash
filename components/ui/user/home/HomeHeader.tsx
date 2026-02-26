@@ -89,14 +89,7 @@ export default function HomeHeader() {
 
         {/* Search bar */}
         <View
-          className="bg-white rounded-2xl px-4 py-3 flex-row items-center"
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.06,
-            shadowRadius: 8,
-            elevation: 3,
-          }}
+          className="bg-[#FAFAFA] rounded-2xl px-4 py-3 flex-row items-center border border-[#EEEEEE]"
         >
           <Ionicons name="search" size={20} color="#9CA3AF" />
           <TextInput

@@ -1,4 +1,4 @@
-import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ImageSourcePropType, Text, TouchableOpacity } from 'react-native';
 
 interface VehicleCardProps {
   id: string;
@@ -29,16 +29,17 @@ export default function VehicleCard({
 
   return (
     <TouchableOpacity
-      className="bg-[#FAFAFA] rounded-2xl mx-5 mb-3 px-5 py-5 items-center border border-[#EEEEEE]"
+      className="bg-[#FAFAFA] rounded-2xl mx-5 mb-1.5 px-5 py-5 items-center"
       onPress={onEdit}
+      delayPressIn={50}
       activeOpacity={0.7}
     >
       <Image
         source={config.image}
-        style={{ width: 80, height: 50 }}
+        style={{ width: 160, height: 90 }}
         resizeMode="contain"
       />
-      <Text className="text-[14px] font-bold text-[#1A1A1A] mt-3">{config.label}</Text>
+      <Text className="text-[14px] font-bold text-[#1A1A1A] -mt-5">{config.label}</Text>
       <Text className="text-[13px] text-[#999] mt-1">{name} {plateNumber}</Text>
     </TouchableOpacity>
   );

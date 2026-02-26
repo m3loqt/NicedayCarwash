@@ -11,8 +11,16 @@ type UserData = {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string;
   profileImage?: string;
 };
+
+const menuItems = [
+  { label: 'Account details', icon: 'person-outline' as const, route: '/user/edit-profile' },
+  { label: 'Payment method', icon: 'card-outline' as const, route: null },
+  { label: 'Addresses', icon: 'location-outline' as const, route: null },
+  { label: 'Reset password', icon: 'lock-closed-outline' as const, route: '/forgot-password' },
+];
 
 export default function UserProfileScreen() {
   const [user, setUser] = useState<UserData | null>(null);
@@ -30,6 +38,7 @@ export default function UserProfileScreen() {
             firstName: data.firstName,
             lastName: data.lastName,
             email: data.email,
+            phone: data.phone,
             profileImage: data.profileImage,
           });
         }
@@ -41,89 +50,97 @@ export default function UserProfileScreen() {
     fetchUserData();
   }, []);
 
-  const handleEditAccount = () => {
-    router.push('/user/edit-profile');
+  const handleMenuPress = (route: string | null) => {
+    if (route) router.push(route as any);
   };
 
   const handleSignOut = async () => {
-    try {
-      // Confirm before signing out
-      Alert.alert('Logout', 'Are you sure you want to sign out?', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    Alert.alert('Logout', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await auth.signOut();
+          await AsyncStorage.clear();
+          router.replace('/');
         },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await auth.signOut();
-            await AsyncStorage.clear();
-            router.replace('/'); // replace with your login route
-          },
-        },
-      ]);
-    } catch (error) {
-      console.log('Error signing out:', error);
-    }
+      },
+    ]);
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor="white" />
-      
-      {/* Header */}
-      <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200">
-        <TouchableOpacity className="p-2 rounded-full border border-gray-300">
-          <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
-        </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold text-[#1E1E1E]">Account</Text>
-        <View className="w-8" />
-      </View>
+    <View className="flex-1 bg-white">
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <SafeAreaView className="flex-1" edges={['top']}>
+        {/* Profile section */}
+        <View className="items-center pt-8 pb-6">
+          {/* Avatar */}
+          <View className="mb-3" style={{ width: 80, height: 80 }}>
+            <View className="w-20 h-20 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">
+              {user?.profileImage ? (
+                <Image
+                  source={{ uri: user.profileImage }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-full h-full items-center justify-center">
+                  <Ionicons name="person" size={36} color="#BDBDBD" />
+                </View>
+              )}
+            </View>
+            <TouchableOpacity
+              className="absolute w-6 h-6 rounded-full bg-[#1A1A1A] items-center justify-center border-2 border-white"
+              style={{ bottom: '15%', right: '10%' }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="camera" size={11} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
 
-      {/* Profile Card */}
-      <View className="bg-white rounded-lg shadow-md mx-4 mt-4 p-4">
-        <View className="flex flex-row items-center">
-          {/* Profile Image or Placeholder */}
-          <View className="w-20 h-20 rounded-full bg-gray-200 overflow-hidden mr-4">
-            {user && user.profileImage ? (
-              <Image
-                source={{ uri: user.profileImage }}
-                className="w-full h-full"
-                resizeMode="cover"
-              />
-            ) : (
-              <View className="w-full h-full flex items-center justify-center bg-gray-200">
-                <Ionicons name="person" size={50} color="#9CA3AF" />
-              </View>
-            )}
-          </View>
-          <View className="flex flex-col">
-            <Text className="text-xl font-bold text-[#1E1E1E]">
-              {user ? `${user.firstName} ${user.lastName}` : 'Loading...'}
-            </Text>
-            <Text className="text-sm text-gray-500">
-              {user ? user.email : ''}
-            </Text>
-          </View>
+          {/* Name */}
+          <Text className="text-xl font-bold text-[#1A1A1A]">
+            {user ? `${user.firstName} ${user.lastName}` : '...'}
+          </Text>
+          {/* Phone or email */}
+          <Text className="text-[13px] text-[#999] mt-0.5">
+            {user?.phone || user?.email || ''}
+          </Text>
         </View>
-        <TouchableOpacity 
-          className="mt-4 px-6 py-4 mx-2 text-center border border-[#F9EF08] rounded-md w-full bg-white self-start"
-          onPress={handleEditAccount}
-        >
-          <Text className="text-[#F9EF08] text-center font-semibold">Edit Account</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Sign Out Section */}
-      <TouchableOpacity 
-        className="bg-white rounded-lg mx-4 mt-4 p-4 flex flex-row items-center"
-        onPress={handleSignOut}
-      >
-        <Ionicons name="log-out" size={24} color="#1E1E1E" className="mr-3" />
-        <Text className="text-lg text-[#1E1E1E]">Sign Out</Text>
-      </TouchableOpacity>
+        {/* Menu items */}
+        <View className="mx-5 mt-2">
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={item.label}
+              className={`bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between ${
+                index < menuItems.length - 1 ? 'mb-1.5' : ''
+              }`}
+              onPress={() => handleMenuPress(item.route)}
+              activeOpacity={0.7}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name={item.icon} size={18} color="#999" />
+                <Text className="text-[15px] text-[#1A1A1A] ml-3">{item.label}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+            </TouchableOpacity>
+          ))}
+
+          {/* Logout */}
+          <TouchableOpacity
+            className="bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between mt-1.5"
+            onPress={handleSignOut}
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center">
+              <Ionicons name="log-out-outline" size={18} color="#999" />
+              <Text className="text-[15px] text-[#1A1A1A] ml-3">Logout</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </View>
   );

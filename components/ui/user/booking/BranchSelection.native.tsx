@@ -4,14 +4,17 @@ import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
+  Image,
   Platform,
+  ScrollView,
   Text,
   TextInput,
-  View
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import BookingFlow from './BookingFlow';
-import BranchDetailsModal from './BranchDetailsModal';
 
 // Verify expo-location is available
 if (!Location) {
@@ -206,19 +209,35 @@ const handleSearch = (q: string) => {
 
 
 
-  return (
-    <View className="flex-1 bg-[#F5F5F5]">
+  const handleBranchPress = (branch: Branch) => {
+    setSelectedBranch(branch);
+    setBookingBranch(branch);
+    onBranchSelect(branch);
+    setShowBookingFlow(true);
+  };
 
-      {/* Header */}
-      <View
-        className="flex-row items-center justify-center px-4 pb-4 mt-4 bg-[#F8F8F8] border-b border-[#E0E0E0]"
-        style={{ paddingTop: Platform.OS === 'ios' ? 50 : 20 }}
-      >
-        <Text className="text-lg font-semibold text-[#333]">Choose a Branch</Text>
+  return (
+    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      {/* Progress + header */}
+      <View className="bg-white pt-6 pb-3">
+        {/* Simple step indicator: step 1 of 3 */}
+        <View className="flex-row justify-between items-center px-5 mb-4">
+          <View className="w-2 h-2 rounded-full bg-[#F9EF08]" />
+          <View className="flex-1 h-[3px] mx-2 bg-[#E5E5E5]" />
+          <View className="w-2 h-2 rounded-full bg-[#E5E5E5]" />
+          <View className="flex-1 h-[3px] mx-2 bg-[#E5E5E5]" />
+          <View className="w-2 h-2 rounded-full bg-[#E5E5E5]" />
+        </View>
+
+        <View className="px-5">
+          <Text className="text-[20px] font-bold text-[#1A1A1A] mb-1">
+            Select branch
+          </Text>
+        </View>
       </View>
 
       {/* Map */}
-      <View className="flex-1 relative">
+      <View className="relative" style={{ height: height * 0.55 }}>
         <MapView
           ref={mapRef}
           style={{ flex: 1 }}
@@ -239,61 +258,16 @@ const handleSearch = (q: string) => {
             <Marker
               key={branch.id}
               coordinate={{ latitude: lat, longitude: lng }}
-              onPress={async () => {
-                if (!isFinite(lat) || !isFinite(lng)) {
-                  console.warn('Marker pressed but coords invalid for', branch.id);
-                  return;
-                }
-                try {
-                  console.log('Marker pressed:', branch.id);
-                  // Recalculate distance using current user location
-                  const currentUserLoc = userLocation || await getCurrentLocation();
-                  console.log('Current user location:', currentUserLoc);
-                  console.log('Branch coordinates:', { lat, lng });
-                  
-                  if (currentUserLoc) {
-                    setUserLocation(currentUserLoc); // Update stored location
-                    const distanceMeters = haversineMeters(
-                      currentUserLoc.latitude,
-                      currentUserLoc.longitude,
-                      lat,
-                      lng
-                    );
-                    console.log('Calculated distance (meters):', distanceMeters);
-                    const distanceText = formatDistance(distanceMeters);
-                    console.log('Formatted distance:', distanceText);
-                    
-                    const updatedBranch = {
-                      ...branch,
-                      distance: distanceText,
-                    };
-                    setSelectedBranch(updatedBranch);
-                    if (onBranchSelect) onBranchSelect(updatedBranch);
-                  } else {
-                    console.warn('Location unavailable, using branch distance as-is:', branch.distance);
-                    // If location unavailable, use branch as-is
-                    setSelectedBranch(branch);
-                    if (onBranchSelect) onBranchSelect(branch);
-                  }
-                } catch (err) {
-                  console.error('Error handling marker press', err);
-                }
-              }}
+              onPress={() => handleBranchPress(branch)}
             >
               <View className="items-center">
                 <View
-                  className="w-10 h-10 rounded-full justify-center items-center border-4 border-white"
+                  className="w-12 h-12 rounded-full justify-center items-center border-2 border-white"
                   style={{
-                    backgroundColor: selectedBranch?.id === branch.id ? '#4CAF50' : '#FF4444',
-                    transform: selectedBranch?.id === branch.id ? [{ scale: 1.2 }] : [],
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.25,
-                    shadowRadius: 3.84,
-                    elevation: 5,
+                    backgroundColor: '#F9EF08',
                   }}
                 >
-                  <Ionicons name="location" size={20} color="white" />
+                  <Ionicons name="location" size={20} color="#1A1A00" />
                 </View>
               </View>
             </Marker>
@@ -302,11 +276,11 @@ const handleSearch = (q: string) => {
         </MapView>
 
         {/* Search Bar Overlay */}
-        <View className="absolute top-4 left-4 right-4 flex-row items-center bg-white px-3 py-2 rounded-full border border-[#E0E0E0]">
-          <Ionicons name="search" size={20} color="#666" className="mr-2" />
+        <View className="absolute top-4 left-4 right-4 flex-row items-center bg-[#FAFAFA] px-3 py-2 rounded-full">
+          <Ionicons name="search" size={20} color="#666" />
           <TextInput
-            className="flex-1 text-base text-[#333]"
-            placeholder="Search Branches"
+            className="flex-1 ml-2 text-[14px] text-[#333]"
+            placeholder="Search branches"
             placeholderTextColor="#666"
             value={searchQuery}
             onChangeText={handleSearch}
@@ -314,18 +288,42 @@ const handleSearch = (q: string) => {
         </View>
       </View>
 
-      {/* Branch Details Modal */}
-      <BranchDetailsModal
-        visible={!!selectedBranch}
-        branch={selectedBranch}
-        onClose={() => setSelectedBranch(null)}
-        onMakeOrder={() => {
-          // close details modal and open booking flow
-          setBookingBranch(selectedBranch);
-          setSelectedBranch(null);
-          setShowBookingFlow(true);
-        }}
-      />
+      {/* Branch cards */}
+      <View className="flex-1 pt-4">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
+          {filteredBranches.map((branch) => (
+            <TouchableOpacity
+              key={branch.id}
+              className="bg-[#FAFAFA] rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
+              activeOpacity={0.8}
+              onPress={() => handleBranchPress(branch)}
+            >
+              <View className="w-[60px] h-[60px] rounded-xl overflow-hidden bg-white mr-4">
+                <Image
+                  source={require('../../../../assets/images/branch1.jpg')}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
+                  {branch.name}
+                </Text>
+                <Text className="text-[13px] text-[#999] mt-0.5" numberOfLines={1}>
+                  {branch.address}
+                </Text>
+                <Text className="text-[12px] text-[#BDBDBD] mt-0.5">
+                  {branch.distance}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {showBookingFlow && (
         <BookingFlow
@@ -333,6 +331,6 @@ const handleSearch = (q: string) => {
           onClose={() => setShowBookingFlow(false)}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
