@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StatusBar, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { BranchSelection } from '../../../components/ui/user/booking';
 
 interface Branch {
@@ -31,21 +32,24 @@ export default function UserBookScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {currentStep === 1 && (
-        <BranchSelection
-          onBranchSelect={handleBranchSelect}
-          onNextStep={handleNextStep}
-        />
-      )}
-      {/* TODO: Add other steps here */}
-    </View>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <View style={{ flex: 1 }}>
+        {currentStep === 1 && (
+          <BranchSelection
+            onBranchSelect={handleBranchSelect}
+            onNextStep={handleNextStep}
+          />
+        )}
+        {/* TODO: Add other steps here */}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
   },
 });

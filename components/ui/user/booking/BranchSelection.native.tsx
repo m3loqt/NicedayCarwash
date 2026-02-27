@@ -1,20 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Image,
-  Platform,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import BookingFlow from './BookingFlow';
+import BranchDetailsModal from './BranchDetailsModal';
 
 // Verify expo-location is available
 if (!Location) {
@@ -107,22 +108,39 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
 const handleSearch = (q: string) => {
   setSearchQuery(q);
 
-  if (q.trim() === '') {
-    setFilteredBranches(branches);
+  const query = q.trim().toLowerCase();
+  if (!query) {
     return;
   }
 
-  setFilteredBranches(
-    branches.filter(b =>
-      b.name.toLowerCase().includes(q.toLowerCase()) ||
-      b.address.toLowerCase().includes(q.toLowerCase())
-    )
+  const match = branches.find(
+    (b) =>
+      b.name.toLowerCase().includes(query) ||
+      b.address.toLowerCase().includes(query)
   );
+
+  if (match && mapRef.current) {
+    const lat = Number(match.coordinates.latitude);
+    const lng = Number(match.coordinates.longitude);
+    if (isFinite(lat) && isFinite(lng)) {
+      // zoom into the matched branch but keep other pins and list unchanged
+      // @ts-ignore - mapRef may not be strongly typed
+      mapRef.current.animateToRegion(
+        {
+          latitude: lat,
+          longitude: lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        400
+      );
+    }
+  }
 };
 
 
   const getRegion = () => {
-  if (!filteredBranches.length) {
+  if (!branches.length) {
     return {
       latitude: 10.3157,
       longitude: 123.8854,
@@ -131,8 +149,8 @@ const handleSearch = (q: string) => {
     };
   }
 
-  const lats = filteredBranches.map(b => b.coordinates.latitude);
-  const lngs = filteredBranches.map(b => b.coordinates.longitude);
+  const lats = branches.map(b => b.coordinates.latitude);
+  const lngs = branches.map(b => b.coordinates.longitude);
 
   const minLat = Math.min(...lats);
   const maxLat = Math.max(...lats);
@@ -209,35 +227,52 @@ const handleSearch = (q: string) => {
 
 
 
-  const handleBranchPress = (branch: Branch) => {
+  const handleMarkerPress = (branch: Branch) => {
     setSelectedBranch(branch);
+    setBookingBranch(branch);
+  };
+
+  const handleListPress = (branch: Branch) => {
     setBookingBranch(branch);
     onBranchSelect(branch);
     setShowBookingFlow(true);
   };
 
-  return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-      {/* Progress + header */}
-      <View className="bg-white pt-6 pb-3">
-        {/* Simple step indicator: step 1 of 3 */}
-        <View className="flex-row justify-between items-center px-5 mb-4">
-          <View className="w-2 h-2 rounded-full bg-[#F9EF08]" />
-          <View className="flex-1 h-[3px] mx-2 bg-[#E5E5E5]" />
-          <View className="w-2 h-2 rounded-full bg-[#E5E5E5]" />
-          <View className="flex-1 h-[3px] mx-2 bg-[#E5E5E5]" />
-          <View className="w-2 h-2 rounded-full bg-[#E5E5E5]" />
-        </View>
+  const handleSelectBranch = () => {
+    if (!bookingBranch) return;
+    onBranchSelect(bookingBranch);
+    setShowBookingFlow(true);
+    setSelectedBranch(null);
+  };
 
-        <View className="px-5">
+  return (
+    <View className="flex-1 bg-white">
+      {/* Header + segmented progress line */}
+      <View className="bg-white pt-4 pb-0">
+        {/* Title row */}
+        <View className="px-5 flex-row items-center mb-3">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="mr-3"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
+          </TouchableOpacity>
           <Text className="text-[20px] font-bold text-[#1A1A1A] mb-1">
             Select branch
           </Text>
         </View>
+
+        {/* Segmented progress line at bottom edge of header */}
+        <View className="flex-row w-full h-[2px]">
+          <View className="flex-1 bg-[#E5E5E5]" />
+          <View className="flex-1 bg-[#E5E5E5]" />
+          <View className="flex-1 bg-[#E5E5E5]" />
+        </View>
       </View>
 
       {/* Map */}
-      <View className="relative" style={{ height: height * 0.55 }}>
+      <View className="relative" style={{ height: height * 0.5 }}>
         <MapView
           ref={mapRef}
           style={{ flex: 1 }}
@@ -246,7 +281,7 @@ const handleSearch = (q: string) => {
           showsUserLocation
           showsMyLocationButton
         >
-        {filteredBranches.map((branch) => {
+        {branches.map((branch) => {
           const lat = Number(branch.coordinates?.latitude);
           const lng = Number(branch.coordinates?.longitude);
           if (!isFinite(lat) || !isFinite(lng)) {
@@ -258,17 +293,25 @@ const handleSearch = (q: string) => {
             <Marker
               key={branch.id}
               coordinate={{ latitude: lat, longitude: lng }}
-              onPress={() => handleBranchPress(branch)}
+              onPress={() => handleMarkerPress(branch)}
             >
-              <View className="items-center">
-                <View
-                  className="w-12 h-12 rounded-full justify-center items-center border-2 border-white"
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Image
+                  source={require('../../../../assets/images/nd_appicon.png')}
                   style={{
-                    backgroundColor: '#F9EF08',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
                   }}
-                >
-                  <Ionicons name="location" size={20} color="#1A1A00" />
-                </View>
+                  resizeMode="cover"
+                />
               </View>
             </Marker>
           );
@@ -276,7 +319,7 @@ const handleSearch = (q: string) => {
         </MapView>
 
         {/* Search Bar Overlay */}
-        <View className="absolute top-4 left-4 right-4 flex-row items-center bg-[#FAFAFA] px-3 py-2 rounded-full">
+        <View className="absolute top-4 left-4 right-4 flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] px-3 py-2 rounded-full">
           <Ionicons name="search" size={20} color="#666" />
           <TextInput
             className="flex-1 ml-2 text-[14px] text-[#333]"
@@ -290,6 +333,11 @@ const handleSearch = (q: string) => {
 
       {/* Branch cards */}
       <View className="flex-1 pt-4">
+        <View className="px-5 mb-2">
+          <Text className="text-[15px] font-semibold text-[#1A1A1A]">
+            Available branches near you
+          </Text>
+        </View>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24 }}
@@ -299,7 +347,7 @@ const handleSearch = (q: string) => {
               key={branch.id}
               className="bg-[#FAFAFA] rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
               activeOpacity={0.8}
-              onPress={() => handleBranchPress(branch)}
+              onPress={() => handleListPress(branch)}
             >
               <View className="w-[60px] h-[60px] rounded-xl overflow-hidden bg-white mr-4">
                 <Image
@@ -325,12 +373,20 @@ const handleSearch = (q: string) => {
         </ScrollView>
       </View>
 
+      {/* Branch details bottom sheet */}
+      <BranchDetailsModal
+        visible={!!selectedBranch}
+        branch={selectedBranch}
+        onClose={() => setSelectedBranch(null)}
+        onMakeOrder={handleSelectBranch}
+      />
+
       {showBookingFlow && (
         <BookingFlow
           branch={bookingBranch}
           onClose={() => setShowBookingFlow(false)}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }

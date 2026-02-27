@@ -73,8 +73,13 @@ export default function UserProfileScreen() {
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="white" />
       <SafeAreaView className="flex-1" edges={['top']}>
+        {/* Header */}
+        <View className="px-5 pt-4 pb-4">
+          <Text className="text-3xl font-bold text-[#1A1A1A]">Account</Text>
+        </View>
+
         {/* Profile section */}
-        <View className="items-center pt-8 pb-6">
+        <View className="items-center pt-2 pb-6">
           {/* Avatar */}
           <View className="mb-3" style={{ width: 80, height: 80 }}>
             <View className="w-20 h-20 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">

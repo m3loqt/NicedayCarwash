@@ -1,63 +1,47 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 export default function BookingSuccess() {
   const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>();
-  
+
   return (
-    <View className="flex-1 items-center justify-center bg-[#F8F8F8] p-6">
-      {/* Calendar Icon with Checkmark */}
-      <View className="relative mb-6">
-        <View className="w-32 h-32 rounded-full bg-[#F9EF08] items-center justify-center shadow-lg">
-          <Ionicons name="calendar" size={56} color="white" />
-        </View>
-        {/* Checkmark Circle Overlapping */}
-        <View className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-white items-center justify-center shadow-md">
-          <Ionicons name="checkmark" size={20} color="#F9EF08" />
-        </View>
+    <View className="flex-1 items-center justify-center bg-white px-8">
+
+      {/* Icon */}
+      <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-5">
+        <Ionicons name="checkmark-circle-outline" size={30} color="#1A1A1A" />
       </View>
 
-      {/* Appointment Confirmed Heading */}
-      <Text 
-        className="font-bold mb-2 text-center" 
-        style={{ 
-          fontSize: 32, 
-          color: '#1E1E1E',
-          textShadowColor: 'rgba(0, 0, 0, 0.1)',
-          textShadowOffset: { width: 0, height: 2 },
-          textShadowRadius: 4
-        }}
-      >
+      {/* Title */}
+      <Text className="text-[18px] font-bold text-[#1A1A1A] text-center mb-1.5">
         Appointment Confirmed
       </Text>
 
-      {/* Description */}
-      <Text 
-        className="mb-8 text-center" 
-        style={{ 
-          fontSize: 16, 
-          color: '#1E1E1E' 
-        }}
-      >
-        Your appointment ID is {appointmentId || 'ND-2024-01'}
+      {/* Appointment ID */}
+      <Text className="text-[12px] text-[#999] text-center mb-8">
+        Your appointment ID is{' '}
+        <Text className="font-semibold text-[#1A1A1A]">{appointmentId || 'ND-000000'}</Text>
       </Text>
 
-      {/* My Bookings Button */}
-      <TouchableOpacity 
-        className="w-full bg-[#F9EF08] py-4 rounded-xl mb-3" 
+      {/* My Bookings */}
+      <TouchableOpacity
+        className="w-full bg-[#F9EF08] py-3.5 rounded-2xl items-center mb-3"
+        activeOpacity={0.85}
         onPress={() => router.push({ pathname: '/user/(tabs)/history' } as any)}
       >
-        <Text className="text-center font-semibold" style={{ fontSize: 16, color: '#1E1E1E' }}>My Bookings</Text>
+        <Text className="text-[14px] font-bold text-[#1A1A00]">My Bookings</Text>
       </TouchableOpacity>
 
-      {/* Home Button */}
-      <TouchableOpacity 
-        className="w-full border border-[#F9EF08] bg-white py-4 rounded-xl" 
+      {/* Home */}
+      <TouchableOpacity
+        className="w-full bg-[#FAFAFA] border border-[#EEEEEE] py-3.5 rounded-2xl items-center"
+        activeOpacity={0.85}
         onPress={() => router.push({ pathname: '/user' } as any)}
       >
-        <Text className="text-center font-semibold" style={{ fontSize: 16, color: '#F9EF08' }}>Home</Text>
+        <Text className="text-[14px] font-semibold text-[#1A1A1A]">Go Home</Text>
       </TouchableOpacity>
+
     </View>
   );
 }

@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -161,116 +162,124 @@ export default function LoginScreen() {
   //   }
   // };
 
-  // ------------------------------- UI (UNCHANGED) -------------------------------
-
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView className="flex-1 bg-white">
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-6">
-
-          <View className="items-center pt-16">
-            <Image source={require('../assets/images/ndcwlogo.png')}
-              className="w-40 h-24 mb-4" resizeMode="contain" />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          className="px-6"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo */}
+          <View className="items-center pt-12 mb-8">
+            <Image
+              source={require('../assets/images/ndcwlogo.png')}
+              style={{ width: 120, height: 60 }}
+              resizeMode="contain"
+            />
           </View>
 
-          <View className="items-center mb-12">
-            <Text className="text-3xl font-bold text-gray-800 mb-3 text-center">
-              Login to your Account
+          {/* Heading */}
+          <View className="mb-7 items-center">
+            <Text className="text-[22px] font-bold text-[#1A1A1A] mb-1 text-center">
+              Welcome back
             </Text>
-            <Text className="text-lg text-gray-600 text-center">
-              Enter your email address and password
+            <Text className="text-[13px] text-[#999] text-center">
+              Sign in to continue
             </Text>
           </View>
 
-          <View className="mb-5">
+          {/* Fields */}
+          <View className="mb-4">
+            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">
+              Email Address
+            </Text>
+            <TextInput
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              placeholder="sample@gmail.com"
+              placeholderTextColor="#C4C4C4"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
 
-            <View className="mb-4">
-              <Text className="text-lg font-medium text-gray-800">Email Address</Text>
+          <View className="mb-2">
+            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">
+              Password
+            </Text>
+            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4">
               <TextInput
-                className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800"
-                placeholder="sample@gmail.com"
-                placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
+                className="flex-1 py-3.5 text-[13px] text-[#1A1A1A]"
+                placeholder="Enter your password"
+                placeholderTextColor="#C4C4C4"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
+          </View>
 
-            <View className="mb-2">
-              <Text className="text-lg font-medium text-gray-800">Password</Text>
-              <View className="flex-row items-center border border-gray-300 rounded-xl bg-white">
-                <TextInput
-                  className="flex-1 px-5 py-4 text-lg text-gray-800"
-                  placeholder="Enter your password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity className="px-5 py-4"
-                  onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={24}
-                    color="#666"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View className="flex-row justify-end mb-3 mt-2">
-                <TouchableOpacity onPress={() => router.push("/forgot-password")}>
-                  <Text className="text-base text-gray-600">Forgot password?</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              className={`rounded-xl py-5 bg-[#F9EF08] items-center mt-4 mb-1 ${isSigningIn ? 'opacity-50' : ''}`}
-              onPress={handleSignIn}
-              disabled={isSigningIn}
-              accessibilityState={{ busy: isSigningIn }}
-            >
-              {isSigningIn ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text className="text-lg font-bold text-white">Sign in</Text>
-              )}
-            </TouchableOpacity>
-
-            <View className="flex-row items-center my-4">
-              <View className="flex-1 h-px bg-gray-300" />
-              <Text className="mx-6 text-base text-gray-600">OR</Text>
-              <View className="flex-1 h-px bg-gray-300" />
-            </View>
-
-            <TouchableOpacity
-              className="flex-row items-center justify-center border border-gray-300 rounded-xl py-4 px-5 mb-4 bg-white"
-              onPress={() => googlePromptAsync()}
-            >
-              <Image source={require('../assets/images/googlelogo.png')}
-                className="w-6 h-6 mr-3" resizeMode="contain" />
-              <Text className="text-lg text-gray-800">Sign up using Google</Text>
-            </TouchableOpacity>
-
-            {/* Facebook */}
-            <TouchableOpacity
-              className="flex-row items-center justify-center border border-gray-300 rounded-xl py-4 px-5 mb-6 bg-white"
-              // onPress={handleFacebookSignIn}
-            >
-              <Image source={require('../assets/images/facebooklogo.png')}
-                className="w-6 h-6 mr-3" resizeMode="contain" />
-              <Text className="text-lg text-gray-800">Sign up using Facebook</Text>
+          <View className="flex-row justify-end mb-6">
+            <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+              <Text className="text-[12px] text-[#999]">Forgot password?</Text>
             </TouchableOpacity>
           </View>
 
+          {/* Sign in button */}
+          <TouchableOpacity
+            className={`bg-[#F9EF08] rounded-2xl py-3.5 items-center mb-4 ${isSigningIn ? 'opacity-60' : ''}`}
+            onPress={handleSignIn}
+            disabled={isSigningIn}
+            activeOpacity={0.85}
+          >
+            {isSigningIn ? (
+              <ActivityIndicator size="small" color="#1A1A00" />
+            ) : (
+              <Text className="text-[14px] font-bold text-[#1A1A00]">Sign In</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View className="flex-row items-center my-4">
+            <View className="flex-1 h-px bg-[#F0F0F0]" />
+            <Text className="mx-4 text-[11px] text-[#C4C4C4] uppercase tracking-widest">or</Text>
+            <View className="flex-1 h-px bg-[#F0F0F0]" />
+          </View>
+
+          {/* Google */}
+          <TouchableOpacity
+            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3.5 px-4 mb-3"
+            onPress={() => googlePromptAsync()}
+            activeOpacity={0.85}
+          >
+            <Image source={require('../assets/images/googlelogo.png')} style={{ width: 18, height: 18, marginRight: 10 }} resizeMode="contain" />
+            <Text className="text-[13px] text-[#1A1A1A] font-medium">Continue with Google</Text>
+          </TouchableOpacity>
+
+          {/* Facebook */}
+          <TouchableOpacity
+            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3.5 px-4 mb-8"
+            activeOpacity={0.85}
+          >
+            <Image source={require('../assets/images/facebooklogo.png')} style={{ width: 18, height: 18, marginRight: 10 }} resizeMode="contain" />
+            <Text className="text-[13px] text-[#1A1A1A] font-medium">Continue with Facebook</Text>
+          </TouchableOpacity>
+
+          {/* Footer */}
           <View className="items-center pb-8">
-            <Text className="text-lg text-gray-600 text-center">
-              Don't have an account yet?{' '}
-              <Text className="text-[#F9EF08] font-semibold" onPress={() => router.push("/register")}>
+            <Text className="text-[12px] text-[#999] text-center">
+              Don't have an account?{' '}
+              <Text className="text-[#1A1A1A] font-bold" onPress={() => router.push("/register")}>
                 Sign Up
               </Text>
             </Text>

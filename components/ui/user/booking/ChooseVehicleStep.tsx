@@ -1,8 +1,8 @@
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import VehicleCard from './VehicleCard';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import VehicleCard from '../vehicles/VehicleCard';
 
 interface VehicleProfile {
   vname: string;
@@ -44,43 +44,25 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1 bg-white">
       <ScrollView 
         contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }} 
         className="flex-1"
         showsVerticalScrollIndicator={false}
       >
-        {/* Section Title */}
-        <View className="px-5 pt-6 pb-4">
-          <Text className="text-xl font-bold text-[#1E1E1E]">Choose Vehicle</Text>
-        </View>
-
-        {/* Vehicle List */}
-        {vehicles.map((v) => {
-          const isSelected = selectedVehicle?.vplateNumber === v.vplateNumber;
-
-          return (
-            <Pressable
-              className="mx-5 my-2"
-              key={v.vplateNumber}
-              onPress={() => onSelectVehicle(v)}
-              style={({ pressed }) => [
-                {
-                  opacity: pressed ? 0.8 : 1,
-                  transform: [{ scale: pressed ? 0.98 : 1 }],
-                },
-              ]}
-            >
+        <View className="pt-4">
+          {vehicles.map((v) => (
+            <View className="my-1" key={v.vplateNumber}>
               <VehicleCard
                 id={v.vplateNumber}
                 name={v.vname}
                 plateNumber={v.vplateNumber}
                 type={v.vtype}
-                selected={isSelected}
+                onEdit={() => onSelectVehicle(v)}
               />
-            </Pressable>
-          );
-        })}
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </View>
   );

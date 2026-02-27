@@ -2,14 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View
 } from "react-native";
-import DateSelectionModal from "./modals/DateSelectionModal";
+import AlertModal from "./modals/AlertModal";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
 
 interface Service {
@@ -18,7 +16,9 @@ interface Service {
   sedan: number;
   suv: number;
   pickup: number;
+  motorcycle: number;
   estimatedTime: number;
+  description?: string;
 }
 
 interface Addon {
@@ -26,6 +26,7 @@ interface Addon {
   name: string;
   price: number;
   estimatedTime: number;
+  description?: string;
 }
 
 interface TimeSlot {
@@ -36,7 +37,8 @@ interface TimeSlot {
 interface Vehicle {
   vname: string;
   vplateNumber: string;
-  classification: string;
+  vtype: string;
+  classification?: string;
 }
 
 export default function ServicesStep({
@@ -53,7 +55,6 @@ export default function ServicesStep({
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showDateModal, setShowDateModal] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
@@ -63,6 +64,16 @@ export default function ServicesStep({
   const [branchSchedule, setBranchSchedule] = useState<{ openTime: string; closeTime: string } | null>(null);
   const [showScheduleUnavailableModal, setShowScheduleUnavailableModal] = useState(false);
   const [unavailableReason, setUnavailableReason] = useState<string>("");
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    type?: 'error' | 'warning' | 'info' | 'success';
+    title: string;
+    message: string;
+  }>({ visible: false, title: '', message: '' });
+
+  const showAlert = (title: string, message: string, type: 'error' | 'warning' | 'info' | 'success' = 'error') => {
+    setAlertModal({ visible: true, type, title, message });
+  };
 
   const db = getDatabase();
 
@@ -128,16 +139,18 @@ export default function ServicesStep({
           data.push({
             id: child.key!,
             name: val.name,
-            sedan: val.sedanPrice,
-            suv: val.suvPrice,
-            pickup: val.pickupPrice,
-            estimatedTime: val.estimatedTime,
+            sedan: val.sedanPrice ?? 0,
+            suv: val.suvPrice ?? 0,
+            pickup: val.pickupPrice ?? 0,
+            motorcycle: val.motorcyclePrice ?? 0,
+            estimatedTime: val.estimatedTime ?? 0,
+            description: val.description ?? '',
           });
         });
         setServices(data);
       }
     } catch (err) {
-      Alert.alert("Error", "Failed to load services");
+      showAlert("Couldn't load services", "Something went wrong while fetching the available services. Please try again.", 'error');
     }
   };
 
@@ -154,13 +167,14 @@ export default function ServicesStep({
             id: child.key!,
             name: val.name,
             price: val.price,
-            estimatedTime: val.estimatedTime,
+            estimatedTime: val.estimatedTime ?? 0,
+            description: val.description ?? '',
           });
         });
         setAddons(data);
       }
     } catch (err) {
-      Alert.alert("Error", "Failed to load add-ons");
+      showAlert("Couldn't load add-ons", "Something went wrong while fetching the available add-ons. Please try again.", 'error');
     }
   };
 
@@ -266,17 +280,38 @@ export default function ServicesStep({
   };
 
   // ------------------ Helpers ------------------
-  const getPriceForClassification = (service: Service) => {
-    switch (selectedVehicle.classification) {
-      case "Sedan":
-        return service.sedan;
-      case "SUV":
-        return service.suv;
-      case "Pickup":
-        return service.pickup;
-      default:
-        return service.sedan;
+  const getVehicleLabel = () => {
+    switch (selectedVehicle.vtype) {
+      case 'sedan': return 'Sedan';
+      case 'suv': return 'SUV';
+      case 'pickup': return 'Pickup';
+      case 'motorcycle-small': return 'Motorcycle (S)';
+      case 'motorcycle-large': return 'Motorcycle (L)';
+      default: return selectedVehicle.classification ?? 'Vehicle';
     }
+  };
+
+  const getPriceForVehicle = (service: Service) => {
+    switch (selectedVehicle.vtype) {
+      case 'sedan': return service.sedan;
+      case 'suv': return service.suv;
+      case 'pickup': return service.pickup;
+      case 'motorcycle-small':
+      case 'motorcycle-large': return service.motorcycle;
+      default: return service.sedan;
+    }
+  };
+
+  const getServiceFeatures = (service: Service): string[] => {
+    if (service.description) {
+      const parts = service.description
+        .split(/[,;]/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+      if (parts.length > 0) return parts;
+    }
+    return ['Exterior wash', 'Rinse & dry', 'Tire shine'];
   };
 
   const totalEstimatedTime =
@@ -321,14 +356,43 @@ export default function ServicesStep({
     });
   };
 
+  const getMonthName = (date: Date): string => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return months[date.getMonth()];
+  };
+
+  const getDaysInMonth = (date: Date): Date[] => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1))
+      .filter(d => d >= today);
+  };
+
+  const isSameDay = (a: Date, b: Date): boolean =>
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear();
+
+  const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
   // ------------------ Confirm Booking ------------------
   const handleNext = () => {
-    if (!selectedServices.length || !selectedTimeSlot) {
-      Alert.alert("Error", "Please select a service and time slot");
+    if (!selectedServices.length) {
+      showAlert("No service selected", "Please choose a washing plan before proceeding.", 'warning');
+      return;
+    }
+    if (!selectedTimeSlot) {
+      showAlert("No time slot selected", "Please pick an available time slot for your appointment.", 'warning');
       return;
     }
     if (!paymentMethod) {
-      Alert.alert("Error", "Please select a payment method");
+      showAlert("No payment method", "Please select how you'd like to pay before completing your booking.", 'warning');
       return;
     }
 
@@ -340,61 +404,72 @@ export default function ServicesStep({
       totalEstimatedTime,
       vehicleName: selectedVehicle.vname,
       plateNumber: selectedVehicle.vplateNumber,
-      classification: selectedVehicle.classification,
+      classification: getVehicleLabel(),
       paymentMethod,
     });
   };
 
   return (
-    <View className="flex-1 bg-[#F8F8F8] px-4">
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+    <View className="flex-1 bg-white">
+      <ScrollView contentContainerStyle={{ paddingBottom: 0 }}>
         {/* ------------------- SERVICES ------------------- */}
-        <Text className="text-xl font-semibold mt-4 mb-3">
-          Choose Service <Text className="text-gray-500">(Choose 1)</Text>
+        <Text className="text-xl font-semibold mt-4 px-4">
+          Select plan
+        </Text>
+        <Text className="text-sm text-[#999] mb-3 px-4">
+          Select your washing plan for{' '}
+          <Text className="font-semibold text-[#1A1A1A]">{getVehicleLabel()}</Text>
         </Text>
 
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ alignItems: 'center' }}
+          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 12 }}
         >
           {services.map((s) => {
             const selected = selectedServices.some((x) => x.id === s.id);
+            const price = getPriceForVehicle(s);
+            const features = getServiceFeatures(s);
             return (
               <TouchableOpacity
                 key={s.id}
                 onPress={() => toggleService(s)}
-                style={{ 
-                  width: 220, 
-                  height: 140,
-                }}
-                className={`rounded-2xl bg-white mx-2 border-2 flex-col p-1 ${
-                  selected ? "border-yellow-300" : "border-transparent"
+                className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-64 ${
+                  selected
+                    ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
+                    : 'bg-[#FAFAFA] border border-transparent'
                 }`}
+                activeOpacity={0.8}
               >
-                <View className="flex-1 justify-center px-5">
-                  <Text className="text-2xl font-semibold text-gray-400 text-center">
+                {/* Name row + time pill */}
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-[15px] font-bold text-[#1A1A1A] flex-1 pr-2">
                     {s.name}
                   </Text>
+                  <View className="flex-row items-center bg-white border border-[#EEEEEE] rounded-full px-3 py-1">
+                    <Ionicons name="time-outline" size={13} color="#9CA3AF" />
+                    <Text className="text-[12px] text-[#9CA3AF] ml-1">
+                      {s.estimatedTime} mins
+                    </Text>
+                  </View>
                 </View>
 
-                <View className="bg-yellow-300 px-4 py-2 rounded-b-2xl">
-                  <View className="flex-row justify-between mb-1.5">
-                    <Text className="text-white font-medium text-lg">Sedan</Text>
-                    <Text className="text-white font-medium text-lg">
-                      ₱{s.sedan}.00
+                {/* Feature checklist */}
+                {features.map((feat, i) => (
+                  <View key={i} className="flex-row items-start mb-1.5">
+                    <Ionicons name="checkmark" size={14} color="#9CA3AF" style={{ marginTop: 1, marginRight: 6 }} />
+                    <Text className="text-[12px] text-[#666] flex-1" numberOfLines={2}>
+                      {feat}
                     </Text>
                   </View>
-                  <View className="flex-row justify-between mb-1">
-                    <Text className="text-white font-medium text-lg">SUV</Text>
-                    <Text className="text-white font-medium text-lg">₱{s.suv}.00</Text>
-                  </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-white font-medium text-lg">Pick Up</Text>
-                    <Text className="text-white font-medium text-lg">
-                      ₱{s.pickup}.00
-                    </Text>
-                  </View>
+                ))}
+
+                {/* Price */}
+                <View className="mt-3 pt-3 border-t border-[#F0F0F0] flex-row justify-between items-center">
+                  <Text className="text-[12px] text-[#999]">Price</Text>
+                  <Text className="text-[15px] font-bold text-[#1A1A1A]">
+                    ₱{price}.00
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
@@ -402,14 +477,14 @@ export default function ServicesStep({
         </ScrollView>
 
         {/* ------------------- ADD ONS ------------------- */}
-        <Text className="text-xl font-semibold mt-6 mb-3">
+        <Text className="text-xl font-semibold mt-6 mb-3 px-4">
           Add ons <Text className="text-gray-500">(Optional)</Text>
         </Text>
 
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ alignItems: 'center' }}
+          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 12 }}
         >
           {addons.map((a) => {
             const selected = selectedAddons.some((x) => x.id === a.id);
@@ -417,21 +492,27 @@ export default function ServicesStep({
               <TouchableOpacity
                 key={a.id}
                 onPress={() => toggleAddon(a)}
-                style={{ 
-                  width: 170, 
-                  height: 90,
-                }}
-                className={`rounded-2xl bg-white mx-2 border-2 flex-col p-1 ${
-                  selected ? "border-yellow-300" : "border-transparent"
+                className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-56 ${
+                  selected
+                    ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
+                    : 'bg-[#FAFAFA] border border-transparent'
                 }`}
+                activeOpacity={0.8}
               >
-                <View className="flex-1 justify-center px-5">
-                  <Text className="text-xl font-semibold text-gray-400 text-center">
-                    {a.name}
-                  </Text>
-                </View>
-                <View className="bg-yellow-300 px-4 py-3 rounded-b-2xl items-center justify-center">
-                  <Text className="text-white font-medium text-center text-xl">
+                {/* Name */}
+                <Text className="text-[15px] font-bold text-[#1A1A1A] mb-2">
+                  {a.name}
+                </Text>
+
+                {/* Description */}
+                <Text className="text-[12px] text-[#666] leading-[18px] mb-3">
+                  {a.description || 'No description available.'}
+                </Text>
+
+                {/* Price */}
+                <View className="pt-3 border-t border-[#F0F0F0] flex-row justify-between items-center">
+                  <Text className="text-[12px] text-[#999]">Price</Text>
+                  <Text className="text-[15px] font-bold text-[#1A1A1A]">
                     ₱{a.price}.00
                   </Text>
                 </View>
@@ -441,42 +522,76 @@ export default function ServicesStep({
         </ScrollView>
 
         {/* ------------------- DATE & TIME ------------------- */}
-        <View className="flex-row justify-between items-center mt-6 mb-3 px-1">
-          <Text className="text-xl font-semibold">Date and Time</Text>
+        <Text className="text-[11px] font-semibold tracking-widest text-[#999] mt-6 mb-3 px-4 uppercase">
+          Select Date
+        </Text>
 
-          <TouchableOpacity
-            onPress={() => {
-              setCalendarMonth(new Date(selectedDate));
-              setShowDateModal(true);
-            }}
-            className="bg-white px-4 py-2 rounded-xl"
-          >
-            <Text className="text-gray-400 font-medium">
-              {formatDate(selectedDate)}
-            </Text>
+        {/* Month header + arrows */}
+        <View className="flex-row items-center px-4 mb-3">
+          <Text className="text-[17px] font-bold text-[#1A1A1A] flex-1">
+            {getMonthName(calendarMonth)} {calendarMonth.getFullYear()}
+          </Text>
+          <TouchableOpacity onPress={() => navigateMonth('prev')} className="p-1 mr-2">
+            <Ionicons name="arrow-back" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigateMonth('next')} className="p-1">
+            <Ionicons name="arrow-forward" size={18} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
 
-        {/* Date Selection Modal */}
-        <DateSelectionModal
-          visible={showDateModal}
-          selectedDate={selectedDate}
-          calendarMonth={calendarMonth}
-          branchSchedule={branchSchedule}
-          onClose={() => setShowDateModal(false)}
-          onDateSelect={(date) => {
-            setSelectedDate(date);
-            setShowDateModal(false);
-            loadTimeSlots(date);
-          }}
-          onMonthNavigate={navigateMonth}
-          checkDateAvailability={checkDateAvailability}
-          loadBranchSchedule={loadBranchSchedule}
-          onUnavailableDate={(reason) => {
-            setUnavailableReason(reason);
-            setShowScheduleUnavailableModal(true);
-          }}
-        />
+        {/* Horizontal day scroller */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          className="mb-5"
+        >
+          {getDaysInMonth(calendarMonth).map((date) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const isPast = date < today;
+            const isSelected = isSameDay(date, selectedDate);
+            const dayLabel = DAY_LABELS[date.getDay()];
+
+            return (
+              <TouchableOpacity
+                key={date.toISOString()}
+                disabled={isPast}
+                onPress={async () => {
+                  let currentSchedule = branchSchedule;
+                  if (!currentSchedule) {
+                    currentSchedule = await loadBranchSchedule();
+                  }
+                  const availability = checkDateAvailability(date, currentSchedule || undefined);
+                  if (!availability.available) {
+                    setUnavailableReason(availability.reason);
+                    setShowScheduleUnavailableModal(true);
+                    return;
+                  }
+                  setSelectedDate(date);
+                  loadTimeSlots(date);
+                }}
+                className={`mr-2 items-center justify-center rounded-2xl px-3 py-3 w-16 border ${
+                  isSelected
+                    ? 'bg-[#F9EF08] border-[#F9EF08]'
+                    : 'bg-[#FAFAFA] border-transparent'
+                }`}
+                activeOpacity={0.8}
+              >
+                <Text className={`text-[10px] font-semibold mb-1 ${
+                  isSelected ? 'text-[#1A1A00]' : isPast ? 'text-[#C4C4C4]' : 'text-[#999]'
+                }`}>
+                  {dayLabel}
+                </Text>
+                <Text className={`text-[18px] font-bold ${
+                  isSelected ? 'text-[#1A1A00]' : isPast ? 'text-[#C4C4C4]' : 'text-[#1A1A1A]'
+                }`}>
+                  {date.getDate()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* Schedule Unavailable Modal */}
         <ScheduleUnavailableModal
@@ -486,81 +601,106 @@ export default function ServicesStep({
           onClose={() => setShowScheduleUnavailableModal(false)}
         />
 
+        {/* Alert Modal */}
+        <AlertModal
+          visible={alertModal.visible}
+          type={alertModal.type}
+          title={alertModal.title}
+          message={alertModal.message}
+          onClose={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+        />
+
+        {/* Time slot label */}
+        {timeSlots.length > 0 && (
+          <Text className="text-[11px] font-semibold tracking-widest text-[#999] px-4 mb-2 uppercase">
+            Select Time
+          </Text>
+        )}
+
         {/* ------------------- TIMESLOTS ------------------- */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mb-4"
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        >
           {timeSlots.map((t) => (
             <TouchableOpacity
               key={t.time}
               onPress={() => setSelectedTimeSlot(t)}
-              className={`px-5 py-3 rounded-xl bg-white border mr-3 ${
+              className={`mr-2 px-4 py-2.5 rounded-xl border ${
                 selectedTimeSlot?.time === t.time
-                  ? "border-yellow-300 border-2"
-                  : "border-transparent border-2"
+                  ? 'bg-[#F9EF08] border-[#F9EF08]'
+                  : 'bg-[#FAFAFA] border-transparent'
               }`}
+              activeOpacity={0.8}
             >
-              <Text className="font-medium text-center text-gray-400">{t.time}</Text>
+              <Text className={`text-[13px] font-medium ${
+                selectedTimeSlot?.time === t.time ? 'text-[#1A1A00]' : 'text-[#666]'
+              }`}>
+                {t.time}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
         {/* ------------------- PAYMENT OPTIONS ------------------- */}
-        <Text className="text-xl font-semibold mt-6 mb-3">Payment Option</Text>
-        {[
-          {
-            id: "COD",
-            title: "Cash on Delivery (COD)",
-            desc: "Pay cash on delivery for your purchase when it arrives at your doorstep.",
-            icon: require("@/assets/images/cod_ic.png"),
-          },
-          {
-            id: "E-Wallet",
-            title: "Pay Using E-Wallet",
-            desc: "Pay using supported e-wallets such as GCash, Maya, and more.",
-            icon: require("@/assets/images/ewallet_ic.png"),
-          },
-          {
-            id: "Card",
-            title: "Pay Using Card",
-            desc: "Use supported Debit/Credit cards such as Mastercard and Visa.",
-            icon: require("@/assets/images/credit_card_ic.png"),
-          },
-        ].map((p) => (
-          <TouchableOpacity
-            key={p.id}
-            onPress={() => setPaymentMethod(p.id)}
-            className="bg-white p-4 rounded-2xl shadow-sm flex-row items-center mx-2 mb-4 border border-gray-200"
-          >
-            {p.icon && <Image source={p.icon} className="w-8 h-8 mr-3" />}
-            <View className="flex-1">
-              <Text className="text-[17px] font-semibold">{p.title}</Text>
-              <Text className="text-gray-500 mt-1">{p.desc}</Text>
-            </View>
-            <View
-              className={`w-6 h-6 rounded-full border-2 ${
-                paymentMethod === p.id ? "border-[#F9EF08]" : "border-gray-300"
-              } items-center justify-center`}
+        <Text className="text-xl font-semibold mt-6 mb-3 px-4">Payment Option</Text>
+        <View className="px-4">
+          {[
+            {
+              id: "COD",
+              title: "Cash on Delivery",
+              desc: "Pay cash when you arrive at the branch.",
+              icon: "cash-outline" as const,
+            },
+            {
+              id: "E-Wallet",
+              title: "E-Wallet",
+              desc: "GCash, Maya, and other supported wallets.",
+              icon: "wallet-outline" as const,
+            },
+            {
+              id: "Card",
+              title: "Debit / Credit Card",
+              desc: "Mastercard, Visa, and other supported cards.",
+              icon: "card-outline" as const,
+            },
+          ].map((p) => (
+            <TouchableOpacity
+              key={p.id}
+              onPress={() => setPaymentMethod(p.id)}
+              className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 ${
+                paymentMethod === p.id
+                  ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
+                  : 'bg-[#FAFAFA] border border-transparent'
+              }`}
+              activeOpacity={0.8}
             >
-              {paymentMethod === p.id && (
-                <View className="w-3.5 h-3.5 rounded-full bg-[#F9EF08]" />
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
+                <Ionicons name={p.icon} size={20} color="#1A1A1A" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[13px] font-semibold text-[#1A1A1A]">{p.title}</Text>
+                <Text className="text-[11px] text-[#999] mt-0.5">{p.desc}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* NEXT BUTTON */}
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 w-16 h-16 bg-[#F9EF08] rounded-full shadow-lg"
-        onPress={handleNext}
-        activeOpacity={0.8}
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <Ionicons name="chevron-forward" size={46} color="white" style={{ marginLeft: 4 }} />
-      </TouchableOpacity>
+        {/* NEXT BUTTON */}
+        <View className="px-4 pt-4 pb-8">
+          <TouchableOpacity
+            className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+            onPress={handleNext}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[15px] font-bold text-[#1A1A00]">
+              Complete and Review
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }
