@@ -1,8 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import BookingCard from './BookingCard';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 
 interface Booking {
@@ -20,13 +20,9 @@ interface Booking {
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
-  cancelledAt?: string;
-  completedAt?: string;
-  // Additional booking details from database
   addOns?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number }>;
   services?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number; status?: string }>;
   estCompletion?: string | number;
-
 }
 
 interface HistoryListProps {
@@ -56,13 +52,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
       snapshot.forEach((dateSnap) => {
         dateSnap.forEach((bookingSnap) => {
           const data = bookingSnap.val();
-          // Accepted bookings should appear in pending tab (until paid)
-          const statusMatchesTab = 
-            data.status === activeTab || 
-            (activeTab === 'pending' && data.status === 'accepted');
-          
-          if (data && statusMatchesTab) {
-            // Converting addOns to array format (handles null, array, or object with numeric keys)
+          if (data && data.status === activeTab) {
             const addOnsObj = data.addOns;
             let addOns: any[] = [];
             if (Array.isArray(addOnsObj)) {
@@ -71,7 +61,6 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
             }
 
-            // Converting services to array format (handles null, array, or object with numeric keys)
             const servicesObj = data.services;
             let services: any[] = [];
             if (Array.isArray(servicesObj)) {
@@ -80,17 +69,14 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               services = Object.keys(servicesObj).map((k) => servicesObj[k]);
             }
 
-            // Extracting estimated completion time from timeSlot object
             const estCompletion = data.timeSlot?.estCompletion ?? null;
-
-            // Using Firebase snapshot key as appointment ID (ND-XXXXXX format)
             const appointmentId = bookingSnap.key || '';
-            
+
             list.push({
               id: appointmentId,
               branchName: data.branchName || '',
               address: data.branchAddress || '',
-              appointmentId: appointmentId,
+              appointmentId,
               paymentMethod: data.paymentMethod || '',
               time: data.timeSlot?.time || '',
               appointmentDate: data.timeSlot?.appointmentDate || '',
@@ -100,12 +86,10 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               vehicleName: data.vehicleDetails?.vehicleName || '',
               plateNumber: data.vehicleDetails?.plateNumber || '',
               classification: data.vehicleDetails?.classification || '',
-              cancelledAt: data.cancelledAt || undefined,
-              completedAt: data.completedAt || undefined,
-              addOns: addOns,
+              addOns,
               note: data.note || '',
-              services: services,
-              estCompletion: estCompletion,
+              services,
+              estCompletion,
             });
           }
         });
@@ -123,27 +107,21 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
     setShowDetails(true);
   };
 
-  const handleCloseDetails = () => {
-    setShowDetails(false);
-    setSelectedBooking(null);
-  };
-
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'white' }}>
-        <Text>Loading bookings...</Text>
+      <View className="flex-1 justify-center items-center bg-white">
+        <ActivityIndicator size="small" color="#1A1A1A" />
       </View>
     );
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'transparent' }}>
+    <View className="flex-1 bg-white">
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={false}
-        style={{ backgroundColor: 'transparent', flex: 1 }}
-        className="pt-4"
-        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'transparent' }}
+        className="pt-6"
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
         {bookings.length > 0 ? (
           bookings.map((booking) => (
@@ -167,18 +145,18 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
             />
           ))
         ) : (
-          <View className="flex-1 justify-center items-center py-20">
-            <Text className="text-lg text-gray-500 text-center">
-              No {activeTab} bookings found
+          <View className="flex-1 justify-center items-center py-24">
+            <Ionicons name="receipt-outline" size={48} color="#E0E0E0" />
+            <Text className="text-base text-[#999] mt-4">
+              No {activeTab} bookings
             </Text>
-            <Text className="text-sm text-gray-400 text-center mt-2">
+            <Text className="text-[13px] text-[#CCC] mt-1">
               Your {activeTab} bookings will appear here
             </Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Appointment Details Modal */}
       {selectedBooking && (
         <AppointmentDetailsModal
           visible={showDetails}
@@ -204,15 +182,15 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
           amountDue={selectedBooking.amount}
           paymentMethod={selectedBooking.paymentMethod}
           estimatedCompletion={
-            typeof selectedBooking.estCompletion === "number"
+            typeof selectedBooking.estCompletion === 'number'
               ? `${selectedBooking.estCompletion} Hours`
               : selectedBooking.estCompletion
           }
           note={selectedBooking.note}
-          status={selectedBooking.status}
-          isPaid={selectedBooking.isPaid}
-          appointmentId={selectedBooking.appointmentId}
-          onClose={handleCloseDetails}
+          onClose={() => {
+            setShowDetails(false);
+            setSelectedBooking(null);
+          }}
         />
       )}
     </View>

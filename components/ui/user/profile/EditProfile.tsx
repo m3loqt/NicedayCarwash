@@ -6,14 +6,16 @@ import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import SuccessModal from './SuccessModal';
 
 export default function EditProfile() {
   const insets = useSafeAreaInsets();
@@ -22,9 +24,10 @@ export default function EditProfile() {
   const [lastName, setLastName] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const auth = getAuth();
-  const userId = auth.currentUser?.uid;
+  const authInstance = getAuth();
+  const userId = authInstance.currentUser?.uid;
   const db = getDatabase();
 
   useEffect(() => {
@@ -52,8 +55,6 @@ export default function EditProfile() {
     fetchUserData();
   }, [userId]);
 
-  const handleBack = () => router.back();
-
   const handleSaveChanges = async () => {
     if (!firstName || !lastName) {
       alert('Validation', 'All fields must be filled');
@@ -68,9 +69,7 @@ export default function EditProfile() {
         lastName,
         profileImage: profileImage || '',
       });
-      alert('Success', 'Changes saved successfully', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      setShowSuccess(true);
     } catch (err) {
       console.error(err);
       alert('Error', 'Failed to save changes');
@@ -83,8 +82,6 @@ export default function EditProfile() {
       quality: 1,
     });
 
-    // Newer versions of expo-image-picker return { canceled: boolean, assets: [{ uri, ... }] }
-    // Checking `canceled` and reading the uri from `assets[0].uri` safely
     if (!result.canceled && Array.isArray(result.assets) && result.assets.length > 0) {
       setProfileImage(result.assets[0].uri);
     }
@@ -92,36 +89,36 @@ export default function EditProfile() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 justify-center items-center bg-gray-100">
-        <Text>Loading...</Text>
+      <SafeAreaView className="flex-1 bg-white justify-center items-center">
+        <ActivityIndicator size="small" color="#1A1A1A" />
       </SafeAreaView>
     );
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
-        {/* Header */}
-        <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
-        <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
-          <TouchableOpacity 
-            className="p-2 rounded-full border border-gray-300"
-            onPress={handleBack}
-          >
-            <Ionicons name="arrow-back" size={24} color="#1E1E1E" />
-          </TouchableOpacity>
-          
-          <Text className="text-2xl font-semibold text-[#1E1E1E]">Edit Account</Text>
-          <View className="w-10" />
-        </View>
+    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      {/* Header */}
+      <View className="flex-row items-center px-5 pt-4 pb-6">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className="mr-3"
+        >
+          <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <Text className="text-xl font-bold text-[#1A1A1A]">Edit Account</Text>
       </View>
 
-      {/* Main Content */}
-      <ScrollView className="flex-1 p-6">
-        {/* Profile Picture */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        className="flex-1"
+      >
+        {/* Profile picture */}
         <View className="items-center mb-8">
           <View className="relative">
-            <View className="w-32 h-32 rounded-full bg-white border-4 border-white shadow-lg overflow-hidden">
+            <View className="w-24 h-24 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">
               <Image
                 source={profileImage ? { uri: profileImage } : require('../../../../assets/images/profile_placeholder.png')}
                 className="w-full h-full"
@@ -129,54 +126,66 @@ export default function EditProfile() {
               />
             </View>
             <TouchableOpacity
-              className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#F9EF08] rounded-full items-center justify-center shadow-lg"
+              className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#F9EF08] rounded-full items-center justify-center border-2 border-white"
               onPress={handleChangeProfilePicture}
             >
-              <Ionicons name="camera" size={20} color="white" />
+              <Ionicons name="camera" size={14} color="#1A1A00" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Form Fields */}
-        <View className="space-y-6">
-          <View>
-            <Text className="text-lg font-semibold text-gray-800 mb-3">First Name</Text>
+        {/* Form */}
+        <View className="px-5">
+          <View className="mb-4">
+            <Text className="text-[13px] text-[#999] mb-1.5">First Name</Text>
             <TextInput
-              className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg text-gray-800"
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
               placeholder="Enter first name"
-              placeholderTextColor="#999"
+              placeholderTextColor="#BDBDBD"
               value={firstName}
               onChangeText={setFirstName}
             />
           </View>
 
-          <View>
-            <Text className="text-lg font-semibold text-gray-800 my-3">Last Name</Text>
+          <View className="mb-4">
+            <Text className="text-[13px] text-[#999] mb-1.5">Last Name</Text>
             <TextInput
-              className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg text-gray-800"
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
               placeholder="Enter last name"
-              placeholderTextColor="#999"
+              placeholderTextColor="#BDBDBD"
               value={lastName}
               onChangeText={setLastName}
             />
-            <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-              <Text className="text-[#F9EF08] mt-2 font-semibold">Reset Password</Text>
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            onPress={() => router.push('/forgot-password' as any)}
+            className="mt-1"
+          >
+            <Text className="text-[13px] font-semibold text-[#999]">Reset Password</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Save Changes Button */}
-      <View className="p-6 bg-white border-t border-gray-200">
+      {/* Save button */}
+      <View className="px-5 pb-8 pt-3 bg-white">
         <TouchableOpacity
-          className="bg-[#F9EF08] rounded-xl py-4 items-center"
+          className="bg-[#F9EF08] rounded-2xl py-4 items-center"
           onPress={handleSaveChanges}
+          activeOpacity={0.85}
         >
-          <Text className="text-lg font-bold text-white">Save Changes</Text>
+          <Text className="text-[#1A1A00] text-[15px] font-bold">Save Changes</Text>
         </TouchableOpacity>
       </View>
-      </SafeAreaView>
-      {AlertComponent}
-    </View>
+
+      <SuccessModal
+        visible={showSuccess}
+        message="Account saved"
+        onDismiss={() => {
+          setShowSuccess(false);
+          router.back();
+        }}
+      />
+    </SafeAreaView>
   );
 }

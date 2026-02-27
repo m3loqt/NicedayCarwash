@@ -5,14 +5,15 @@ import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -68,115 +69,119 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView className="flex-1 bg-white">
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-6">
-          {/* Logo Section */}
-          <View className="items-center pt-16">
-            <Image 
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          className="px-6"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Back + Logo */}
+          <View className="pt-4 mb-6">
+            <TouchableOpacity onPress={handleSignIn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} className="mb-6">
+              <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
+            </TouchableOpacity>
+            <Image
               source={require('../assets/images/ndcwlogo.png')}
-              className="w-40 h-24 mb-4"
+              style={{ width: 100, height: 50 }}
               resizeMode="contain"
             />
           </View>
 
-          {/* Title Section */}
-          <View className="items-center mb-12">
-            <Text className="text-3xl font-bold text-gray-800 mb-3 text-center">
-              Create your Account
+          {/* Heading */}
+          <View className="mb-7">
+            <Text className="text-[22px] font-bold text-[#1A1A1A] mb-1">
+              Create an account
             </Text>
-            <Text className="text-lg text-gray-600 text-center">
-              Fill out the form to create an account
+            <Text className="text-[13px] text-[#999]">
+              Fill in your details to get started
             </Text>
           </View>
 
-          {/* Form Section */}
-          <View className="mb-5">
-            <View className="mb-4">
-              <Text className="text-lg font-medium text-gray-800 mb-2">First Name</Text>
-              <TextInput
-                className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800"
-                placeholder="Firstname"
-                placeholderTextColor="#999"
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
+          {/* First Name */}
+          <View className="mb-4">
+            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">First Name</Text>
+            <TextInput
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              placeholder="Juan"
+              placeholderTextColor="#C4C4C4"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
 
-            <View className="mb-4">
-              <Text className="text-lg font-medium text-gray-800 mb-2">Last Name</Text>
-              <TextInput
-                className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800"
-                placeholder="Lastname"
-                placeholderTextColor="#999"
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
+          {/* Last Name */}
+          <View className="mb-4">
+            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Last Name</Text>
+            <TextInput
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              placeholder="dela Cruz"
+              placeholderTextColor="#C4C4C4"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
 
-            <View className="mb-4">
-              <Text className="text-lg font-medium text-gray-800 mb-2">Email Address</Text>
+          {/* Email */}
+          <View className="mb-4">
+            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Email Address</Text>
+            <TextInput
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              placeholder="your.email@example.com"
+              placeholderTextColor="#C4C4C4"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          {/* Password */}
+          <View className="mb-7">
+            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Password</Text>
+            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4">
               <TextInput
-                className="border border-gray-300 rounded-xl px-5 py-4 text-lg bg-white text-gray-800"
-                placeholder="your.email@example.com"
-                placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
+                className="flex-1 py-3.5 text-[13px] text-[#1A1A1A]"
+                placeholder="Create a password"
+                placeholderTextColor="#C4C4C4"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
+              </TouchableOpacity>
             </View>
-
-            <View className="mb-6">
-              <Text className="text-lg font-medium text-gray-800 mb-2">Password</Text>
-              <View className="flex-row items-center border border-gray-300 rounded-xl bg-white">
-                <TextInput
-                  className="flex-1 px-5 py-4 text-lg text-gray-800"
-                  placeholder="Enter your password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                <TouchableOpacity
-                  className="px-5 py-4"
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={24}
-                    color="#666"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <TouchableOpacity 
-              className="bg-[#F9EF08] rounded-xl py-5 items-center mb-6"
-              onPress={handleSignUp}
-              disabled={loading}
-            >
-              <Text className="text-lg font-bold text-white">
-                {loading ? 'Signing Up...' : 'Sign Up'}
-              </Text>
-            </TouchableOpacity>
           </View>
+
+          {/* Sign Up button */}
+          <TouchableOpacity
+            className={`bg-[#F9EF08] rounded-2xl py-3.5 items-center mb-8 ${loading ? 'opacity-60' : ''}`}
+            onPress={handleSignUp}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[14px] font-bold text-[#1A1A00]">
+              {loading ? 'Creating account...' : 'Sign Up'}
+            </Text>
+          </TouchableOpacity>
 
           {/* Footer */}
           <View className="items-center pb-8">
-            <Text className="text-lg text-gray-600 text-center">
+            <Text className="text-[12px] text-[#999] text-center">
               Already have an account?{' '}
-              <Text className="text-[#F9EF08] font-semibold" onPress={handleSignIn}>
+              <Text className="text-[#1A1A1A] font-bold" onPress={handleSignIn}>
                 Sign In
               </Text>
             </Text>

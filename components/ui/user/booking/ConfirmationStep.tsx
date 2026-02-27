@@ -5,6 +5,7 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AlertModal from './modals/AlertModal';
 
 interface ServiceOrAddon {
   id: string;
@@ -29,86 +30,79 @@ interface ConfirmationStepProps {
   onDone?: () => void;
 }
 
-// Converts vehicle type ID to human-readable classification name
 const getClassificationName = (vtype?: string): string => {
   if (!vtype) return '';
-  const classificationMap: { [key: string]: string } = {
-    'sedan': 'Sedan',
-    'suv': 'SUV',
-    'pickup': 'Pickup',
-    'motorcycle-small': 'Motorcycle Small',
-    'motorcycle-large': 'Motorcycle Large',
+  const map: Record<string, string> = {
+    sedan: 'Sedan',
+    suv: 'SUV',
+    pickup: 'Pickup',
+    'motorcycle-small': 'Motorcycle (S)',
+    'motorcycle-large': 'Motorcycle (L)',
   };
-  return classificationMap[vtype.toLowerCase()] || vtype;
+  return map[vtype.toLowerCase()] || vtype;
 };
 
 const getVehicleIcon = (vehicleType?: string) => {
   switch (vehicleType?.toLowerCase()) {
-    case 'sedan':
-      return require('../../../../assets/images/sedan.png');
-    case 'suv':
-      return require('../../../../assets/images/suv.png');
-    case 'pickup':
-      return require('../../../../assets/images/pickup.png');
-    case 'motorcycle-small':
-      return require('../../../../assets/images/motorcycle_small.png');
-    case 'motorcycle-large':
-      return require('../../../../assets/images/motorcycle_large.png');
-    default:
-      return require('../../../../assets/images/sedan.png');
+    case 'sedan': return require('../../../../assets/images/sedan.png');
+    case 'suv': return require('../../../../assets/images/suv.png');
+    case 'pickup': return require('../../../../assets/images/pickup.png');
+    case 'motorcycle-small': return require('../../../../assets/images/motosmall.png');
+    case 'motorcycle-large': return require('../../../../assets/images/motobig.png');
+    default: return require('../../../../assets/images/sedan.png');
   }
 };
 
 const getPriceForClassification = (item: ServiceOrAddon, classification?: string): number => {
   if (item.price) return item.price;
   switch (classification?.toLowerCase()) {
-    case 'sedan':
-      return item.sedan || 0;
-    case 'suv':
-      return item.suv || 0;
-    case 'pickup':
-      return item.pickup || 0;
-    default:
-      return item.sedan || 0;
+    case 'sedan': return item.sedan || 0;
+    case 'suv': return item.suv || 0;
+    case 'pickup': return item.pickup || 0;
+    default: return item.sedan || 0;
   }
 };
 
 const formatDate = (date: Date): string => {
-  const months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-  const month = months[date.getMonth()];
-  const day = date.getDate();
-  const year = date.getFullYear();
-  return `${month} ${day}, ${year}`;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
-const formatTimeRange = (timeSlot: { time: string } | null, estimatedHours: number): string => {
+const formatTimeRange = (timeSlot: { time: string } | null, estimatedMins: number): string => {
   if (!timeSlot) return '';
-  const startTime = timeSlot.time;
-  // Extracting hour, minute, and AM/PM from time string
-  const match = startTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!match) return startTime;
-  
+  const match = timeSlot.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!match) return timeSlot.time;
   let hour = parseInt(match[1], 10);
   const minute = parseInt(match[2], 10);
   const period = match[3].toUpperCase();
-  
-  // Converting 12-hour format to 24-hour format
   if (period === 'PM' && hour !== 12) hour += 12;
   if (period === 'AM' && hour === 12) hour = 0;
-  
-  // Calculating end time by adding estimated hours
-  const endHour = hour + estimatedHours;
-  
-  // Converting 24-hour format back to 12-hour format
-  const endHour12 = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour === 12 ? 12 : endHour);
-  const endPeriod = endHour >= 12 ? 'pm' : 'am';
-  
-  const startTimeLower = startTime.toLowerCase();
-  return `${startTimeLower} - ${endHour12}:${minute.toString().padStart(2, '0')} ${endPeriod}`;
+  const endMinutes = hour * 60 + minute + estimatedMins;
+  const endHour = Math.floor(endMinutes / 60) % 24;
+  const endMin = endMinutes % 60;
+  const endPeriod = endHour >= 12 ? 'PM' : 'AM';
+  const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
+  return `${timeSlot.time} – ${endHour12}:${endMin.toString().padStart(2, '0')} ${endPeriod}`;
 };
+
+// ─── Row helper ────────────────────────────────────────────────────────────────
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row justify-between items-center py-2.5 border-b border-[#F5F5F5]">
+      <Text className="text-[12px] text-[#999]">{label}</Text>
+      <Text className="text-[13px] font-semibold text-[#1A1A1A]">{value}</Text>
+    </View>
+  );
+}
+
+// ─── Section label ─────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <Text className="text-[10px] font-semibold tracking-widest text-[#999] uppercase mb-2">
+      {children}
+    </Text>
+  );
+}
 
 export default function ConfirmationStep({
   branch,
@@ -125,310 +119,197 @@ export default function ConfirmationStep({
   const { alert, AlertComponent } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState('');
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean; title: string; message: string;
+  }>({ visible: false, title: '', message: '' });
 
-  const generateAppointmentId = (): string => {
-    // Generating 6 random digits
-    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    return `ND-${random}`;
+  const showAlert = (title: string, message: string) =>
+    setAlertModal({ visible: true, title, message });
+
+  const generateAppointmentId = () =>
+    `ND-${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`;
+
+  const formatDateForPath = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${m}-${day}-${y}`;
   };
 
-  const formatDateForPath = (date: Date): string => {
-    // Formatting as MM-DD-YYYY for database path (matches database structure)
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${month}-${day}-${year}`;
-  };
-
-  const formatDateForDisplay = (date: Date): string => {
-    // Formatting as MM-DD-YYYY for appointmentDate field (same as database path)
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${month}-${day}-${year}`;
-  };
+  const classificationForPrice = vehicle?.vtype || vehicle?.classification?.toLowerCase() || '';
+  const bookingFee = 25.00;
+  const orderSummary = [
+    ...services.map(s => ({ label: s.name, price: getPriceForClassification(s, classificationForPrice) })),
+    ...addons.map(a => ({ label: a.name, price: getPriceForClassification(a, classificationForPrice) })),
+    { label: 'Booking Fee', price: bookingFee },
+  ];
+  const amountDue = orderSummary.reduce((sum, i) => sum + i.price, 0);
+  const fmt = (v: number) => `₱ ${v.toFixed(2)}`;
 
   const handleConfirm = async () => {
     if (!date || !timeSlot) {
-      alert('Error', 'Please select a date and time slot');
+      showAlert('Missing info', 'Please select a date and time slot.');
       return;
     }
-
     setSubmitting(true);
-
     try {
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        alert('Error', 'User not authenticated');
+        showAlert('Not authenticated', 'Please sign in and try again.');
         setSubmitting(false);
         return;
       }
-
       const db = getDatabase();
-      
-      // Creating unique appointment identifier
       const appointmentId = generateAppointmentId();
-      
-      // Using current date for database path organization, not appointment date
-      const creationDate = new Date();
-      const datePath = formatDateForPath(creationDate);
-      
-      // Determining vehicle classification for pricing (preferring vtype ID, falling back to classification)
-      const classificationForPrice = vehicle.vtype || vehicle.classification?.toLowerCase() || '';
-      
-      // Summing booking fee, services, and addons to get total amount
-      const bookingFee = 25.00;
-      const servicesTotal = services.reduce((sum, s) => sum + getPriceForClassification(s, classificationForPrice), 0);
-      const addonsTotal = addons.reduce((sum, a) => sum + getPriceForClassification(a, classificationForPrice), 0);
-      const amountDue = servicesTotal + addonsTotal + bookingFee;
-
-      // Getting human-readable classification name (converting vtype ID if needed)
+      const datePath = formatDateForPath(new Date());
       const classification = vehicle.classification || getClassificationName(vehicle.vtype) || '';
-      
-      // Constructing booking object with all required fields
       const bookingData = {
-        appointmentId: appointmentId,
+        appointmentId,
         branchName: branch.name,
         branchAddress: branch.address || '',
         paymentMethod: paymentMethod || '',
         status: 'pending',
         isPaid: false,
         note: note.trim() || '',
-        amountDue: amountDue, // Store as number, not string
+        amountDue,
         timeSlot: {
           time: timeSlot.time,
-          appointmentDate: formatDateForDisplay(date),
+          appointmentDate: formatDateForPath(date),
           available: true,
-          estCompletion: String(totalEstimatedTime), // Database shows as string
+          estCompletion: String(totalEstimatedTime),
         },
         vehicleDetails: {
           vehicleName: vehicle.vname || '',
           plateNumber: vehicle.vplateNumber || '',
-          classification: classification,
+          classification,
         },
         services: services.map(s => ({
           name: s.name,
           price: getPriceForClassification(s, classificationForPrice),
-          estimatedTime: String(s.estimatedTime || 0), // Database shows as string
+          estimatedTime: String(s.estimatedTime || 0),
         })),
         addOns: addons.map(a => ({
           name: a.name,
           price: getPriceForClassification(a, classificationForPrice),
-          estimatedTime: String(a.estimatedTime || 0), // Database shows as string
+          estimatedTime: String(a.estimatedTime || 0),
         })),
       };
-
-      // Storing booking in user's reservation path (appointmentId used as both key and field)
-      const userBookingRef = ref(db, `Reservations/ReservationsByUser/${userId}/${datePath}/${appointmentId}`);
-      await set(userBookingRef, bookingData);
-
-      // Storing booking in branch's reservation path for admin dashboard access
-      const branchBookingRef = ref(db, `Reservations/ReservationsByBranch/${branch.id}/${datePath}/${appointmentId}`);
-      await set(branchBookingRef, bookingData);
-
+      await set(ref(db, `Reservations/ReservationsByUser/${userId}/${datePath}/${appointmentId}`), bookingData);
+      await set(ref(db, `Reservations/ReservationsByBranch/${branch.id}/${datePath}/${appointmentId}`), bookingData);
       setSubmitting(false);
       onDone?.();
-      router.replace({
-        pathname: '/user/booking-success',
-        params: { appointmentId },
-      } as any);
-    } catch (error) {
-      console.error('Failed to save booking:', error);
-      alert('Error', 'Failed to save booking. Please try again.');
+      router.replace({ pathname: '/user/booking-success', params: { appointmentId } } as any);
+    } catch {
+      showAlert('Something went wrong', 'Failed to save your booking. Please try again.');
       setSubmitting(false);
     }
   };
 
-  const formatPrice = (value: number) => {
-    return `₱ ${value.toFixed(2)}`;
-  };
-
-  // Applying same vehicle classification logic as booking submission for price calculation
-  const classificationForPrice = vehicle?.vtype || vehicle?.classification?.toLowerCase() || '';
-  const bookingFee = 25.00;
-  const orderSummary = [
-    ...services.map((s) => ({
-      label: s.name,
-      price: getPriceForClassification(s, classificationForPrice),
-    })),
-    ...addons.map((a) => ({
-      label: a.name,
-      price: getPriceForClassification(a, classificationForPrice),
-    })),
-    {
-      label: 'Booking Fee',
-      price: bookingFee,
-    },
-  ];
-
-  const amountDue = orderSummary.reduce((sum, item) => sum + item.price, 0);
-
   return (
-    <View className="flex-1 bg-[#F8F8F8]">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100, paddingTop: 16 }}>
-        {/* Single White Card Container */}
-        <View className="bg-white rounded-2xl mx-4 mb-4">
-          {/* Branch Information Section */}
-          <View className="p-4">
-          <Text className="font-semibold text-[#1E1E1E] mb-2" style={{ fontSize: 20 }}>Branch</Text>
-          <View className="flex-row justify-between items-start">
-            <View className="flex-1 mr-3">
-              <Text className="font-semibold text-[#1E1E1E] mb-1" style={{ fontSize: 20 }}>{branch?.name}</Text>
-              <View className="flex-row items-center">
-                <Ionicons name="location" size={12} color="#9CA3AF" style={{ marginRight: 4 }} />
-                <Text className="text-gray-500 flex-1" style={{ fontSize: 16 }}>{branch?.address || 'No address provided'}</Text>
-              </View>
-            </View>
-            {branch?.image && (
-              <Image source={branch.image} className="w-20 h-20 rounded-lg" resizeMode="cover" />
-            )}
-          </View>
+    <View className="flex-1 bg-white">
+      <ScrollView contentContainerStyle={{ paddingBottom: 110, paddingTop: 16 }}>
+
+        <View className="mx-4 mb-4 bg-[#FAFAFA] rounded-2xl px-4 pt-5 pb-4">
+
+          {/* Branch */}
+          <SectionLabel>Branch</SectionLabel>
+          <Text className="text-[14px] font-bold text-[#1A1A1A] mb-0.5">{branch?.name}</Text>
+          <View className="flex-row items-center mb-5">
+            <Ionicons name="location-outline" size={11} color="#9CA3AF" style={{ marginRight: 3 }} />
+            <Text className="text-[12px] text-[#999] flex-1">{branch?.address || 'No address'}</Text>
           </View>
 
-          {/* Separator Line */}
-          <View className="px-4">
-            <View className="h-[0.5px] bg-gray-200" />
-          </View>
-
-          {/* Vehicle Information Section */}
-          <View className="p-4">
-          <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Vehicle</Text>
-          <View className="flex-row items-center">
+          {/* Vehicle */}
+          <SectionLabel>Vehicle</SectionLabel>
+          <View className="flex-row items-center mb-5">
             <Image
-              source={getVehicleIcon(vehicle?.classification)}
-              className="w-10 h-10"
+              source={getVehicleIcon(vehicle?.vtype || vehicle?.classification)}
+              style={{ width: 40, height: 26, tintColor: '#1A1A1A' }}
               resizeMode="contain"
-              style={{ tintColor: '#F9EF08' }}
             />
-            <View className="w-[0.5px] h-10 bg-gray-200 mx-3" />
-            <View className="flex-1 flex-row items-center justify-between">
-              <Text className="text-gray-500" style={{ fontSize: 16 }}>{vehicle?.vname}</Text>
-              <Text className="text-gray-500" style={{ fontSize: 16 }}>{vehicle?.vplateNumber} {vehicle?.classification}</Text>
+            <View className="flex-1 ml-3">
+              <Text className="text-[13px] font-semibold text-[#1A1A1A]">{vehicle?.vname}</Text>
+              <Text className="text-[11px] text-[#999] mt-0.5">
+                {vehicle?.vplateNumber}  ·  {vehicle?.classification || getClassificationName(vehicle?.vtype)}
+              </Text>
             </View>
           </View>
-          </View>
 
-          {/* Separator Line */}
+          {/* Date & Time */}
           {date && (
-            <View className="px-4">
-              <View className="h-[0.5px] bg-gray-200" />
-            </View>
-          )}
-
-          {/* Date & Time Section */}
-          {date && (
-            <View className="p-4">
-            <View className="flex-row justify-between items-center mb-3">
-              <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Date & Time</Text>
-              <Text className="text-gray-500" style={{ fontSize: 16 }}>{formatDate(date)}</Text>
-            </View>
-            {timeSlot && (
-              <View className="items-end">
-                <Text className="text-gray-500" style={{ fontSize: 16 }}>{formatTimeRange(timeSlot, totalEstimatedTime)}</Text>
+            <>
+              <SectionLabel>Date &amp; Time</SectionLabel>
+              <Row label="Appointment date" value={formatDate(date)} />
+              {timeSlot && <Row label="Time" value={formatTimeRange(timeSlot, totalEstimatedTime)} />}
+              <View className="mb-5">
+                <Row label="Est. duration" value={`${totalEstimatedTime} mins`} />
               </View>
-            )}
-          </View>
+            </>
           )}
 
-          {/* Separator Line */}
-          <View className="px-4">
-            <View className="h-[0.5px] bg-gray-200" />
-          </View>
-
-          {/* Order Summary Section */}
-          <View className="p-4">
-          <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Order Summary</Text>
-          {orderSummary.map((item, idx) => (
-            <View key={idx} className="flex-row justify-between mb-2">
-              <Text className="text-gray-500" style={{ fontSize: 16 }}>{item.label}</Text>
-              <Text className="text-gray-500" style={{ fontSize: 16 }}>{formatPrice(item.price)}</Text>
-            </View>
+          {/* Order Summary */}
+          <SectionLabel>Order Summary</SectionLabel>
+          {orderSummary.map((item, i) => (
+            <Row key={i} label={item.label} value={fmt(item.price)} />
           ))}
-          <View className="h-[0.5px] bg-gray-200 my-3" />
-          <View className="flex-row justify-between items-center">
-            <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Amount Due</Text>
-            <Text className="text-gray-500" style={{ fontSize: 16 }}>{formatPrice(amountDue)}</Text>
-          </View>
+          <View className="flex-row justify-between items-center pt-3 mb-5">
+            <Text className="text-[13px] font-bold text-[#1A1A1A]">Amount Due</Text>
+            <Text className="text-[15px] font-bold text-[#1A1A1A]">{fmt(amountDue)}</Text>
           </View>
 
-          {/* Separator Line */}
-          <View className="px-4">
-            <View className="h-[0.5px] bg-gray-200" />
+          {/* Payment */}
+          <SectionLabel>Payment</SectionLabel>
+          <View className="mb-5">
+            <Row label="Method" value={paymentMethod || 'Not selected'} />
           </View>
 
-          {/* Payment Method Section */}
-          <View className="p-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Payment Method</Text>
-              <Text className="text-gray-500" style={{ fontSize: 16 }}>{paymentMethod || 'Not selected'}</Text>
-            </View>
-          </View>
+          {/* Note */}
+          <SectionLabel>Note to Branch</SectionLabel>
+          <TextInput
+            className="bg-white border border-[#EEEEEE] rounded-xl px-3 py-3 text-[#1A1A1A] mb-4"
+            placeholder="e.g. I'd like to request a specific washer"
+            placeholderTextColor="#C4C4C4"
+            multiline
+            numberOfLines={3}
+            value={note}
+            onChangeText={setNote}
+            textAlignVertical="top"
+            style={{ fontSize: 12, minHeight: 72 }}
+          />
 
-          {/* Separator Line */}
-          <View className="px-4">
-            <View className="h-[0.5px] bg-gray-200" />
-          </View>
+          {/* Disclaimer */}
+          <Text className="text-[11px] text-[#C4C4C4] italic text-center">
+            Final duration will depend on the vehicle's size and condition.
+          </Text>
 
-          {/* Estimated Time of Completion Section */}
-          <View className="p-4">
-            <View className="flex-row justify-between items-center">
-              <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Estimated Time of Completion</Text>
-              <Text className="text-gray-500" style={{ fontSize: 16 }}>{totalEstimatedTime} {totalEstimatedTime === 1 ? 'Hour' : 'Hours'}</Text>
-            </View>
-          </View>
-
-          {/* Separator Line */}
-          <View className="px-4">
-            <View className="h-[0.5px] bg-gray-200" />
-          </View>
-
-          {/* Note to Branch Section */}
-          <View className="p-4">
-            <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Note to Branch</Text>
-            <TextInput
-              className="rounded-lg border border-gray-200 p-3 text-[#1E1E1E] min-h-[80px]"
-              placeholder="(Ex: I'd like to request a washer)"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={4}
-              value={note}
-              onChangeText={setNote}
-              textAlignVertical="top"
-              style={{ fontSize: 14 }}
-            />
-          </View>
-
-          {/* Separator Line */}
-          {/* <View className="px-4">
-            <View className="h-[0.5px] bg-gray-200" />
-          </View> */}
-
-          {/* Disclaimer Section */}
-          <View className="pb-4">
-            <Text className="font-regular text-[#1E1E1E] mb-1 text-center" style={{ fontSize: 18 }}>Disclaimer</Text>
-            <Text className="text-gray-500 italic text-center px-10" style={{ fontSize: 15 }}>
-              Final duration of the carwash will depend on the car size and state
-            </Text>
-          </View>
         </View>
+
       </ScrollView>
 
-      {/* Finish Button */}
-      <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-4">
+      {/* Confirm Button */}
+      <View className="absolute bottom-0 left-0 right-0 px-4 pb-8 pt-3 bg-white border-t border-[#F5F5F5]">
         <TouchableOpacity
-          className="bg-[#F9EF08] py-4 rounded-xl items-center justify-center"
+          className="bg-[#F9EF08] rounded-2xl py-4 items-center"
           onPress={handleConfirm}
           disabled={submitting}
+          activeOpacity={0.85}
         >
           {submitting ? (
-            <ActivityIndicator color="#1E1E1E" />
+            <ActivityIndicator color="#1A1A00" />
           ) : (
-            <Text className="text-white font-semibold text-lg">Finish</Text>
+            <Text className="text-[14px] font-bold text-[#1A1A00]">Confirm Booking</Text>
           )}
         </TouchableOpacity>
       </View>
-      {AlertComponent}
+
+      {/* Alert Modal */}
+      <AlertModal
+        visible={alertModal.visible}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }

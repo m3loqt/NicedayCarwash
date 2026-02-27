@@ -1,82 +1,100 @@
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Text, TouchableOpacity, View } from 'react-native';
 
-const services = [
+type Service = {
+  id: number;
+  name: string;
+  description: string;
+  price: string;
+  icon: keyof typeof Ionicons.glyphMap;
+};
+
+const services: Service[] = [
   {
     id: 1,
-    title: 'Give your car the shine it deserves',
-    subtitle: 'Transform Your Car Today',
-    image: require('../../../../assets/images/carwash_img.png')
+    name: 'Exterior Wash',
+    description: 'Foam wash & high pressure rinse',
+    price: '₱150',
+    icon: 'water-outline',
   },
   {
     id: 2,
-    title: 'Premium Car Wash Service',
-    subtitle: 'Professional Cleaning',
-    image: require('../../../../assets/images/carwash_img.png')
+    name: 'Full Detail',
+    description: 'Deep interior & exterior clean',
+    price: '₱850',
+    icon: 'sparkles-outline',
   },
   {
     id: 3,
-    title: 'Express Car Wash',
-    subtitle: 'Quick & Efficient',
-    image: require('../../../../assets/images/carwash_img.png')
-  }
+    name: 'Engine Wash',
+    description: 'Safe degreasing & rinse',
+    price: '₱350',
+    icon: 'car-sport-outline',
+  },
+  {
+    id: 4,
+    name: 'Ceramic Coat',
+    description: 'Long lasting paint protection',
+    price: '₱2,500',
+    icon: 'shield-checkmark-outline',
+  },
 ];
 
-export default function ServicesSlider() {
-  const handleServicePress = (service: any) => {
-    // Service press handler
-  };
-
-  const handleBookNow = () => {
-    // Book now handler
+export default function ServicesSection() {
+  const handleAddService = (service: Service) => {
+    console.log('Add service:', service.name);
   };
 
   return (
-    <View className="mt-6">
-      {/* Header */}
-      <View className="px-4 mb-4">
-        <Text className="text-xl font-bold text-[#1E1E1E]">Our Services</Text>
+    <View className="mt-8 px-5">
+      {/* Section header */}
+      <View className="flex-row justify-between items-center mb-4">
+        <Text className="text-lg font-bold text-[#1A1A1A]">Our Services</Text>
+        <TouchableOpacity
+          className="border border-[#D4A017] rounded-full px-4 py-1.5"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text className="text-[13px] font-semibold text-[#D4A017]">Top Rated</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Services Slider */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={360}
-        decelerationRate="fast"
-        className="px-4"
-        contentContainerStyle={{ paddingRight: 16 }}
-      >
+      {/* 2-column grid */}
+      <View className="flex-row flex-wrap justify-between">
         {services.map((service) => (
-          <TouchableOpacity 
+          <View
             key={service.id}
-            className="rounded-xl overflow-hidden mr-4 h-48"
-            style={{ width: 340 }}
-            onPress={() => handleServicePress(service)}
+            className="bg-[#FAFAFA] rounded-2xl p-4 mb-3 border border-[#EEEEEE]"
+            style={{ width: '48.5%' }}
           >
-            <Image 
-              source={service.image}
-              className="w-full h-full"
-              resizeMode="cover"
-            />
-            <View className="absolute inset-0 bg-black/50 justify-end items-start p-6">
-              <View className="items-start">
-                <Text className="text-white text-xl font-bold text-left mb-2">
-                  {service.title}
-                </Text>
-                <Text className="text-white text-base text-left mb-6">
-                  {service.subtitle}
-                </Text>
-                <TouchableOpacity 
-                  className="bg-white px-6 py-3 rounded-xl"
-                  onPress={handleBookNow}
-                >
-                  <Text className="text-gray-800 font-semibold">Book now</Text>
-                </TouchableOpacity>
-              </View>
+            {/* Icon */}
+            <View className="w-11 h-11 rounded-xl bg-[#FFF8E1] items-center justify-center mb-4">
+              <Ionicons name={service.icon} size={22} color="#D4A017" />
             </View>
-          </TouchableOpacity>
+
+            {/* Name + description */}
+            <Text className="text-[15px] font-bold text-[#1A1A1A] mb-1" numberOfLines={1}>
+              {service.name}
+            </Text>
+            <Text className="text-[12px] text-[#9CA3AF] mb-4" numberOfLines={1}>
+              {service.description}
+            </Text>
+
+            {/* Price + add button */}
+            <View className="flex-row justify-between items-center">
+              <Text className="text-[15px] font-bold text-[#D4A017]">
+                {service.price}
+              </Text>
+              <TouchableOpacity
+                className="w-8 h-8 rounded-full bg-[#F2F2F2] items-center justify-center"
+                onPress={() => handleAddService(service)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="add" size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+          </View>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }

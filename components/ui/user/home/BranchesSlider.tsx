@@ -6,65 +6,107 @@ const branches = [
     id: 1,
     name: 'Bacolod',
     address: 'The District North Point, Talisay City, Negros Occidental',
-    image: require('../../../../assets/images/samplebranch.png')
+    image: require('../../../../assets/images/branch1.jpg'),
+    status: 'Open',
   },
   {
     id: 2,
     name: 'P. Mabolo',
     address: 'Along Pope John Paul Avenue, Cebu City',
-    image: require('../../../../assets/images/samplebranch.png')
+    image: require('../../../../assets/images/branch2.jpg'),
+    status: 'Open',
   },
   {
     id: 3,
     name: 'Urgello',
     address: '11 J Urgello Road, Sambag 1, Cebu City',
-    image: require('../../../../assets/images/samplebranch.png')
-  }
+    image: require('../../../../assets/images/branch3.jpg'),
+    status: 'Closed',
+  },
 ];
 
 export default function BranchesSlider() {
-  const handleBranchPress = (branch: any) => {
-    // Branch press handler
+  const handleBranchPress = (branch: (typeof branches)[number]) => {
+    console.log('Branch pressed:', branch.name);
   };
 
   return (
-    <View className="">
-      {/* Header */}
-      <View className="flex-row justify-between items-center px-4 mb-4">
-        <Text className="text-xl font-bold text-[#1E1E1E]">Our branches near you</Text>
-        <TouchableOpacity className="flex-row items-center bg-gray-100 px-3 py-2 rounded-lg">
-          <Text className="text-gray-700 mr-2">Mindanao</Text>
-          <Ionicons name="chevron-down" size={16} color="#6B7280" />
+    <View className="mt-6">
+      {/* Section header */}
+      <View className="flex-row justify-between items-center px-5 mb-2">
+        <Text className="text-lg font-bold text-[#1A1A1A]">
+          Branches near you
+        </Text>
+        <TouchableOpacity
+          className="flex-row items-center"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text className="text-sm font-semibold text-[#1A1A1A] mr-1">
+            See All
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color="#1A1A1A" />
         </TouchableOpacity>
       </View>
 
-      {/* Branches Slider */}
-      <ScrollView 
-        horizontal 
+      {/* Cards */}
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
-        className="px-4"
-        contentContainerStyle={{ paddingRight: 16 }}
+        contentContainerStyle={{ paddingHorizontal: 20 }}
       >
-        {branches.map((branch) => (
-          <TouchableOpacity 
-            key={branch.id}
-            className="bg-white rounded-xl shadow-md mr-4 w-64 overflow-hidden"
-            onPress={() => handleBranchPress(branch)}
-          >
-            <Image 
-              source={branch.image}
-              className="w-full h-32"
-              resizeMode="cover"
-            />
-            <View className="p-4">
-              <Text className="text-lg font-bold text-[#1E1E1E] mb-2">{branch.name}</Text>
-              <View className="flex-row items-start">
-                <Ionicons name="location" size={16} color="#6B7280" className="mr-2 mt-1" />
-                <Text className="text-sm text-gray-600 flex-1">{branch.address}</Text>
+        {branches.map((branch, index) => {
+          const isOpen = branch.status === 'Open';
+          return (
+            <TouchableOpacity
+              key={branch.id}
+              className={`bg-[#FAFAFA] rounded-2xl border border-[#EEEEEE] ${index < branches.length - 1 ? 'mr-4' : ''}`}
+              style={{ width: 220 }}
+              onPress={() => handleBranchPress(branch)}
+              activeOpacity={0.82}
+            >
+              {/* Image with inner padding */}
+              <View className="p-2.5 pb-0">
+                <View className="rounded-xl overflow-hidden">
+                  <Image
+                    source={branch.image}
+                    className="w-full"
+                    style={{ height: 115 }}
+                    resizeMode="cover"
+                  />
+                  {/* Status badge on image */}
+                  <View
+                    className="absolute top-2 left-2 flex-row items-center rounded-full px-2.5 py-1"
+                    style={{ backgroundColor: isOpen ? '#F9EF08' : '#EF4444' }}
+                  >
+                    <View
+                      className="w-1.5 h-1.5 rounded-full mr-1.5"
+                      style={{ backgroundColor: isOpen ? '#1A1A00' : '#FFFFFF' }}
+                    />
+                    <Text
+                      className="text-[10px] font-bold"
+                      style={{ color: isOpen ? '#1A1A00' : '#FFFFFF' }}
+                    >
+                      {branch.status}
+                    </Text>
+                  </View>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+
+              {/* Content */}
+              <View className="px-3.5 pt-3 pb-3.5">
+                <Text className="text-[14px] font-bold text-[#1A1A1A] mb-0.5">
+                  {branch.name}
+                </Text>
+                <Text
+                  className="text-[11px] text-[#999] leading-[15px]"
+                  numberOfLines={2}
+                >
+                  {branch.address}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );

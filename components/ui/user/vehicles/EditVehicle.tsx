@@ -1,54 +1,45 @@
-import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { getAuth } from "firebase/auth";
-import { get, getDatabase, ref, update } from "firebase/database";
+import { getAuth } from 'firebase/auth';
+import { get, getDatabase, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  ImageSourcePropType,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
-import VehicleClassificationModal from './modals/VehicleClassificationModal';
 
-interface VehicleClassification {
+interface VehicleType {
   id: string;
-  name: string;
-  icon: string;
-  examples?: string;
-  details?: string;
+  label: string;
+  image: ImageSourcePropType;
 }
 
-const vehicleClassifications: VehicleClassification[] = [
-  { id: 'sedan', name: 'Sedan', icon: 'car-sport', examples: '(EX: Toyota Vios, Honda City)' },
-  { id: 'suv', name: 'SUV', icon: 'car-sport', examples: '(EX: Fortuner, Everest)' },
-  { id: 'pickup', name: 'Pick Up', icon: 'car-sport', examples: '(EX: Hilux, Ranger)' },
-  { id: 'motorcycle-small', name: 'Motorcycle Small', icon: 'bicycle', details: '(399 CC or below)' },
-  { id: 'motorcycle-large', name: 'Motorcycle Large', icon: 'bicycle', details: '(400 CC or above)' }
+const vehicleTypes: VehicleType[] = [
+  { id: 'sedan', label: 'Sedan', image: require('../../../../assets/images/sedan.png') },
+  { id: 'suv', label: 'SUV', image: require('../../../../assets/images/suv.png') },
+  { id: 'pickup', label: 'Pickup', image: require('../../../../assets/images/pickup.png') },
+  { id: 'motorcycle-small', label: 'Moto (S)', image: require('../../../../assets/images/motosmall.png') },
+  { id: 'motorcycle-large', label: 'Moto (L)', image: require('../../../../assets/images/motobig.png') },
 ];
 
 export default function EditVehicle() {
-  const insets = useSafeAreaInsets();
-  const { alert, AlertComponent } = useAlert();
-  /** GET VEHICLE ID FROM URL PARAM */
   const { id } = useLocalSearchParams();
   const vehicleId = String(id);
 
-  /** STATE */
   const [vehicleName, setVehicleName] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
-  const [selectedClassification, setSelectedClassification] = useState<VehicleClassification | null>(null);
-  const [showClassificationModal, setShowClassificationModal] = useState(false);
-  const [showSuccessPanel, setShowSuccessPanel] = useState(false);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  /** FETCH VEHICLE DATA */
   useEffect(() => {
     const fetchVehicle = async () => {
       try {
@@ -58,20 +49,16 @@ export default function EditVehicle() {
 
         const db = getDatabase();
         const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${vehicleId}`);
-
         const snap = await get(vehicleRef);
 
         if (snap.exists()) {
           const v = snap.val();
-
           setVehicleName(v.vname || '');
           setPlateNumber(v.vplateNumber || '');
-
-          const match = vehicleClassifications.find(c => c.id === v.vtype);
-          setSelectedClassification(match || null);
+          setSelectedType(v.vtype || null);
         }
       } catch (err) {
-        console.error("Error loading vehicle:", err);
+        console.error('Error loading vehicle:', err);
       } finally {
         setLoading(false);
       }
@@ -80,17 +67,16 @@ export default function EditVehicle() {
     fetchVehicle();
   }, [vehicleId]);
 
-  /** SAVE UPDATED DATA */
   const handleSave = async () => {
+    if (!vehicleName.trim() || !plateNumber.trim() || !selectedType) {
+      alert('Please fill all fields and select a vehicle type.');
+      return;
+    }
+
     try {
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) return;
-
-      if (!selectedClassification) {
-        alert("Error", "Please select a vehicle classification");
-        return;
-      }
 
       const db = getDatabase();
       const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${vehicleId}`);
@@ -98,150 +84,124 @@ export default function EditVehicle() {
       await update(vehicleRef, {
         vname: vehicleName,
         vplateNumber: plateNumber,
-        vtype: selectedClassification.id,
+        vtype: selectedType,
       });
 
-      setShowSuccessPanel(true);
+      setShowSuccess(true);
     } catch (err) {
-      console.error("Failed to update:", err);
-      alert("Error", "Failed to update vehicle.");
+      console.error('Failed to update:', err);
+      alert('Failed to update vehicle.');
     }
   };
 
-  /** NAVIGATION HANDLERS */
-  const handleBack = () => router.back();
-  const handleSuccessContinue = () => router.back();
-
-  /** HANDLE CLASSIFICATION SELECT */
-  const handleClassificationSelect = (classification: VehicleClassification) => {
-    setSelectedClassification(classification);
-    setShowClassificationModal(false);
-  };
-
-  /** ICON MAPPER */
-  const getVehicleIcon = (type: string) => {
-    switch (type) {
-      case 'sedan': return require('../../../../assets/images/sedan.png');
-      case 'suv': return require('../../../../assets/images/suv.png');
-      case 'pickup': return require('../../../../assets/images/pickup.png');
-      case 'motorcycle-small':
-      case 'motorcycle-large': return require('../../../../assets/images/motorcycle_small.png');
-      default: return require('../../../../assets/images/sedan.png');
-    }
-  };
-
-  /** SUCCESS SCREEN */
-  if (showSuccessPanel) {
+  if (showSuccess) {
     return (
       <VehicleSuccessPanel
-        message="Vehicle has been edited successfully!"
-        onContinue={handleSuccessContinue}
+        message="Vehicle has been updated successfully!"
+        onContinue={() => router.back()}
         iconType="success"
       />
     );
   }
 
-  /** LOADING SCREEN */
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-100">
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" />
-        </View>
+      <SafeAreaView className="flex-1 bg-white justify-center items-center">
+        <ActivityIndicator size="small" color="#1A1A1A" />
       </SafeAreaView>
     );
   }
 
-  /** UI */
   return (
-    <View className="flex-1" style={{ backgroundColor: 'white' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
-        {/* HEADER */}
-        <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
-        <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
-          <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center"
-            onPress={handleBack}
-          >
-            <Ionicons name="arrow-back" size={24} color="#666" />
-          </TouchableOpacity>
-
-          <Text className="text-2xl font-semibold text-[#1E1E1E]">Edit Vehicle</Text>
-
-          <View className="w-10" />
-        </View>
+    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      {/* Header */}
+      <View className="flex-row items-center px-5 pt-4 pb-6">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className="mr-3"
+        >
+          <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <Text className="text-xl font-bold text-[#1A1A1A]">Edit Vehicle</Text>
       </View>
 
-      {/* CONTENT */}
-      <ScrollView className="flex-1 p-6">
-
-        {/* CLASSIFICATION SELECT */}
-        <View className="mb-6 relative">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Vehicle Classification</Text>
-
-          <TouchableOpacity
-            className="bg-white border border-gray-300 rounded-xl px-4 py-4 flex-row items-center justify-between"
-            onPress={() => setShowClassificationModal(true)}
-          >
-            <View className="flex-row items-center">
-              {selectedClassification ? (
-                <>
-                  <Image source={getVehicleIcon(selectedClassification.id)} className="w-6 h-6 mr-3" />
-                  <Text className="text-lg text-gray-800">{selectedClassification.name}</Text>
-                </>
-              ) : (
-                <Text className="text-lg text-gray-500">Choose Classification</Text>
-              )}
-            </View>
-            <Ionicons name="chevron-down" size={20} color="#666" />
-          </TouchableOpacity>
-
-          {/* Dropdown Modal */}
-          <VehicleClassificationModal
-            visible={showClassificationModal}
-            classifications={vehicleClassifications}
-            selectedClassification={selectedClassification}
-            getVehicleIcon={getVehicleIcon}
-            onSelect={handleClassificationSelect}
-            onClose={() => setShowClassificationModal(false)}
-            topPosition={185}
-          />
-        </View>
-
-        {/* VEHICLE NAME */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        className="flex-1"
+      >
+        {/* Type selector */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Vehicle Name</Text>
-          <TextInput
-            className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg"
-            placeholder="Enter vehicle name"
-            value={vehicleName}
-            onChangeText={setVehicleName}
-          />
+          <Text className="text-[14px] text-[#999] mb-3 px-5">Select type of vehicle</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
+            {vehicleTypes.map((type) => {
+              const isSelected = selectedType === type.id;
+              return (
+                <TouchableOpacity
+                  key={type.id}
+                  className={`items-center mr-2.5 rounded-2xl px-5 py-4 border ${
+                    isSelected ? 'border-[#F9EF08] bg-[#FFFEF0]' : 'border-[#EEEEEE] bg-[#FAFAFA]'
+                  }`}
+                  style={{ minWidth: 100 }}
+                  onPress={() => setSelectedType(type.id)}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={type.image}
+                    style={{ width: 80, height: 50, marginBottom: -15 }}
+                    resizeMode="contain"
+                  />
+                  <Text
+                    className={`text-[13px] mt-1.5 font-semibold ${
+                      isSelected ? 'text-[#1A1A1A]' : 'text-[#999]'
+                    }`}
+                  >
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
-        {/* PLATE NUMBER */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Plate Number</Text>
-          <TextInput
-            className="bg-white border border-gray-300 rounded-xl px-4 py-4 text-lg"
-            placeholder="Enter plate number"
-            value={plateNumber}
-            onChangeText={setPlateNumber}
-            autoCapitalize="characters"
-          />
+        {/* Inputs */}
+        <View className="px-5">
+          <View className="mb-4">
+            <Text className="text-[13px] text-[#999] mb-1.5">Vehicle Brand and Model</Text>
+            <TextInput
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
+              placeholder="e.g. Toyota Vios"
+              placeholderTextColor="#BDBDBD"
+              value={vehicleName}
+              onChangeText={setVehicleName}
+            />
+          </View>
+          <View className="mb-4">
+            <Text className="text-[13px] text-[#999] mb-1.5">Plate Number</Text>
+            <TextInput
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
+              placeholder="e.g. ABC 1234"
+              placeholderTextColor="#BDBDBD"
+              value={plateNumber}
+              onChangeText={setPlateNumber}
+              autoCapitalize="characters"
+            />
+          </View>
         </View>
-
       </ScrollView>
 
-      {/* SAVE BUTTON */}
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 w-16 h-16 bg-[#F9EF08] rounded-full items-center justify-center shadow-lg"
-        onPress={handleSave}
-      >
-        <Ionicons name="checkmark" size={40} color="white" />
-      </TouchableOpacity>
-      {AlertComponent}
-      </SafeAreaView>
-    </View>
+      {/* Save button */}
+      <View className="px-5 pb-8 pt-3 bg-white">
+        <TouchableOpacity
+          className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+          onPress={handleSave}
+          activeOpacity={0.85}
+        >
+          <Text className="text-[#1A1A00] text-[15px] font-bold">Save Changes</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }

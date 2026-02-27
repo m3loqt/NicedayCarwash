@@ -1,8 +1,8 @@
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import VehicleCard from './VehicleCard';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
+import VehicleCard from '../vehicles/VehicleCard';
 
 interface VehicleProfile {
   vname: string;
@@ -44,39 +44,25 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
   }
 
   return (
-    <View className="flex-1 bg-[#F8F8F8] px-4">
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* ------------------- VEHICLES ------------------- */}
-        <Text className="text-xl font-semibold mt-4 mb-3">
-          Choose Vehicle
-        </Text>
-
-        {/* Vehicle List */}
-        {vehicles.map((v) => {
-          const isSelected = selectedVehicle?.vplateNumber === v.vplateNumber;
-
-          return (
-            <Pressable
-              className="mb-4"
-              key={v.vplateNumber}
-              onPress={() => onSelectVehicle(v)}
-              style={({ pressed }) => [
-                {
-                  opacity: pressed ? 0.8 : 1,
-                  transform: [{ scale: pressed ? 0.98 : 1 }],
-                },
-              ]}
-            >
+    <View className="flex-1 bg-white">
+      <ScrollView 
+        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }} 
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="pt-4">
+          {vehicles.map((v) => (
+            <View className="my-1" key={v.vplateNumber}>
               <VehicleCard
                 id={v.vplateNumber}
                 name={v.vname}
                 plateNumber={v.vplateNumber}
                 type={v.vtype}
-                selected={isSelected}
+                onEdit={() => onSelectVehicle(v)}
               />
-            </Pressable>
-          );
-        })}
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </View>
   );

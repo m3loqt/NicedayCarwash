@@ -3,13 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
 import {
-  Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View
 } from "react-native";
-import DateSelectionModal from "./modals/DateSelectionModal";
+import AlertModal from "./modals/AlertModal";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
 
 interface Service {
@@ -18,8 +17,9 @@ interface Service {
   sedan: number;
   suv: number;
   pickup: number;
+  motorcycle: number;
   estimatedTime: number;
-  isAvailable?: boolean;
+  description?: string;
 }
 
 interface Addon {
@@ -27,7 +27,7 @@ interface Addon {
   name: string;
   price: number;
   estimatedTime: number;
-  isAvailable?: boolean;
+  description?: string;
 }
 
 interface TimeSlot {
@@ -38,7 +38,8 @@ interface TimeSlot {
 interface Vehicle {
   vname: string;
   vplateNumber: string;
-  classification: string;
+  vtype: string;
+  classification?: string;
 }
 
 export default function ServicesStep({
@@ -56,7 +57,6 @@ export default function ServicesStep({
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showDateModal, setShowDateModal] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
@@ -66,6 +66,16 @@ export default function ServicesStep({
   const [branchSchedule, setBranchSchedule] = useState<{ openTime: string; closeTime: string } | null>(null);
   const [showScheduleUnavailableModal, setShowScheduleUnavailableModal] = useState(false);
   const [unavailableReason, setUnavailableReason] = useState<string>("");
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    type?: 'error' | 'warning' | 'info' | 'success';
+    title: string;
+    message: string;
+  }>({ visible: false, title: '', message: '' });
+
+  const showAlert = (title: string, message: string, type: 'error' | 'warning' | 'info' | 'success' = 'error') => {
+    setAlertModal({ visible: true, type, title, message });
+  };
 
   const db = getDatabase();
 
@@ -126,50 +136,23 @@ export default function ServicesStep({
         
         snapshot.forEach((child) => {
           const val = child.val();
-          const key = child.key;
-          
-          // Including only available services (isAvailable !== false)
-          // Defaulting to true if isAvailable is undefined (for backward compatibility)
-          // Handling both boolean and string values
-          let isAvailable = true;
-          if (val.isAvailable !== undefined) {
-            if (typeof val.isAvailable === 'boolean') {
-              isAvailable = val.isAvailable;
-            } else if (typeof val.isAvailable === 'string') {
-              isAvailable = val.isAvailable.toLowerCase() === 'true';
-            } else {
-              isAvailable = Boolean(val.isAvailable);
-            }
-          }
-          
-          if (isAvailable) {
-            // Checking for required fields (supports both camelCase and standard field names)
-            const hasPrices = val.sedanPrice !== undefined || val.suvPrice !== undefined || val.pickupPrice !== undefined ||
-                             val.sedan !== undefined || val.suv !== undefined || val.pickup !== undefined;
-            
-            if (val.name && hasPrices) {
-              const service = {
-                id: key!,
-                name: val.name,
-                sedan: val.sedanPrice || val.sedan || 0,
-                suv: val.suvPrice || val.suv || 0,
-                pickup: val.pickupPrice || val.pickup || 0,
-                estimatedTime: val.estimatedTime || 0,
-                isAvailable: true,
-              };
-              data.push(service);
-            }
-          }
+          data.push({
+            id: child.key!,
+            name: val.name,
+            sedan: val.sedanPrice ?? 0,
+            suv: val.suvPrice ?? 0,
+            pickup: val.pickupPrice ?? 0,
+            motorcycle: val.motorcyclePrice ?? 0,
+            estimatedTime: val.estimatedTime ?? 0,
+            description: val.description ?? '',
+          });
         });
-        
         setServices(data);
       } else {
         setServices([]);
       }
     } catch (err) {
-      console.error("Error loading services:", err);
-      alert("Error", "Failed to load services");
-      setServices([]);
+      showAlert("Couldn't load services", "Something went wrong while fetching the available services. Please try again.", 'error');
     }
   };
 
@@ -182,22 +165,18 @@ export default function ServicesStep({
         const data: Addon[] = [];
         snapshot.forEach((child) => {
           const val = child.val();
-          // Including only available add-ons (isAvailable !== false)
-          const isAvailable = val.isAvailable !== undefined ? val.isAvailable : true;
-          if (isAvailable) {
-            data.push({
-              id: child.key!,
-              name: val.name,
-              price: val.price,
-              estimatedTime: val.estimatedTime,
-              isAvailable: true,
-            });
-          }
+          data.push({
+            id: child.key!,
+            name: val.name,
+            price: val.price,
+            estimatedTime: val.estimatedTime ?? 0,
+            description: val.description ?? '',
+          });
         });
         setAddons(data);
       }
     } catch (err) {
-      alert("Error", "Failed to load add-ons");
+      showAlert("Couldn't load add-ons", "Something went wrong while fetching the available add-ons. Please try again.", 'error');
     }
   };
 
@@ -265,176 +244,76 @@ export default function ServicesStep({
     return { available: true, reason: "" };
   };
 
-  const loadTimeSlots = async (date: Date) => {
-    try {
-      // First, try to load time slots from database array
-      const timeSlotsRef = ref(db, `Branches/${sanitizePath(branchId)}/TimeSlots`);
-      const timeSlotsSnapshot = await get(timeSlotsRef);
-      
-      if (timeSlotsSnapshot.exists()) {
-        const timeSlotsData = timeSlotsSnapshot.val();
-        const slots: TimeSlot[] = [];
-        
-        // Handle array format: [null, {time: "10:00 AM", status: "available"}, ...]
-        if (Array.isArray(timeSlotsData)) {
-          timeSlotsData.forEach((slot: any) => {
-            if (slot && slot.time && slot.status === "available") {
-              slots.push({
-                time: slot.time,
-                status: "available",
-              });
-            }
-          });
-        } else if (typeof timeSlotsData === 'object' && timeSlotsData !== null) {
-          // Handle object format as fallback
-          Object.keys(timeSlotsData).forEach((key) => {
-            const slot = timeSlotsData[key];
-            if (slot && slot.time && slot.status === "available") {
-              slots.push({
-                time: slot.time,
-                status: "available",
-              });
-            }
-          });
-        }
-        
-        // Filter out past time slots if selecting today
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const selectedDateOnly = new Date(date);
-        selectedDateOnly.setHours(0, 0, 0, 0);
-        const isToday = selectedDateOnly.getTime() === today.getTime();
-        const currentHour = isToday ? new Date().getHours() : 0;
-        
-        const filteredSlots = slots.filter((slot) => {
-          if (!isToday) return true;
-          
-          // Parse time string to compare with current hour
-          const timeMatch = slot.time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-          if (!timeMatch) return true;
-          
-          let hour = parseInt(timeMatch[1], 10);
-          const period = timeMatch[3].toUpperCase();
-          
-          if (period === "PM" && hour !== 12) hour += 12;
-          if (period === "AM" && hour === 12) hour = 0;
-          
-          return hour > currentHour;
-        });
-        
-        setTimeSlots(filteredSlots);
-        // Clearing selected time slot if it's not in the available slots
-        if (selectedTimeSlot && !filteredSlots.find(s => s.time === selectedTimeSlot.time)) {
-          setSelectedTimeSlot(null);
-        }
-        return;
+  const loadTimeSlots = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDateOnly = new Date(date);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const isToday = selectedDateOnly.getTime() === today.getTime();
+    
+    // Get current hour if selecting today
+    const currentHour = isToday ? new Date().getHours() : 0;
+    
+    // Get branch schedule hours
+    const openHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.openTime) : 8;
+    const closeHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.closeTime) : 18;
+    
+    // Generate time slots from open to close hour
+    const slots: TimeSlot[] = [];
+    for (let h = openHour; h < closeHour; h++) {
+      // If today, only show future hours
+      if (isToday && h <= currentHour) {
+        continue;
       }
       
-      // Fallback to dynamic generation if TimeSlots array doesn't exist
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selectedDateOnly = new Date(date);
-      selectedDateOnly.setHours(0, 0, 0, 0);
-      const isToday = selectedDateOnly.getTime() === today.getTime();
-      
-      // Using current hour for today, otherwise starting from 0
-      const currentHour = isToday ? new Date().getHours() : 0;
-      
-      // Fetching schedule from database: Branches/{branchId}/profile/schedule
-      const scheduleRef = ref(db, `Branches/${sanitizePath(branchId)}/profile/schedule`);
-      const scheduleSnapshot = await get(scheduleRef);
-      
-      const slots: TimeSlot[] = [];
-      let openHour = 8; // Default fallback
-      let closeHour = 18; // Default fallback
-      
-      if (scheduleSnapshot.exists()) {
-        const scheduleString = scheduleSnapshot.val();
-        
-        // Extract time range from schedule string (e.g., "8:00 AM - 6:00 PM" or "Mon-Sat: 9:00 AM - 6:00 PM")
-        // Handle various formats: "8:00 am - 6:00 pm", "Mon-Sat: 9:00 AM - 6:00 PM", etc.
-        const timeMatch = String(scheduleString).match(/(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)/i);
-        
-        if (timeMatch) {
-          openHour = parseTimeTo24Hour(`${timeMatch[1]}:${timeMatch[2]} ${timeMatch[3].toUpperCase()}`);
-          closeHour = parseTimeTo24Hour(`${timeMatch[4]}:${timeMatch[5]} ${timeMatch[6].toUpperCase()}`);
-        } else {
-          // If parsing fails, use branchSchedule if available, otherwise use defaults
-          if (branchSchedule) {
-            openHour = parseTimeTo24Hour(branchSchedule.openTime);
-            closeHour = parseTimeTo24Hour(branchSchedule.closeTime);
-          }
-        }
-      } else {
-        // No schedule found in database, use branchSchedule if available
-        if (branchSchedule) {
-          openHour = parseTimeTo24Hour(branchSchedule.openTime);
-          closeHour = parseTimeTo24Hour(branchSchedule.closeTime);
-        }
-      }
-      
-      // Generate hourly time slots from openHour to closeHour
-      // Example: 8 AM to 6 PM generates: 8 AM, 9 AM, 10 AM, ..., 5 PM
-      for (let h = openHour; h < closeHour; h++) {
-        // Skip past hours when selecting today's date
-        if (isToday && h <= currentHour) {
-          continue;
-        }
-        
-        // Convert 24-hour format to 12-hour format with AM/PM
-        const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
-        const period = h >= 12 ? "PM" : "AM";
-        slots.push({
-          time: `${hour12}:00 ${period}`,
-          status: "available",
-        });
-      }
-      
-      setTimeSlots(slots);
-      // Clearing selected time slot if it's not in the available slots
-      if (selectedTimeSlot && !slots.find(s => s.time === selectedTimeSlot.time)) {
-        setSelectedTimeSlot(null);
-      }
-    } catch (err) {
-      console.error("Failed to load timeslots:", err);
-      // Fallback to default behavior on error
-      const openHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.openTime) : 8;
-      const closeHour = branchSchedule ? parseTimeTo24Hour(branchSchedule.closeTime) : 18;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selectedDateOnly = new Date(date);
-      selectedDateOnly.setHours(0, 0, 0, 0);
-      const isToday = selectedDateOnly.getTime() === today.getTime();
-      const currentHour = isToday ? new Date().getHours() : 0;
-      
-      const slots: TimeSlot[] = [];
-      for (let h = openHour; h < closeHour; h++) {
-        if (isToday && h <= currentHour) {
-          continue;
-        }
-        const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
-        const period = h >= 12 ? "PM" : "AM";
-        slots.push({
-          time: `${hour12}:00 ${period}`,
-          status: "available",
-        });
-      }
-      setTimeSlots(slots);
+      const hour12 = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+      const period = h >= 12 ? "PM" : "AM";
+      slots.push({
+        time: `${hour12}:00 ${period}`,
+        isAvailable: true,
+      });
+    }
+    
+    setTimeSlots(slots);
+    // Reset selected time slot if it's no longer available
+    if (selectedTimeSlot && !slots.find(s => s.time === selectedTimeSlot.time)) {
+      setSelectedTimeSlot(null);
     }
   };
 
-  // Price and formatting utilities
-  const getPriceForClassification = (service: Service) => {
-    switch (selectedVehicle.classification) {
-      case "Sedan":
-        return service.sedan;
-      case "SUV":
-        return service.suv;
-      case "Pickup":
-        return service.pickup;
-      default:
-        return service.sedan;
+  // ------------------ Helpers ------------------
+  const getVehicleLabel = () => {
+    switch (selectedVehicle.vtype) {
+      case 'sedan': return 'Sedan';
+      case 'suv': return 'SUV';
+      case 'pickup': return 'Pickup';
+      case 'motorcycle-small': return 'Motorcycle (S)';
+      case 'motorcycle-large': return 'Motorcycle (L)';
+      default: return selectedVehicle.classification ?? 'Vehicle';
     }
+  };
+
+  const getPriceForVehicle = (service: Service) => {
+    switch (selectedVehicle.vtype) {
+      case 'sedan': return service.sedan;
+      case 'suv': return service.suv;
+      case 'pickup': return service.pickup;
+      case 'motorcycle-small':
+      case 'motorcycle-large': return service.motorcycle;
+      default: return service.sedan;
+    }
+  };
+
+  const getServiceFeatures = (service: Service): string[] => {
+    if (service.description) {
+      const parts = service.description
+        .split(/[,;]/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+      if (parts.length > 0) return parts;
+    }
+    return ['Exterior wash', 'Rinse & dry', 'Tire shine'];
   };
 
   const totalEstimatedTime =
@@ -479,14 +358,43 @@ export default function ServicesStep({
     });
   };
 
-  // Validating selections and proceeding to confirmation step
+  const getMonthName = (date: Date): string => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return months[date.getMonth()];
+  };
+
+  const getDaysInMonth = (date: Date): Date[] => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1))
+      .filter(d => d >= today);
+  };
+
+  const isSameDay = (a: Date, b: Date): boolean =>
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear();
+
+  const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  // ------------------ Confirm Booking ------------------
   const handleNext = () => {
-    if (!selectedServices.length || !selectedTimeSlot) {
-      alert("Error", "Please select a service and time slot");
+    if (!selectedServices.length) {
+      showAlert("No service selected", "Please choose a washing plan before proceeding.", 'warning');
+      return;
+    }
+    if (!selectedTimeSlot) {
+      showAlert("No time slot selected", "Please pick an available time slot for your appointment.", 'warning');
       return;
     }
     if (!paymentMethod) {
-      alert("Error", "Please select a payment method");
+      showAlert("No payment method", "Please select how you'd like to pay before completing your booking.", 'warning');
       return;
     }
 
@@ -498,84 +406,87 @@ export default function ServicesStep({
       totalEstimatedTime,
       vehicleName: selectedVehicle.vname,
       plateNumber: selectedVehicle.vplateNumber,
-      classification: selectedVehicle.classification,
+      classification: getVehicleLabel(),
       paymentMethod,
     });
   };
 
   return (
-    <View className="flex-1 bg-[#F8F8F8] px-4">
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+    <View className="flex-1 bg-white">
+      <ScrollView contentContainerStyle={{ paddingBottom: 0 }}>
         {/* ------------------- SERVICES ------------------- */}
-        <Text className="text-xl font-semibold mt-4 mb-3">
-          Choose Service <Text className="text-gray-500">(Choose 1)</Text>
+        <Text className="text-xl font-semibold mt-4 px-4">
+          Select plan
+        </Text>
+        <Text className="text-sm text-[#999] mb-3 px-4">
+          Select your washing plan for{' '}
+          <Text className="font-semibold text-[#1A1A1A]">{getVehicleLabel()}</Text>
         </Text>
 
-        {services.length === 0 ? (
-          <View className="bg-white rounded-xl p-4 mb-4">
-            <Text className="text-gray-500 text-center">
-              No services available at this time.
-            </Text>
-          </View>
-        ) : (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ alignItems: 'center' }}
-          >
-            {services.map((s) => {
-              const selected = selectedServices.some((x) => x.id === s.id);
-              return (
-                <TouchableOpacity
-                  key={s.id}
-                  onPress={() => toggleService(s)}
-                  style={{ 
-                    width: 220, 
-                    height: 140,
-                  }}
-                  className={`rounded- bg-white mx-2 border-2 flex-col p-1 ${
-                    selected ? "border-yellow-300" : "border-transparent"
-                  }`}
-                >
-                  <View className="flex-1 justify-center px-5">
-                    <Text className="text-2xl font-semibold text-gray-400 text-center">
-                      {s.name}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 12 }}
+        >
+          {services.map((s) => {
+            const selected = selectedServices.some((x) => x.id === s.id);
+            const price = getPriceForVehicle(s);
+            const features = getServiceFeatures(s);
+            return (
+              <TouchableOpacity
+                key={s.id}
+                onPress={() => toggleService(s)}
+                className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-64 ${
+                  selected
+                    ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
+                    : 'bg-[#FAFAFA] border border-transparent'
+                }`}
+                activeOpacity={0.8}
+              >
+                {/* Name row + time pill */}
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-[15px] font-bold text-[#1A1A1A] flex-1 pr-2">
+                    {s.name}
+                  </Text>
+                  <View className="flex-row items-center bg-white border border-[#EEEEEE] rounded-full px-3 py-1">
+                    <Ionicons name="time-outline" size={13} color="#9CA3AF" />
+                    <Text className="text-[12px] text-[#9CA3AF] ml-1">
+                      {s.estimatedTime} mins
                     </Text>
                   </View>
+                </View>
 
-                  <View className="bg-yellow-300 px-4 py-2 rounded-b-2xl">
-                    <View className="flex-row justify-between mb-1.5">
-                      <Text className="text-white font-medium text-lg">Sedan</Text>
-                      <Text className="text-white font-medium text-lg">
-                        ₱{s.sedan}.00
-                      </Text>
-                    </View>
-                    <View className="flex-row justify-between mb-1">
-                      <Text className="text-white font-medium text-lg">SUV</Text>
-                      <Text className="text-white font-medium text-lg">₱{s.suv}.00</Text>
-                    </View>
-                    <View className="flex-row justify-between">
-                      <Text className="text-white font-medium text-lg">Pick Up</Text>
-                      <Text className="text-white font-medium text-lg">
-                        ₱{s.pickup}.00
-                      </Text>
-                    </View>
+                {/* Feature checklist */}
+                {features.map((feat, i) => (
+                  <View key={i} className="flex-row items-start mb-1.5">
+                    <Ionicons name="checkmark" size={14} color="#9CA3AF" style={{ marginTop: 1, marginRight: 6 }} />
+                    <Text className="text-[12px] text-[#666] flex-1" numberOfLines={2}>
+                      {feat}
+                    </Text>
                   </View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
+                ))}
+
+                {/* Price */}
+                <View className="mt-3 pt-3 border-t border-[#F0F0F0] flex-row justify-between items-center">
+                  <Text className="text-[12px] text-[#999]">Price</Text>
+                  <Text className="text-[15px] font-bold text-[#1A1A1A]">
+                    ₱{price}.00
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* ------------------- ADD ONS ------------------- */}
-        <Text className="text-xl font-semibold mt-6 mb-3">
+        <Text className="text-xl font-semibold mt-6 mb-3 px-4">
           Add ons <Text className="text-gray-500">(Optional)</Text>
         </Text>
 
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ alignItems: 'center' }}
+          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 12 }}
         >
           {addons.map((a) => {
             const selected = selectedAddons.some((x) => x.id === a.id);
@@ -583,21 +494,27 @@ export default function ServicesStep({
               <TouchableOpacity
                 key={a.id}
                 onPress={() => toggleAddon(a)}
-                style={{ 
-                  width: 170, 
-                  height: 90,
-                }}
-                className={`rounded-xl bg-white mx-2 border-2 flex-col p-1 ${
-                  selected ? "border-yellow-300" : "border-transparent"
+                className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-56 ${
+                  selected
+                    ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
+                    : 'bg-[#FAFAFA] border border-transparent'
                 }`}
+                activeOpacity={0.8}
               >
-                <View className="flex-1 justify-center px-5">
-                  <Text className="text-xl font-semibold text-gray-400 text-center">
-                    {a.name}
-                  </Text>
-                </View>
-                <View className="bg-yellow-300 px-4 py-3 rounded-b-2xl items-center justify-center">
-                  <Text className="text-white font-medium text-center text-xl">
+                {/* Name */}
+                <Text className="text-[15px] font-bold text-[#1A1A1A] mb-2">
+                  {a.name}
+                </Text>
+
+                {/* Description */}
+                <Text className="text-[12px] text-[#666] leading-[18px] mb-3">
+                  {a.description || 'No description available.'}
+                </Text>
+
+                {/* Price */}
+                <View className="pt-3 border-t border-[#F0F0F0] flex-row justify-between items-center">
+                  <Text className="text-[12px] text-[#999]">Price</Text>
+                  <Text className="text-[15px] font-bold text-[#1A1A1A]">
                     ₱{a.price}.00
                   </Text>
                 </View>
@@ -607,42 +524,76 @@ export default function ServicesStep({
         </ScrollView>
 
         {/* ------------------- DATE & TIME ------------------- */}
-        <View className="flex-row justify-between items-center mt-6 mb-3 px-1">
-          <Text className="text-xl font-semibold">Date and Time</Text>
+        <Text className="text-[11px] font-semibold tracking-widest text-[#999] mt-6 mb-3 px-4 uppercase">
+          Select Date
+        </Text>
 
-          <TouchableOpacity
-            onPress={() => {
-              setCalendarMonth(new Date(selectedDate));
-              setShowDateModal(true);
-            }}
-            className="bg-white px-4 py-2 rounded-xl"
-          >
-            <Text className="text-gray-400 font-medium">
-              {formatDate(selectedDate)}
-            </Text>
+        {/* Month header + arrows */}
+        <View className="flex-row items-center px-4 mb-3">
+          <Text className="text-[17px] font-bold text-[#1A1A1A] flex-1">
+            {getMonthName(calendarMonth)} {calendarMonth.getFullYear()}
+          </Text>
+          <TouchableOpacity onPress={() => navigateMonth('prev')} className="p-1 mr-2">
+            <Ionicons name="arrow-back" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigateMonth('next')} className="p-1">
+            <Ionicons name="arrow-forward" size={18} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
 
-        {/* Date Selection Modal */}
-        <DateSelectionModal
-          visible={showDateModal}
-          selectedDate={selectedDate}
-          calendarMonth={calendarMonth}
-          branchSchedule={branchSchedule}
-          onClose={() => setShowDateModal(false)}
-          onDateSelect={(date) => {
-            setSelectedDate(date);
-            setShowDateModal(false);
-            loadTimeSlots(date);
-          }}
-          onMonthNavigate={navigateMonth}
-          checkDateAvailability={checkDateAvailability}
-          loadBranchSchedule={loadBranchSchedule}
-          onUnavailableDate={(reason) => {
-            setUnavailableReason(reason);
-            setShowScheduleUnavailableModal(true);
-          }}
-        />
+        {/* Horizontal day scroller */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          className="mb-5"
+        >
+          {getDaysInMonth(calendarMonth).map((date) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const isPast = date < today;
+            const isSelected = isSameDay(date, selectedDate);
+            const dayLabel = DAY_LABELS[date.getDay()];
+
+            return (
+              <TouchableOpacity
+                key={date.toISOString()}
+                disabled={isPast}
+                onPress={async () => {
+                  let currentSchedule = branchSchedule;
+                  if (!currentSchedule) {
+                    currentSchedule = await loadBranchSchedule();
+                  }
+                  const availability = checkDateAvailability(date, currentSchedule || undefined);
+                  if (!availability.available) {
+                    setUnavailableReason(availability.reason);
+                    setShowScheduleUnavailableModal(true);
+                    return;
+                  }
+                  setSelectedDate(date);
+                  loadTimeSlots(date);
+                }}
+                className={`mr-2 items-center justify-center rounded-2xl px-3 py-3 w-16 border ${
+                  isSelected
+                    ? 'bg-[#F9EF08] border-[#F9EF08]'
+                    : 'bg-[#FAFAFA] border-transparent'
+                }`}
+                activeOpacity={0.8}
+              >
+                <Text className={`text-[10px] font-semibold mb-1 ${
+                  isSelected ? 'text-[#1A1A00]' : isPast ? 'text-[#C4C4C4]' : 'text-[#999]'
+                }`}>
+                  {dayLabel}
+                </Text>
+                <Text className={`text-[18px] font-bold ${
+                  isSelected ? 'text-[#1A1A00]' : isPast ? 'text-[#C4C4C4]' : 'text-[#1A1A1A]'
+                }`}>
+                  {date.getDate()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* Schedule Unavailable Modal */}
         <ScheduleUnavailableModal
@@ -652,27 +603,43 @@ export default function ServicesStep({
           onClose={() => setShowScheduleUnavailableModal(false)}
         />
 
+        {/* Alert Modal */}
+        <AlertModal
+          visible={alertModal.visible}
+          type={alertModal.type}
+          title={alertModal.title}
+          message={alertModal.message}
+          onClose={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+        />
+
+        {/* Time slot label */}
+        {timeSlots.length > 0 && (
+          <Text className="text-[11px] font-semibold tracking-widest text-[#999] px-4 mb-2 uppercase">
+            Select Time
+          </Text>
+        )}
+
         {/* ------------------- TIMESLOTS ------------------- */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mb-4"
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        >
           {timeSlots.map((t) => (
             <TouchableOpacity
               key={t.time}
-              onPress={() => {
-                if (t.status === "available") {
-                  setSelectedTimeSlot(t);
-                }
-              }}
-              disabled={t.status === "unavailable"}
-              className={`px-5 py-3 rounded-xl bg-white border mr-3 ${
+              onPress={() => setSelectedTimeSlot(t)}
+              className={`mr-2 px-4 py-2.5 rounded-xl border ${
                 selectedTimeSlot?.time === t.time
-                  ? "border-yellow-300 border-2"
-                  : "border-transparent border-2"
+                  ? 'bg-[#F9EF08] border-[#F9EF08]'
+                  : 'bg-[#FAFAFA] border-transparent'
               }`}
-              style={{
-                opacity: t.status === "unavailable" ? 0.5 : 1,
-              }}
+              activeOpacity={0.8}
             >
-              <Text className={`font-medium text-center ${t.status === "unavailable" ? "text-gray-300" : "text-gray-400"}`}>
+              <Text className={`text-[13px] font-medium ${
+                selectedTimeSlot?.time === t.time ? 'text-[#1A1A00]' : 'text-[#666]'
+              }`}>
                 {t.time}
               </Text>
             </TouchableOpacity>
@@ -680,64 +647,62 @@ export default function ServicesStep({
         </ScrollView>
 
         {/* ------------------- PAYMENT OPTIONS ------------------- */}
-        <Text className="text-xl font-semibold mt-6 mb-3">Payment Option</Text>
-        {[
-          {
-            id: "COD",
-            title: "Cash on Delivery (COD)",
-            desc: "Pay cash on delivery for your purchase when it arrives at your doorstep.",
-            icon: require("@/assets/images/cod_ic.png"),
-          },
-          {
-            id: "E-Wallet",
-            title: "Pay Using E-Wallet",
-            desc: "Pay using supported e-wallets such as GCash, Maya, and more.",
-            icon: require("@/assets/images/ewallet_ic.png"),
-          },
-          {
-            id: "Card",
-            title: "Pay Using Card",
-            desc: "Use supported Debit/Credit cards such as Mastercard and Visa.",
-            icon: require("@/assets/images/credit_card_ic.png"),
-          },
-        ].map((p) => (
-          <TouchableOpacity
-            key={p.id}
-            onPress={() => setPaymentMethod(p.id)}
-            className="bg-white p-4 rounded-2xl shadow-sm flex-row items-center mx-2 mb-4 border border-gray-200"
-          >
-            {p.icon && <Image source={p.icon} className="w-8 h-8 mr-3" />}
-            <View className="flex-1">
-              <Text className="text-[17px] font-semibold">{p.title}</Text>
-              <Text className="text-gray-500 mt-1">{p.desc}</Text>
-            </View>
-            <View
-              className={`w-6 h-6 rounded-full border-2 ${
-                paymentMethod === p.id ? "border-[#F9EF08]" : "border-gray-300"
-              } items-center justify-center`}
+        <Text className="text-xl font-semibold mt-6 mb-3 px-4">Payment Option</Text>
+        <View className="px-4">
+          {[
+            {
+              id: "COD",
+              title: "Cash on Delivery",
+              desc: "Pay cash when you arrive at the branch.",
+              icon: "cash-outline" as const,
+            },
+            {
+              id: "E-Wallet",
+              title: "E-Wallet",
+              desc: "GCash, Maya, and other supported wallets.",
+              icon: "wallet-outline" as const,
+            },
+            {
+              id: "Card",
+              title: "Debit / Credit Card",
+              desc: "Mastercard, Visa, and other supported cards.",
+              icon: "card-outline" as const,
+            },
+          ].map((p) => (
+            <TouchableOpacity
+              key={p.id}
+              onPress={() => setPaymentMethod(p.id)}
+              className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 ${
+                paymentMethod === p.id
+                  ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
+                  : 'bg-[#FAFAFA] border border-transparent'
+              }`}
+              activeOpacity={0.8}
             >
-              {paymentMethod === p.id && (
-                <View className="w-3.5 h-3.5 rounded-full bg-[#F9EF08]" />
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
+                <Ionicons name={p.icon} size={20} color="#1A1A1A" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[13px] font-semibold text-[#1A1A1A]">{p.title}</Text>
+                <Text className="text-[11px] text-[#999] mt-0.5">{p.desc}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* NEXT BUTTON */}
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 w-16 h-16 bg-[#F9EF08] rounded-full shadow-lg"
-        onPress={handleNext}
-        activeOpacity={0.8}
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <Ionicons name="chevron-forward" size={46} color="white" style={{ marginLeft: 4 }} />
-      </TouchableOpacity>
-      {AlertComponent}
+        {/* NEXT BUTTON */}
+        <View className="px-4 pt-4 pb-8">
+          <TouchableOpacity
+            className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+            onPress={handleNext}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[15px] font-bold text-[#1A1A00]">
+              Complete and Review
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 }

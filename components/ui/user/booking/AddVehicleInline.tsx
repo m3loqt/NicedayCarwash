@@ -56,9 +56,9 @@ export default function AddVehicleInline({
       case 'pickup':
         return require('../../../../assets/images/pickup.png');
       case 'motorcycle-small':
-        return require('../../../../assets/images/motorcycle_small.png');
+        return require('../../../../assets/images/motosmall.png');
       case 'motorcycle-large':
-        return require('../../../../assets/images/motorcycle_large.png');
+        return require('../../../../assets/images/motobig.png');
       default:
         return require('../../../../assets/images/sedan.png');
     }
