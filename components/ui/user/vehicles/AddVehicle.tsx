@@ -6,13 +6,14 @@ import { get, getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ImageSourcePropType,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';

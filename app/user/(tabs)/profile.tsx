@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../../firebase/firebase';
 
