@@ -3,6 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import BookingCard from './BookingCard';
 import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 
 interface Booking {
