@@ -1,10 +1,10 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -33,6 +33,7 @@ import OnboardingScreen from '../components/OnboardingScreen';
 import SplashScreen from '../components/SplashScreen';
 
 export default function LoginScreen() {
+  const { alert, AlertComponent } = useAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -68,7 +69,7 @@ export default function LoginScreen() {
 
           router.replace("/user/(tabs)/home");
         })
-        .catch((err) => Alert.alert("Google Login Error", err.message));
+        .catch((err) => alert("Google Login Error", err.message));
     }
   }, [googleResponse]);
 
@@ -97,7 +98,7 @@ export default function LoginScreen() {
     if (isSigningIn) return;
 
     if (!email || !password) {
-      return Alert.alert("Missing Info", "Please enter email and password");
+      return alert("Missing Info", "Please enter email and password");
     }
 
     setIsSigningIn(true);
@@ -107,7 +108,7 @@ export default function LoginScreen() {
 
       const snapshot = await get(ref(db, "users/" + uid));
       if (!snapshot.exists()) {
-        Alert.alert("Error", "User data not found.");
+        alert("Error", "User data not found.");
         setIsSigningIn(false);
         return;
       }
@@ -123,8 +124,8 @@ export default function LoginScreen() {
         router.replace("/user/(tabs)/home");
       }
 
-    } catch (e) {
-      Alert.alert("Login Failed", e.message);
+    } catch (e: any) {
+      alert("Login Failed", e.message);
     } finally {
       setIsSigningIn(false);
     }
@@ -287,6 +288,7 @@ export default function LoginScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+      {AlertComponent}
     </SafeAreaView>
   );
 }

@@ -1,3 +1,4 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -5,7 +6,6 @@ import { get, getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ImageSourcePropType,
   ScrollView,
@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
 
 interface VehicleType {
@@ -32,6 +32,8 @@ const vehicleTypes: VehicleType[] = [
 ];
 
 export default function AddVehicle() {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const [vehicleName, setVehicleName] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
   const [selectedType, setSelectedType] = useState<string | null>(null);

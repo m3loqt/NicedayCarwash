@@ -6,6 +6,7 @@ interface AppointmentDetailsModalProps {
   branchName: string;
   branchAddress: string;
   branchImage: any;
+  customerName?: string;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
@@ -16,6 +17,10 @@ interface AppointmentDetailsModalProps {
   paymentMethod: string;
   estimatedCompletion?: string;
   note?: string;
+  status?: string;
+  isPaid?: boolean;
+  appointmentId?: string;
+  isAdminView?: boolean;
   onClose: () => void;
 }
 
@@ -75,6 +80,7 @@ export default function AppointmentDetailsModal({
   branchName,
   branchAddress,
   branchImage,
+  customerName,
   vehicleName,
   plateNumber,
   classification,
@@ -85,6 +91,10 @@ export default function AppointmentDetailsModal({
   paymentMethod,
   estimatedCompletion,
   note,
+  status,
+  isPaid,
+  appointmentId,
+  isAdminView = false,
   onClose,
 }: AppointmentDetailsModalProps) {
   const estHours = estimatedCompletion

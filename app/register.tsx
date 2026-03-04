@@ -1,10 +1,10 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -13,11 +13,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
+  const { alert, AlertComponent } = useAlert();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,7 +28,7 @@ export default function RegisterScreen() {
 
   const handleSignUp = async () => {
     if (!firstName || !lastName || !email || !password) {
-      Alert.alert('Error', 'Please fill out all fields.');
+      alert('Error', 'Please fill out all fields.');
       return;
     }
 
@@ -52,12 +53,12 @@ export default function RegisterScreen() {
 
         await set(userRef, userMap);
 
-        Alert.alert('Success', 'Registration successful.', [
+        alert('Success', 'Registration successful.', [
           { text: 'OK', onPress: () => router.push('/') },
         ]);
       }
     } catch (error: any) {
-      Alert.alert('Registration Failed', error.message || 'Something went wrong.');
+      alert('Registration Failed', error.message || 'Something went wrong.');
     } finally {
       setLoading(false);
     }
@@ -187,6 +188,7 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {AlertComponent}
     </SafeAreaView>
   );
 }

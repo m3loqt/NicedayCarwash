@@ -31,6 +31,13 @@ export default function UserLayout() {
           headerShown: false
         }} 
       />
+      <Stack.Screen 
+        name="payment" 
+        options={{ 
+          headerShown: false,
+          presentation: 'modal'
+        }} 
+      />
     </Stack>
   );
 }

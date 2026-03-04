@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../../../firebase/firebase';
 import PromotionalBanner from './PromotionalBanner';
 
@@ -18,6 +19,7 @@ function getGreeting(): string {
 }
 
 export default function HomeHeader() {
+  const insets = useSafeAreaInsets();
   const [showFilter, setShowFilter] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
 
@@ -36,7 +38,7 @@ export default function HomeHeader() {
           });
         }
       } catch (error) {
-        console.log('Error fetching user data:', error);
+        console.error('Error fetching user data:', error);
       }
     };
 
@@ -48,7 +50,6 @@ export default function HomeHeader() {
   };
 
   const handleRegionSelect = (region: string) => {
-    console.log('Selected region:', region);
     setShowFilter(false);
   };
 

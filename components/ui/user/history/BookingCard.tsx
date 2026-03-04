@@ -25,10 +25,13 @@ interface BookingCardProps {
   appointmentId: string;
   appointmentDate: string;
   amount: string;
-  status: 'completed' | 'pending' | 'cancelled' | 'ongoing';
+  status: 'completed' | 'pending' | 'accepted' | 'cancelled' | 'ongoing';
+  isPaid?: boolean;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
+  cancelledAt?: string;
+  completedAt?: string;
   onPress?: () => void;
   onViewMore?: () => void;
 }

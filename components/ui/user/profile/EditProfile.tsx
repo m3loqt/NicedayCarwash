@@ -1,3 +1,4 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
@@ -6,18 +7,19 @@ import { get, getDatabase, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SuccessModal from './SuccessModal';
 
 export default function EditProfile() {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -40,11 +42,11 @@ export default function EditProfile() {
           setLastName(data.lastName || '');
           setProfileImage(data.profileImage || null);
         } else {
-          Alert.alert('Error', 'User data not found');
+          alert('Error', 'User data not found');
         }
       } catch (err) {
         console.error(err);
-        Alert.alert('Error', 'Failed to load user data');
+        alert('Error', 'Failed to load user data');
       } finally {
         setLoading(false);
       }
@@ -55,7 +57,7 @@ export default function EditProfile() {
 
   const handleSaveChanges = async () => {
     if (!firstName || !lastName) {
-      Alert.alert('Validation', 'All fields must be filled');
+      alert('Validation', 'All fields must be filled');
       return;
     }
 
@@ -70,7 +72,7 @@ export default function EditProfile() {
       setShowSuccess(true);
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Failed to save changes');
+      alert('Error', 'Failed to save changes');
     }
   };
 

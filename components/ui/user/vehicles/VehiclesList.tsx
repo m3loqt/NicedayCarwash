@@ -6,13 +6,12 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ImageSourcePropType,
   Modal,
   ScrollView,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import VehicleCard from './VehicleCard';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
@@ -40,6 +39,7 @@ const vehicleLabels: Record<string, string> = {
 };
 
 export default function VehiclesList() {
+  const { alert, AlertComponent } = useAlert();
   const [vehicles, setVehicles] = useState<VehicleProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);

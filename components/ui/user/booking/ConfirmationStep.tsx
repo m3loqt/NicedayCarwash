@@ -1,3 +1,4 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -115,6 +116,7 @@ export default function ConfirmationStep({
   onBack,
   onDone,
 }: ConfirmationStepProps) {
+  const { alert, AlertComponent } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState('');
   const [alertModal, setAlertModal] = useState<{
@@ -168,6 +170,7 @@ export default function ConfirmationStep({
         branchAddress: branch.address || '',
         paymentMethod: paymentMethod || '',
         status: 'pending',
+        isPaid: false,
         note: note.trim() || '',
         amountDue,
         timeSlot: {

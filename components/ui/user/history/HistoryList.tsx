@@ -4,7 +4,6 @@ import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
-import BookingCard from './BookingCard';
 
 interface Booking {
   id: string;
@@ -16,7 +15,8 @@ interface Booking {
   paymentMethod: string;
   time: string;
   amount: string;
-  status: 'pending' | 'ongoing' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
+  isPaid?: boolean;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
@@ -82,6 +82,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               appointmentDate: data.timeSlot?.appointmentDate || '',
               amount: data.amountDue || '',
               status: data.status,
+              isPaid: data.isPaid !== undefined ? data.isPaid : false,
               vehicleName: data.vehicleDetails?.vehicleName || '',
               plateNumber: data.vehicleDetails?.plateNumber || '',
               classification: data.vehicleDetails?.classification || '',
@@ -133,9 +134,12 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               appointmentDate={booking.appointmentDate}
               amount={booking.amount}
               status={booking.status}
+              isPaid={booking.isPaid}
               vehicleName={booking.vehicleName}
               plateNumber={booking.plateNumber}
               classification={booking.classification}
+              cancelledAt={booking.cancelledAt}
+              completedAt={booking.completedAt}
               onPress={() => handleBookingPress(booking)}
               onViewMore={() => handleBookingPress(booking)}
             />

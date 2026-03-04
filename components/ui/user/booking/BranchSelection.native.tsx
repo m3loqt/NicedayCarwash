@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import { getDatabase, onValue, ref } from 'firebase/database';
+import { router } from 'expo-router';
+import { get, getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -13,11 +13,10 @@ import {
   View
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import BookingFlow from './BookingFlow';
 import BranchDetailsModal from './BranchDetailsModal';
 
-// Verify expo-location is available
+// Ensuring expo-location module is loaded before using location features
 if (!Location) {
   console.error('expo-location module failed to load');
 }
@@ -50,23 +49,23 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
 
   const mapRef = useRef(null);
 
-  // helper: get current device location (wrap in promise)
+  // Retrieve device's current GPS coordinates
   const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
     try {
-      // Check if Location module is available
+      // Verify expo-location module is available
       if (!Location || !Location.requestForegroundPermissionsAsync) {
         console.warn('expo-location module not available');
         return null;
       }
 
-      // Request location permissions
+      // Requesting foreground location permission from user
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.warn('Location permission not granted');
         return null;
       }
 
-      // Get current location
+      // Fetching current device coordinates
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
@@ -86,7 +85,7 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
     }
   };
 
-  // haversine distance in meters
+  // Calculating distance between two coordinates using Haversine formula (returns meters)
   const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const toRad = (x: number) => (x * Math.PI) / 180;
     const R = 6371000; // Earth radius in meters
@@ -103,6 +102,72 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
     if (!isFinite(meters) || meters <= 0) return '0 m';
     if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
     return `${Math.round(meters)} m`;
+  };
+
+  // Checking if a branch has available timeslots
+  const checkBranchHasTimeslots = async (branchId: string): Promise<boolean> => {
+    try {
+      const db = getDatabase();
+      const sanitizePath = (path: string) => path.replace(/[.#$[\]]/g, "");
+      const sanitizedBranchId = sanitizePath(branchId);
+      
+      // Checking if TimeSlots array exists in database
+      const timeSlotsRef = ref(db, `Branches/${sanitizedBranchId}/TimeSlots`);
+      const timeSlotsSnapshot = await get(timeSlotsRef);
+      
+      if (timeSlotsSnapshot.exists()) {
+        const timeSlotsData = timeSlotsSnapshot.val();
+        
+        // Checking array format
+        if (Array.isArray(timeSlotsData)) {
+          const hasAvailableSlot = timeSlotsData.some(
+            (slot: any) => slot && slot.time && slot.status === "available"
+          );
+          if (hasAvailableSlot) return true;
+        } else if (typeof timeSlotsData === 'object' && timeSlotsData !== null) {
+          // Checking object format
+          const hasAvailableSlot = Object.values(timeSlotsData).some(
+            (slot: any) => slot && slot.time && slot.status === "available"
+          );
+          if (hasAvailableSlot) return true;
+        }
+      }
+      
+      // Falling back to checking if schedule allows for timeslots to be generated
+      const scheduleRef = ref(db, `Branches/${sanitizedBranchId}/profile/schedule`);
+      const scheduleSnapshot = await get(scheduleRef);
+      
+      if (scheduleSnapshot.exists()) {
+        const scheduleString = scheduleSnapshot.val();
+        const timeMatch = String(scheduleString).match(
+          /(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)/i
+        );
+        
+        if (timeMatch) {
+          // Parsing times to check if there's a valid time range
+          const parseTimeTo24Hour = (timeStr: string): number => {
+            const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            if (!match) return 8;
+            let hour = parseInt(match[1], 10);
+            const period = match[3].toUpperCase();
+            if (period === "PM" && hour !== 12) hour += 12;
+            else if (period === "AM" && hour === 12) hour = 0;
+            return hour;
+          };
+          
+          const openHour = parseTimeTo24Hour(`${timeMatch[1]}:${timeMatch[2]} ${timeMatch[3].toUpperCase()}`);
+          const closeHour = parseTimeTo24Hour(`${timeMatch[4]}:${timeMatch[5]} ${timeMatch[6].toUpperCase()}`);
+          
+          // Returning true if there's a valid time range (openHour < closeHour), timeslots can be generated
+          return openHour < closeHour;
+        }
+      }
+      
+      return false;
+    } catch (err) {
+      console.error(`Failed to check timeslots for branch ${branchId}:`, err);
+      return false; // Excluding branch on error to be safe
+    }
   };
 
 const handleSearch = (q: string) => {
@@ -170,50 +235,60 @@ const handleSearch = (q: string) => {
   useEffect(() => {
   const db = getDatabase();
   const branchesRef = ref(db, 'Branches');
-  // get device location once, then subscribe to branches and compute distances
+  // Fetching user location once, then subscribing to branch updates and calculating distances
   let unsub = () => {};
   (async () => {
     const userLoc = await getCurrentLocation();
-    console.log('Initial user location fetched:', userLoc);
-    setUserLocation(userLoc); // Store user location in state
+    setUserLocation(userLoc);
 
-    const unsubscribe = onValue(branchesRef, snapshot => {
+    const unsubscribe = onValue(branchesRef, async (snapshot) => {
       const list: Branch[] = [];
+      const branchPromises: Promise<void>[] = [];
 
       snapshot.forEach(branchSnap => {
         const branchId = branchSnap.key;
         const profile = branchSnap.child('profile').val();
 
         if (profile) {
-          // Coerce latitude/longitude to numbers and validate
+          // Converting coordinates to numbers and validating they are finite
           const lat = Number(profile.latitude);
           const lng = Number(profile.longitude);
 
           if (!isFinite(lat) || !isFinite(lng)) {
-            // skip branches with invalid coordinates; helps avoid AIRMapMarker errors
+            // Skipping branches with invalid coordinates to prevent map rendering errors
             console.warn(`Skipping branch ${branchId} due to invalid coordinates:`, profile.latitude, profile.longitude);
             return;
           }
 
-          // compute distance from user location (if available)
-          const distanceMeters = userLoc ? haversineMeters(userLoc.latitude, userLoc.longitude, lat, lng) : 0;
-          const distanceText = userLoc ? formatDistance(distanceMeters) : '0 km';
+          // Checking if branch has available timeslots before adding to list
+          const branchPromise = checkBranchHasTimeslots(branchId ?? '').then(hasTimeslots => {
+            if (hasTimeslots) {
+              // Calculating distance from user's location to branch (0 if location unavailable)
+              const distanceMeters = userLoc ? haversineMeters(userLoc.latitude, userLoc.longitude, lat, lng) : 0;
+              const distanceText = userLoc ? formatDistance(distanceMeters) : '0 km';
 
-          list.push({
-            id: branchId ?? '',
-            name: profile.name,
-            address: profile.address,
-            phone: profile.contact_number,
-            hours: profile.schedule,
-            status: profile.status ?? 'Open', // optional
-            distance: distanceText,
-            coordinates: {
-              latitude: lat,
-              longitude: lng,
-            },
+              list.push({
+                id: branchId ?? '',
+                name: profile.name,
+                address: profile.address,
+                phone: profile.contact_number,
+                hours: profile.schedule,
+                status: profile.status ?? 'Open', // optional
+                distance: distanceText,
+                coordinates: {
+                  latitude: lat,
+                  longitude: lng,
+                },
+              });
+            }
           });
+
+          branchPromises.push(branchPromise);
         }
       });
+
+      // Waiting for all timeslot checks to complete
+      await Promise.all(branchPromises);
 
       setBranches(list);
       setFilteredBranches(list);
@@ -381,10 +456,13 @@ const handleSearch = (q: string) => {
         onMakeOrder={handleSelectBranch}
       />
 
-      {showBookingFlow && (
+      {showBookingFlow && bookingBranch && (
         <BookingFlow
           branch={bookingBranch}
-          onClose={() => setShowBookingFlow(false)}
+          onClose={() => {
+            setShowBookingFlow(false);
+            setBookingBranch(null);
+          }}
         />
       )}
     </View>

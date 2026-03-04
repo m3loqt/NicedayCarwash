@@ -27,7 +27,6 @@ export default function UserBookScreen() {
 
   const handleNextStep = () => {
     // TODO: Navigate to step 2 (Service Selection)
-    console.log('Moving to step 2 - Service Selection');
     setCurrentStep(2);
   };
 

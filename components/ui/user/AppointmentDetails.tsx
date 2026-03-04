@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import PaymentBadge from './payment/PaymentBadge';
+import PaymentButton from './payment/PaymentButton';
 
 export interface OrderItem {
   label: string;
@@ -11,6 +14,7 @@ export interface AppointmentDetailsProps {
   branchName: string;
   branchAddress?: string;
   branchImage?: any; // require(...) or { uri: string }
+  customerName?: string;
   vehicleName?: string;
   plateNumber?: string;
   classification?: string;
@@ -21,6 +25,10 @@ export interface AppointmentDetailsProps {
   paymentMethod?: string;
   estimatedCompletion?: string;
   note?: string;
+  status?: string;
+  isPaid?: boolean;
+  appointmentId?: string;
+  isAdminView?: boolean;
   onBack?: () => void;
 }
 
@@ -41,12 +49,12 @@ const getVehicleIcon = (vehicleType?: string) => {
   }
 };
 
-// Format date from MM-DD-YYYY to "December 6, 2025" format
+// Converts date from MM-DD-YYYY to "December 6, 2025" format
 const formatDateForDisplay = (dateString?: string): string => {
   if (!dateString) return '';
-  // Parse MM-DD-YYYY format
+  // Parsing MM-DD-YYYY format
   const parts = dateString.split('-');
-  if (parts.length !== 3) return dateString; // Return as-is if format is unexpected
+  if (parts.length !== 3) return dateString; // Returning as-is if format is unexpected
   
   const month = parseInt(parts[0], 10);
   const day = parseInt(parts[1], 10);
@@ -66,7 +74,7 @@ const formatTimeRange = (time?: string, estimatedHours?: string | number): strin
   if (!time) return '';
   if (!estimatedHours) return time;
   
-  // Parse start time and add estimated hours
+  // Parsing start time and adding estimated hours
   const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!match) return time;
   
@@ -74,15 +82,15 @@ const formatTimeRange = (time?: string, estimatedHours?: string | number): strin
   const minute = parseInt(match[2], 10);
   const period = match[3].toUpperCase();
   
-  // Convert to 24-hour format
+  // Converting to 24-hour format
   if (period === 'PM' && hour !== 12) hour += 12;
   if (period === 'AM' && hour === 12) hour = 0;
   
-  // Add estimated hours
+  // Adding estimated hours
   const estHours = typeof estimatedHours === 'number' ? estimatedHours : parseInt(String(estimatedHours).replace(/\D/g, ''), 10) || 0;
   const endHour = hour + estHours;
   
-  // Convert back to 12-hour format
+  // Converting back to 12-hour format
   const endHour12 = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour === 12 ? 12 : endHour);
   const endPeriod = endHour >= 12 ? 'pm' : 'am';
   
@@ -94,7 +102,7 @@ const formatPrice = (value?: string | number): string => {
   if (value === null || value === undefined || value === '') return '₱ 0.00';
   if (typeof value === 'number') return `₱ ${value.toFixed(2)}`;
   const str = String(value).trim();
-  // Remove existing ₱ if present and extract number
+  // Removing existing ₱ if present and extracting number
   const numStr = str.replace(/[₱,\s]/g, '');
   const num = parseFloat(numStr);
   if (isNaN(num)) return '₱ 0.00';
@@ -105,6 +113,7 @@ export default function AppointmentDetails({
   branchName,
   branchAddress,
   branchImage,
+  customerName,
   vehicleName,
   plateNumber,
   classification,
@@ -115,9 +124,14 @@ export default function AppointmentDetails({
   paymentMethod,
   estimatedCompletion,
   note,
+  status,
+  isPaid,
+  appointmentId,
+  isAdminView = false,
   onBack,
 }: AppointmentDetailsProps) {
-  // Extract hours from estimatedCompletion (e.g., "3 Hours" -> 3)
+  const insets = useSafeAreaInsets();
+  // Extracting hours from estimatedCompletion (e.g., "3 Hours" -> 3)
   const extractHours = (est?: string | number): number => {
     if (!est) return 0;
     if (typeof est === 'number') return est;
@@ -128,12 +142,26 @@ export default function AppointmentDetails({
   const estimatedHours = extractHours(estimatedCompletion);
   const formattedDate = formatDateForDisplay(date);
   const formattedTimeRange = formatTimeRange(time, estimatedHours);
+  
+  const showPaymentSection = status === 'accepted' && !isPaid;
+  const showPaymentPaid = (status === 'ongoing' || status === 'accepted') && isPaid;
+  const bookingFee = 25.00;
+
+  const handlePaymentPress = () => {
+    if (appointmentId) {
+      router.push({
+        pathname: '/user/payment',
+        params: { appointmentId },
+      } as any);
+    }
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F8F8F8]" edges={["top"]}>
-      {/* Header */}
-      <View className="bg-white border-b border-gray-200">
-        <View className="flex-row items-center justify-between p-4">
+    <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F5F5F5' }} edges={["top"]}>
+        {/* Header */}
+        <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
+        <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
           <TouchableOpacity
             className="w-10 h-10 rounded-full bg-white border items-center justify-center"
             style={{ borderColor: 'rgba(179, 179, 179, 0.20)' }}
@@ -142,7 +170,7 @@ export default function AppointmentDetails({
             <Ionicons name="arrow-back" size={24} color="#B3B3B3" />
           </TouchableOpacity>
 
-          <Text className="text-xl font-bold text-[#1E1E1E]">Appointment Details</Text>
+          <Text className="text-2xl font-semibold text-[#1E1E1E]">Appointment Details</Text>
 
           <View className="w-10" />
         </View>
@@ -172,6 +200,21 @@ export default function AppointmentDetails({
           <View className="px-4">
             <View className="h-[0.5px] bg-gray-200" />
           </View>
+
+          {/* Customer Name Section */}
+          {customerName && (
+            <>
+              <View className="p-4">
+                <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Name</Text>
+                <Text className="text-gray-500" style={{ fontSize: 16 }}>{customerName}</Text>
+              </View>
+
+              {/* Separator Line */}
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+            </>
+          )}
 
           {/* Vehicle Information Section */}
           {(vehicleName || plateNumber || classification) && (
@@ -277,6 +320,61 @@ export default function AppointmentDetails({
             </>
           )}
 
+          {/* Payment Required Section */}
+          {showPaymentSection && (
+            <>
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+              <View className="p-4">
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>
+                    {isAdminView ? 'Payment Status' : 'Payment Required'}
+                  </Text>
+                  <View className="bg-amber-100 px-3 py-1 rounded-full">
+                    <Text className="text-amber-700 text-xs font-semibold">
+                      {isAdminView ? 'Waiting for Payment' : 'Payment Required'}
+                    </Text>
+                  </View>
+                </View>
+                <Text className="text-gray-500 mb-4" style={{ fontSize: 16 }}>
+                  {isAdminView 
+                    ? customerName 
+                      ? `Waiting for payment from ${customerName}. The booking fee must be paid before the service can begin.`
+                      : 'Waiting for payment from customer. The booking fee must be paid before the service can begin.'
+                    : 'Your booking has been accepted! Please pay the booking fee to proceed.'}
+                </Text>
+                <View className="bg-amber-50 rounded-xl p-4 mb-4">
+                  <View className="flex-row justify-between items-center">
+                    <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 18 }}>Booking Fee</Text>
+                    <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 18 }}>
+                      ₱{bookingFee.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+                {!isAdminView && <PaymentButton onPress={handlePaymentPress} />}
+              </View>
+            </>
+          )}
+
+          {/* Payment Paid Confirmation Section */}
+          {showPaymentPaid && (
+            <>
+              <View className="px-4">
+                <View className="h-[0.5px] bg-gray-200" />
+              </View>
+              <View className="p-4">
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Booking Fee</Text>
+                  <View className="bg-green-100 px-3 py-1.5 rounded-full flex-row items-center">
+                    <Ionicons name="checkmark-circle" size={14} color="#059669" style={{ marginRight: 4 }} />
+                    <Text className="text-green-700 text-xs font-semibold">Paid</Text>
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
+
           {/* Note to Branch Section */}
           <View className="p-4">
             <Text className="font-semibold text-[#1E1E1E] mb-3" style={{ fontSize: 20 }}>Note to Branch</Text>
@@ -294,7 +392,8 @@ export default function AppointmentDetails({
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

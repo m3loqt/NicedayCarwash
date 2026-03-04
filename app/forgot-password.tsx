@@ -1,3 +1,4 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
@@ -15,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ForgotPasswordScreen() {
+  const { alert, AlertComponent } = useAlert();
   const [email, setEmail] = useState('');
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
@@ -149,6 +151,7 @@ export default function ForgotPasswordScreen() {
 
         </View>
       </KeyboardAvoidingView>
+      {AlertComponent}
     </SafeAreaView>
   );
 }

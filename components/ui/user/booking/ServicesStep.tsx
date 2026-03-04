@@ -1,3 +1,4 @@
+import { useAlert } from "@/hooks/use-alert";
 import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
@@ -31,7 +32,7 @@ interface Addon {
 
 interface TimeSlot {
   time: string;
-  isAvailable: boolean;
+  status: "available" | "unavailable";
 }
 
 interface Vehicle {
@@ -50,6 +51,7 @@ export default function ServicesStep({
   selectedVehicle: Vehicle;
   onNext: (data: any) => void;
 }) {
+  const { alert, AlertComponent } = useAlert();
   const [services, setServices] = useState<Service[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
@@ -86,10 +88,8 @@ export default function ServicesStep({
   }, []);
 
   useEffect(() => {
-    if (branchSchedule) {
-      loadTimeSlots(selectedDate);
-    }
-  }, [selectedDate, branchSchedule]);
+    loadTimeSlots(selectedDate);
+  }, [selectedDate]);
 
   const loadBranchSchedule = async (): Promise<{ openTime: string; closeTime: string } | null> => {
     try {
@@ -98,10 +98,9 @@ export default function ServicesStep({
       );
       if (snapshot.exists()) {
         const profile = snapshot.val();
-        // Parse schedule - assuming format like "8:00 AM - 6:00 PM" or similar
+        // Extracting open and close times from schedule string (format: "8:00 AM - 6:00 PM")
         const schedule = profile.schedule || "";
-        // Extract open and close times from schedule string
-        // This is a basic parser - adjust based on actual format
+        // Parsing schedule string using regex to extract time components
         const timeMatch = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
         let scheduleData: { openTime: string; closeTime: string };
         if (timeMatch) {
@@ -110,7 +109,7 @@ export default function ServicesStep({
             closeTime: `${timeMatch[4]}:${timeMatch[5]} ${timeMatch[6]}`
           };
         } else {
-          // Default schedule if parsing fails
+          // Falling back to default hours when schedule format is invalid
           scheduleData = { openTime: "8:00 AM", closeTime: "6:00 PM" };
         }
         setBranchSchedule(scheduleData);
@@ -118,7 +117,7 @@ export default function ServicesStep({
       }
     } catch (err) {
       console.error("Failed to load branch schedule:", err);
-      // Default schedule on error
+      // Returning default schedule when loading fails
       const defaultSchedule = { openTime: "8:00 AM", closeTime: "6:00 PM" };
       setBranchSchedule(defaultSchedule);
       return defaultSchedule;
@@ -126,14 +125,15 @@ export default function ServicesStep({
     return null;
   };
 
-  // ------------------ Firebase Loaders ------------------
+  // Loading services data from Firebase
   const loadServices = async () => {
     try {
-      const snapshot = await get(
-        ref(db, `Branches/${sanitizePath(branchId)}/Services`)
-      );
+      const path = `Branches/${sanitizePath(branchId)}/Services`;
+      const snapshot = await get(ref(db, path));
+      
       if (snapshot.exists()) {
         const data: Service[] = [];
+        
         snapshot.forEach((child) => {
           const val = child.val();
           data.push({
@@ -148,6 +148,8 @@ export default function ServicesStep({
           });
         });
         setServices(data);
+      } else {
+        setServices([]);
       }
     } catch (err) {
       showAlert("Couldn't load services", "Something went wrong while fetching the available services. Please try again.", 'error');
@@ -179,9 +181,9 @@ export default function ServicesStep({
   };
 
   const parseTimeTo24Hour = (timeStr: string): number => {
-    // Parse "8:00 AM" or "6:00 PM" to 24-hour format (0-23)
+    // Converting 12-hour time string to 24-hour integer (0-23)
     const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!match) return 8; // Default to 8 AM
+    if (!match) return 8; // Defaulting to 8 AM
     
     let hour = parseInt(match[1], 10);
     const period = match[3].toUpperCase();
@@ -207,14 +209,14 @@ export default function ServicesStep({
     selectedDateOnly.setHours(0, 0, 0, 0);
     const isToday = selectedDateOnly.getTime() === today.getTime();
     
-    // Get current hour if selecting today
+    // Using current hour for today's date, otherwise using 0
     const currentHour = isToday ? new Date().getHours() : 0;
     
-    // Get branch schedule hours
+    // Converting schedule times to 24-hour format
     const openHour = parseTimeTo24Hour(scheduleToUse.openTime);
     const closeHour = parseTimeTo24Hour(scheduleToUse.closeTime);
     
-    // Check if store is already closed today
+    // Rejecting dates when store is already closed today
     if (isToday && currentHour >= closeHour) {
       return {
         available: false,
@@ -222,7 +224,7 @@ export default function ServicesStep({
       };
     }
     
-    // Check if there are any available time slots
+    // Verifying schedule has valid time range with available slots
     let hasAvailableSlots = false;
     for (let h = openHour; h < closeHour; h++) {
       if (isToday && h <= currentHour) {
@@ -332,7 +334,7 @@ export default function ServicesStep({
       : setSelectedAddons([...selectedAddons, a]);
   };
 
-  // Format date as "Dec. 7, 2025"
+  // Converting Date object to abbreviated format (e.g., "Dec. 7, 2025")
   const formatDate = (date: Date): string => {
     const months = [
       "Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.",

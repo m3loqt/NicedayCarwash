@@ -1,10 +1,11 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Alert, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../../firebase/firebase';
 
 type UserData = {
@@ -23,6 +24,8 @@ const menuItems = [
 ];
 
 export default function UserProfileScreen() {
+  const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const [user, setUser] = useState<UserData | null>(null);
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export default function UserProfileScreen() {
           });
         }
       } catch (error) {
-        console.log('Error fetching user data:', error);
+        console.error('Error fetching user data:', error);
       }
     };
 

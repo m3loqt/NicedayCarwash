@@ -1,7 +1,7 @@
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import VehicleCard from '../vehicles/VehicleCard';
 
 interface VehicleProfile {
@@ -37,7 +37,7 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
+      <View className="flex-1 justify-center items-center bg-[#F8F8F8]">
         <ActivityIndicator size="large" />
       </View>
     );
