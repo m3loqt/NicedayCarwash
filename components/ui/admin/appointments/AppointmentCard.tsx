@@ -1,5 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 
 // Formats date to "Tue, Dec. 20, 2024" format
 const formatDate = (dateString: string): string => {
@@ -48,48 +47,6 @@ const formatTime = (timeString: string): string => {
   return `${hour12}:${minutes || '00'} ${ampm}`;
 };
 
-// Formats ISO date string to "Month Day, Year" format (e.g., "July 20, 2024")
-const formatStatusDate = (dateString: string): string => {
-  if (!dateString) return '';
-  
-  try {
-    // Handling ISO format dates (e.g., "2024-07-20T10:30:00.000Z")
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      // Trying MM-DD-YYYY format if not a valid ISO date
-      const parts = dateString.split('-');
-      if (parts.length === 3) {
-        const month = parseInt(parts[0], 10);
-        const day = parseInt(parts[1], 10);
-        const year = parseInt(parts[2], 10);
-        
-        const monthNames = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        
-        if (month >= 1 && month <= 12) {
-          return `${monthNames[month - 1]} ${day}, ${year}`;
-        }
-      }
-      return dateString;
-    }
-    
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    const month = monthNames[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    
-    return `${month} ${day}, ${year}`;
-  } catch (error) {
-    return dateString;
-  }
-};
-
 interface AppointmentCardProps {
   appointmentId: string;
   date: string;
@@ -127,148 +84,71 @@ export default function AppointmentCard({
   const formattedTime = formatTime(time);
   const formattedAmount = `₱${amountDue.toFixed(2)}`;
 
-  const getStatusInfo = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return { text: 'Transaction Completed', color: 'text-green-600', icon: 'checkmark-circle' as keyof typeof Ionicons.glyphMap, useCustomIcon: false };
-      case 'pending':
-        return { text: 'Pending Transaction', color: 'text-yellow-300', icon: 'pending' as any, useCustomIcon: true };
-      case 'accepted':
-        return { text: 'Pending Transaction', color: 'text-yellow-300', icon: 'pending' as any, useCustomIcon: true };
-      case 'cancelled':
-        return { text: 'Transaction Cancelled', color: 'text-red-600', icon: 'close-circle' as keyof typeof Ionicons.glyphMap, useCustomIcon: false };
-      case 'ongoing':
-        return { text: 'Ongoing Transaction', color: 'text-purple-600', icon: 'ongoing' as any, useCustomIcon: true };
-      default:
-        return { text: 'Unknown Status', color: 'text-gray-600', icon: 'help-circle' as keyof typeof Ionicons.glyphMap, useCustomIcon: false };
-    }
-  };
-
-  const statusInfo = getStatusInfo(status);
-  const showWaitingForPayment = status === 'accepted' && !isPaid;
-
   return (
-    <View className="bg-white rounded-xl p-4 mb-4 shadow-md mx-4">
-      {/* Status Header */}
-      <View className="flex-row items-center justify-between mb-3">
-        <View className="flex-row items-center flex-1">
-          {statusInfo.useCustomIcon ? (
-            <Image 
-              source={
-                status === 'pending' || status === 'accepted'
-                  ? require('../../../../assets/images/pending.png')
-                  : require('../../../../assets/images/ongoing.png')
-              }
-              className="w-3 h-3 mr-2"
-              resizeMode="contain"
-              style={{ tintColor: status === 'ongoing' ? '#9333EA' : undefined }}
-            />
-          ) : (
-            <Ionicons 
-              name={statusInfo.icon as any} 
-              size={14} 
-              color={status === 'completed' ? '#059669' : status === 'cancelled' ? '#DC2626' : '#6B7280'} 
-              className="mr-2"
-            />
-          )}
-          <Text className={`text-sm font-semibold ${statusInfo.color}`}>
-            {statusInfo.text}
+    <TouchableOpacity
+      className="bg-[#FAFAFA] rounded-2xl px-4 pt-2 pb-4 mx-5 mb-1.5"
+      activeOpacity={0.8}
+      onPress={onViewMore}
+    >
+      {/* ID on left, above vehicle */}
+      <View className="mb-3">
+        <Text className="text-[11px] text-[#999]">
+          ID: <Text className="font-semibold text-[#1A1A1A]">{appointmentId}</Text>
+        </Text>
+      </View>
+
+      {/* Vehicle and date/time row with price aligned */}
+      <View className="mb-3">
+        <Text className="text-[16px] font-semibold text-[#1A1A1A] mb-1.5">
+          {vehicleName} · {classification}
+        </Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-[12px] text-[#999] flex-1">
+            {formattedDate} · {formattedTime}
+          </Text>
+          <Text className="text-[15px] font-bold text-[#1A1A1A] ml-2">
+            {formattedAmount}
           </Text>
         </View>
-        {showWaitingForPayment && (
-          <View className="bg-amber-100 px-3 py-1 rounded-full">
-            <Text className="text-amber-700 text-xs font-semibold">Waiting for Payment</Text>
-          </View>
-        )}
       </View>
 
-      {/* Appointment Details Grid - Row 1: Appointment ID | Date | Time */}
-      <View className="flex-row justify-between mb-2">
-        <View className="flex-1">
-          <Text className="text-xs text-gray-500 mb-1">Appointment ID</Text>
-          <Text className="text-sm font-bold text-[#1E1E1E]">{appointmentId}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-xs text-gray-500 mb-1">Date</Text>
-          <Text className="text-sm font-bold text-[#1E1E1E]">{formattedDate}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-xs text-gray-500 mb-1">Time</Text>
-          <Text className="text-sm font-bold text-[#1E1E1E]">{formattedTime}</Text>
-        </View>
-      </View>
-
-      {/* Vehicle Details Grid - Row 2: Vehicle Name | Classification | Amount Due */}
-      <View className="flex-row justify-between mb-4">
-        <View className="flex-1">
-          <Text className="text-xs text-gray-500 mb-1">Vehicle Name</Text>
-          <Text className="text-sm font-bold text-[#1E1E1E]">{vehicleName}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-xs text-gray-500 mb-1">Classification</Text>
-          <Text className="text-sm font-bold text-[#1E1E1E]">{classification}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-xs text-gray-500 mb-1">Amount Due</Text>
-          <Text className="text-sm font-bold text-[#1E1E1E]">{formattedAmount}</Text>
-        </View>
-      </View>
-
-      {/* Action Buttons and View More - Show buttons for pending and ongoing status */}
+      {/* Action buttons */}
       {status === 'pending' ? (
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row gap-3">
           <TouchableOpacity
-            className="flex-1 bg-[#F9EF08] rounded-md py-3 items-center"
+            className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
             onPress={onAccept}
+            activeOpacity={0.85}
           >
-            <Text className="text-white font-semibold">Accept</Text>
+            <Text className="text-[13px] font-bold text-[#1A1A00]">Accept</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border border-[#F9EF08] rounded-md py-3 items-center bg-white"
+            className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
             onPress={onCancel}
+            activeOpacity={0.85}
           >
-            <Text className="text-[#F9EF08] font-semibold">Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onViewMore}>
-            <Text className="text-sm text-gray-700 underline">View More</Text>
+            <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancel</Text>
           </TouchableOpacity>
         </View>
       ) : status === 'ongoing' ? (
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row gap-3">
           <TouchableOpacity
-            className="flex-1 bg-[#F9EF08] rounded-md py-3 items-center"
+            className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
             onPress={onComplete}
+            activeOpacity={0.85}
           >
-            <Text className="text-white font-semibold">Complete</Text>
+            <Text className="text-[13px] font-bold text-[#1A1A00]">Complete</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="flex-1 border border-[#F9EF08] rounded-md py-3 items-center bg-white"
+            className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
             onPress={onCancel}
+            activeOpacity={0.85}
           >
-            <Text className="text-[#F9EF08] font-semibold">Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onViewMore}>
-            <Text className="text-sm text-gray-700 underline">View More</Text>
+            <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancel</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <View className="flex-row justify-between items-center">
-          {(status === 'cancelled' && cancelledAt) || (status === 'completed' && completedAt) ? (
-            <Text className="text-sm text-gray-600">
-              {status === 'cancelled' 
-                ? `Canceled on ${formatStatusDate(cancelledAt!)}`
-                : `Completed on ${formatStatusDate(completedAt!)}`
-              }
-            </Text>
-          ) : (
-            <View />
-          )}
-          <TouchableOpacity onPress={onViewMore}>
-            <Text className="text-sm text-gray-700 underline">View More</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+      ) : null}
+    </TouchableOpacity>
   );
 }
 

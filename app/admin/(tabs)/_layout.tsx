@@ -1,47 +1,42 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-
-import { CustomTabIcon } from '@/components/CustomTabIcon';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Platform } from 'react-native';
 
 export default function AdminTabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#F9EF08', // Yellow for active
-        tabBarInactiveTintColor: '#9CA3AF', // Gray for  inactive 
+        lazy: true,
+        tabBarActiveTintColor: '#1A1A1A',
+        tabBarInactiveTintColor: '#B0B0B0',
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: 'white',
+          backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          height: 70,
-          paddingBottom: 20,
+          borderTopColor: '#F0F0F0',
+          height: Platform.OS === 'ios' ? 82 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
           paddingTop: 10,
+          elevation: 0,
         },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="dashboard"
         options={{
           title: 'Home',
           tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/home.png')} 
-              focused={focused} 
-            />
+            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="bookings"
         options={{
-          title: 'Appointments',
+          title: 'Bookings',
           tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/calendar_icon.png')} 
-              focused={focused} 
-            />
+            <TabIcon name={focused ? 'calendar' : 'calendar-outline'} focused={focused} />
           ),
         }}
       />
@@ -50,10 +45,7 @@ export default function AdminTabLayout() {
         options={{
           title: 'Services',
           tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/services.png')} 
-              focused={focused} 
-            />
+            <TabIcon name={focused ? 'construct' : 'construct-outline'} focused={focused} />
           ),
         }}
       />
@@ -62,13 +54,14 @@ export default function AdminTabLayout() {
         options={{
           title: 'Account',
           tabBarIcon: ({ focused }) => (
-            <CustomTabIcon 
-              source={require('../../../assets/images/account.png')} 
-              focused={focused} 
-            />
+            <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} />
           ),
         }}
       />
     </Tabs>
   );
+}
+
+function TabIcon({ name, focused }: { name: keyof typeof Ionicons.glyphMap; focused: boolean }) {
+  return <Ionicons name={name} size={22} color={focused ? '#F9EF08' : '#B0B0B0'} />;
 }

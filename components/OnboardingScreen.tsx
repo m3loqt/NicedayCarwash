@@ -29,15 +29,15 @@ const onboardingSteps: OnboardingStep[] = [
   },
   {
     id: 2,
-    title: 'Book with ease!',
-    description: 'Schedule your car wash service in just a few taps',
-    image: require('../assets/images/intro1.png'),
+    title: 'Skip the wait',
+    description: 'Book ahead and arrive when your slot is ready.',
+    image: require('../assets/images/skip.png'),
   },
   {
     id: 3,
-    title: 'Track your bookings!',
-    description: 'Monitor your service history and upcoming appointments',
-    image: require('../assets/images/intro1.png'),
+    title: 'Track your service',
+    description: 'Get real time updates from booking to wash completion.',
+    image: require('../assets/images/progress.png'),
   },
 ];
 
@@ -66,16 +66,24 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
       {/* Skip */}
       <View className="flex-row justify-end px-6 pt-2 pb-0">
-        <TouchableOpacity onPress={() => onComplete?.()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text className="text-[13px] text-[#999]">Skip</Text>
+        <TouchableOpacity
+          onPress={() => onComplete?.()}
+          className="py-3 px-4"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.7}
+        >
+          <Text className="text-[17px] font-semibold text-[#999]">Skip</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Illustration */}
+      {/* Illustration — larger for steps 2 and 3 */}
       <View className="flex-1 items-center justify-center px-8">
         <Image
           source={step.image}
-          style={{ width: 280, height: 280 }}
+          style={{
+            width: currentStep >= 1 ? 340 : 280,
+            height: currentStep >= 1 ? 340 : 280,
+          }}
           resizeMode="contain"
         />
       </View>
@@ -115,17 +123,17 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           {currentStep > 0 && (
             <TouchableOpacity
               onPress={handlePrevious}
-              className="w-12 h-12 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center"
+              className="w-14 min-h-[56px] rounded-lg bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center"
               activeOpacity={0.8}
             >
-              <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
+              <Ionicons name="chevron-back" size={26} color="#1A1A1A" />
             </TouchableOpacity>
           )}
 
           {/* Next / Get Started */}
           <TouchableOpacity
             onPress={handleNext}
-            className="flex-1 bg-[#F9EF08] rounded-2xl py-3.5 items-center"
+            className="flex-1 bg-[#F9EF08] rounded-lg min-h-[52px] py-4 items-center justify-center"
             activeOpacity={0.85}
           >
             <Text className="text-[14px] font-bold text-[#1A1A00]">

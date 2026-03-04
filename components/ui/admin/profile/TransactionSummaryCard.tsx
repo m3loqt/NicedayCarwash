@@ -6,13 +6,16 @@ interface TransactionSummaryCardProps {
 
 export default function TransactionSummaryCard({ totalTransactions }: TransactionSummaryCardProps) {
   return (
-    <View className="bg-white rounded-lg mx-6 mt-4 p-4 shadow-md">
-      <View className="items-center">
-        <Text className="text-gray-600 text-base text-center">You've successfully managed</Text>
-        <Text className="text-2xl font-bold text-[#1E1E1E] mt-1 text-center">
-          {totalTransactions} Transactions
-        </Text>
-      </View>
+    <View className="mx-5 mt-4 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4">
+      <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">
+        Overview
+      </Text>
+      <Text className="text-[13px] text-[#999]">
+        You've successfully managed
+      </Text>
+      <Text className="text-[18px] font-bold text-[#1A1A1A] mt-1">
+        {totalTransactions} transactions
+      </Text>
     </View>
   );
 }

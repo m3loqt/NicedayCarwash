@@ -1,14 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { useState } from "react";
-import {
-    Modal,
-    Pressable,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 interface AddBayModalProps {
   visible: boolean;
@@ -24,80 +16,57 @@ export default function AddBayModal({
   const [bayId, setBayId] = useState("");
 
   const handleAdd = () => {
-    const id = parseInt(bayId);
-    if (isNaN(id) || id <= 0) {
-      return;
-    }
+    const id = parseInt(bayId, 10);
+    if (isNaN(id) || id <= 0) return;
     onAdd(id);
-    setBayId(""); // Resetting after adding
+    setBayId("");
   };
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <BlurView intensity={80} tint="light" className="flex-1 justify-center items-center">
-        {/* Backdrop pressable area that closes the modal */}
-        <Pressable 
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
-          onPress={onClose} 
-        />
-
-        {/* Modal content container */}
-        <View 
-          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-100"
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 4,
-          }}
-        >
-          {/* Close button in top right corner */}
-          <TouchableOpacity
-            className="absolute top-4 right-4 z-10"
-            onPress={onClose}
-          >
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-
-          {/* Title display */}
-          <View className="items-center mb-6 mt-2">
-            <Text className="text-3xl font-bold text-[#1E1E1E]" numberOfLines={1}>
-              Add Bay
+      <View className="flex-1 bg-black/40 justify-end">
+        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+        <View className="bg-white rounded-t-3xl px-5 pt-4 pb-8">
+          <View className="items-center pb-2">
+            <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
+          </View>
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-[17px] font-bold text-[#1A1A1A]" style={{ fontFamily: "Inter_700Bold" }}>
+              Add bay
             </Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={22} color="#999" />
+            </TouchableOpacity>
           </View>
 
-          <View className="mb-6">
-            <Text className="text-gray-700 font-medium mb-2">Bay ID</Text>
-            <TextInput
-              className="border border-gray-100 rounded-lg px-4 py-3 text-gray-800 bg-white"
-              placeholder="eg. 1"
-              value={bayId}
-              onChangeText={(text) => {
-                // Allowing only numeric input
-                const numericValue = text.replace(/[^0-9]/g, '');
-                setBayId(numericValue);
-              }}
-              keyboardType="numeric"
-            />
-          </View>
+          <Text className="text-[#666] text-sm mb-2" style={{ fontFamily: "Inter_400Regular" }}>
+            Bay number
+          </Text>
+          <TextInput
+            className="bg-[#FAFAFA] rounded-lg px-4 py-3 text-[#1E1E1E] text-base mb-6"
+            style={{ fontFamily: "Inter_400Regular" }}
+            placeholder="e.g. 1"
+            placeholderTextColor="#999"
+            value={bayId}
+            onChangeText={(text) => setBayId(text.replace(/[^0-9]/g, ""))}
+            keyboardType="numeric"
+          />
 
-          {/* Add button */}
           <TouchableOpacity
             onPress={handleAdd}
-            className="bg-[#F9EF08] rounded-xl py-4 items-center"
+            className="bg-[#F9EF08] rounded-lg py-3 items-center"
           >
-            <Text className="text-base font-semibold text-white" numberOfLines={1}>
-              Add Bay
+            <Text className="text-[#1A1A1A] font-bold" style={{ fontFamily: "Inter_700Bold" }}>
+              Add bay
             </Text>
           </TouchableOpacity>
         </View>
-      </BlurView>
+      </View>
     </Modal>
   );
 }

@@ -11,15 +11,15 @@ export default function AppointmentsSearchBar({
   onSearchChange,
 }: AppointmentsSearchBarProps) {
   return (
-    <View className="bg-white rounded-xl px-4 py-3 flex-row items-center shadow mx-4 mt-4">
-      <Ionicons name="search" size={20} color="#9CA3AF" />
+    <View className="bg-[#FAFAFA] rounded-2xl px-4 py-3 flex-row items-center mx-4 mt-4">
+      <Ionicons name="search" size={18} color="#9CA3AF" />
       <TextInput
         placeholder="Search transaction"
-        placeholderTextColor="#9CA3AF"
-        className="flex-1 ml-3 text-gray-800 text-base font-semibold"
+        placeholderTextColor="#C4C4C4"
+        className="flex-1 ml-3 text-[#1A1A1A]"
         value={searchQuery}
         onChangeText={onSearchChange}
-        style={{ fontSize: 16 }}
+        style={{ fontSize: 13 }}
       />
     </View>
   );

@@ -1,8 +1,9 @@
+import { ListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import BookingCard from './BookingCard';
 import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 
@@ -110,8 +111,8 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
-        <ActivityIndicator size="small" color="#1A1A1A" />
+      <View className="flex-1 bg-white">
+        <ListSkeleton rowCount={5} />
       </View>
     );
   }

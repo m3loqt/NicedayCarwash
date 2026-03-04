@@ -9,7 +9,7 @@ export default function ManageServicesCard({ onPress }: ManageServicesCardProps)
   return (
     <View className="px-6 mt-2">
       <TouchableOpacity
-        className="bg-white rounded-md p-3 flex-row items-center shadow-sm border border-gray-100"
+        className="bg-[#FAFAFA] rounded-md p-3 flex-row items-center"
         onPress={onPress}
       >
         <View className="bg-[#F9EF08] rounded-lg p-3 mr-3" style={{ minWidth: 50, minHeight: 50, justifyContent: 'center', alignItems: 'center' }}>

@@ -80,24 +80,21 @@ export default function RegisterScreen() {
           className="px-6"
           showsVerticalScrollIndicator={false}
         >
-          {/* Back + Logo */}
-          <View className="pt-4 mb-6">
-            <TouchableOpacity onPress={handleSignIn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} className="mb-6">
-              <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
-            </TouchableOpacity>
+          {/* Logo */}
+          <View className="items-center pt-12 mb-8 -mb-2">
             <Image
               source={require('../assets/images/ndcwlogo.png')}
-              style={{ width: 100, height: 50 }}
+              style={{ width: 200, height: 100 }}
               resizeMode="contain"
             />
           </View>
 
           {/* Heading */}
-          <View className="mb-7">
-            <Text className="text-[22px] font-bold text-[#1A1A1A] mb-1">
+          <View className="mb-7 items-center">
+            <Text className="text-[22px] font-bold text-[#1A1A1A] mb-1 text-center">
               Create an account
             </Text>
-            <Text className="text-[13px] text-[#999]">
+            <Text className="text-[13px] text-[#999] text-center">
               Fill in your details to get started
             </Text>
           </View>
@@ -106,7 +103,7 @@ export default function RegisterScreen() {
           <View className="mb-4">
             <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">First Name</Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
               placeholder="Juan"
               placeholderTextColor="#C4C4C4"
               value={firstName}
@@ -120,7 +117,7 @@ export default function RegisterScreen() {
           <View className="mb-4">
             <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Last Name</Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
               placeholder="dela Cruz"
               placeholderTextColor="#C4C4C4"
               value={lastName}
@@ -134,7 +131,7 @@ export default function RegisterScreen() {
           <View className="mb-4">
             <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Email Address</Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
               placeholder="your.email@example.com"
               placeholderTextColor="#C4C4C4"
               value={email}
@@ -148,9 +145,9 @@ export default function RegisterScreen() {
           {/* Password */}
           <View className="mb-7">
             <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Password</Text>
-            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4">
+            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 min-h-[52px]">
               <TextInput
-                className="flex-1 py-3.5 text-[13px] text-[#1A1A1A]"
+                className="flex-1 py-4 text-[13px] text-[#1A1A1A]"
                 placeholder="Create a password"
                 placeholderTextColor="#C4C4C4"
                 value={password}
@@ -167,7 +164,7 @@ export default function RegisterScreen() {
 
           {/* Sign Up button */}
           <TouchableOpacity
-            className={`bg-[#F9EF08] rounded-2xl py-3.5 items-center mb-8 ${loading ? 'opacity-60' : ''}`}
+            className={`bg-[#F9EF08] rounded-lg py-4 items-center mb-8 min-h-[52px] justify-center ${loading ? 'opacity-60' : ''}`}
             onPress={handleSignUp}
             disabled={loading}
             activeOpacity={0.85}

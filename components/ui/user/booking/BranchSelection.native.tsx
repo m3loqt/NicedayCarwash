@@ -1,3 +1,4 @@
+import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
@@ -46,6 +47,7 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [branchesLoading, setBranchesLoading] = useState(true);
 
   const mapRef = useRef(null);
 
@@ -292,6 +294,7 @@ const handleSearch = (q: string) => {
 
       setBranches(list);
       setFilteredBranches(list);
+      setBranchesLoading(false);
     });
 
     unsub = () => unsubscribe();
@@ -299,8 +302,6 @@ const handleSearch = (q: string) => {
 
   return () => unsub();
 }, []);
-
-
 
   const handleMarkerPress = (branch: Branch) => {
     setSelectedBranch(branch);
@@ -408,44 +409,50 @@ const handleSearch = (q: string) => {
 
       {/* Branch cards */}
       <View className="flex-1 pt-4">
-        <View className="px-5 mb-2">
-          <Text className="text-[15px] font-semibold text-[#1A1A1A]">
-            Available branches near you
-          </Text>
-        </View>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 24 }}
-        >
-          {filteredBranches.map((branch) => (
-            <TouchableOpacity
-              key={branch.id}
-              className="bg-[#FAFAFA] rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
-              activeOpacity={0.8}
-              onPress={() => handleListPress(branch)}
+        {branchesLoading ? (
+          <BranchListSkeleton />
+        ) : (
+          <>
+            <View className="px-5 mb-2">
+              <Text className="text-[15px] font-semibold text-[#1A1A1A]">
+                Available branches near you
+              </Text>
+            </View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 24 }}
             >
-              <View className="w-[60px] h-[60px] rounded-xl overflow-hidden bg-white mr-4">
-                <Image
-                  source={require('../../../../assets/images/branch1.jpg')}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
-                  {branch.name}
-                </Text>
-                <Text className="text-[13px] text-[#999] mt-0.5" numberOfLines={1}>
-                  {branch.address}
-                </Text>
-                <Text className="text-[12px] text-[#BDBDBD] mt-0.5">
-                  {branch.distance}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              {filteredBranches.map((branch) => (
+                <TouchableOpacity
+                  key={branch.id}
+                  className="bg-[#FAFAFA] rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
+                  activeOpacity={0.8}
+                  onPress={() => handleListPress(branch)}
+                >
+                  <View className="w-[60px] h-[60px] rounded-xl overflow-hidden bg-white mr-4">
+                    <Image
+                      source={require('../../../../assets/images/branch1.jpg')}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
+                      {branch.name}
+                    </Text>
+                    <Text className="text-[13px] text-[#999] mt-0.5" numberOfLines={1}>
+                      {branch.address}
+                    </Text>
+                    <Text className="text-[12px] text-[#BDBDBD] mt-0.5">
+                      {branch.distance}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
       </View>
 
       {/* Branch details bottom sheet */}

@@ -4,33 +4,43 @@ import {
   AppointmentsSearchBar,
   AppointmentsTabs,
 } from '@/components/ui/admin/appointments';
-import { useState } from 'react';
-import { View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const VALID_TABS = ['pending', 'ongoing', 'completed', 'cancelled'] as const;
+
 export default function AdminBookingsScreen() {
+  const params = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const tab = params.tab;
+    if (tab && VALID_TABS.includes(tab as (typeof VALID_TABS)[number])) {
+      setActiveTab(tab);
+    }
+  }, [params.tab]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F5F5F5' }} edges={['top']}>
+    <View className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
         {/* Header */}
         <AppointmentsHeader />
 
         {/* Status Tabs */}
         <AppointmentsTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-        {/* Content Area with Gray Background */}
-        <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
-          {/* Search Bar */}
+        {/* Content */}
+        <View className="flex-1 bg-white">
           <AppointmentsSearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-
-          {/* Appointments List */}
           <AppointmentsList activeTab={activeTab} searchQuery={searchQuery} />
         </View>
       </SafeAreaView>

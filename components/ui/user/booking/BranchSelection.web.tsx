@@ -1,3 +1,4 @@
+import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
@@ -35,6 +36,7 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
   const [filteredBranches, setFilteredBranches] = useState<Branch[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [branchesLoading, setBranchesLoading] = useState(true);
 
   const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
     try {
@@ -154,6 +156,7 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
         });
         setBranches(list);
         setFilteredBranches(list);
+        setBranchesLoading(false);
       });
       unsub = () => unsubscribe();
     })();
@@ -182,56 +185,60 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-4">
-        {filteredBranches.map(branch => (
-          <TouchableOpacity
-            key={branch.id}
-            className="bg-white rounded-xl p-4 mb-3 border border-[#E0E0E0]"
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-            onPress={() => handleBranchPress(branch)}
-          >
-            <View className="flex-row items-start justify-between">
-              <View className="flex-1 mr-3">
-                <Text className="text-base font-semibold text-[#333]">{branch.name}</Text>
-                <Text className="text-sm text-[#666] mt-1">{branch.address}</Text>
-                <View className="flex-row items-center mt-2">
-                  <View
-                    className="px-2 py-0.5 rounded-full mr-2"
-                    style={{ backgroundColor: branch.status === 'Open' ? '#E8F5E9' : '#FFEBEE' }}
-                  >
-                    <Text
-                      className="text-xs font-medium"
-                      style={{ color: branch.status === 'Open' ? '#4CAF50' : '#F44336' }}
-                    >
-                      {branch.status}
-                    </Text>
-                  </View>
-                  <Ionicons name="location-outline" size={14} color="#999" />
-                  <Text className="text-xs text-[#999] ml-1">{branch.distance}</Text>
-                </View>
-              </View>
-              <View
-                className="w-10 h-10 rounded-full justify-center items-center"
-                style={{ backgroundColor: selectedBranch?.id === branch.id ? '#4CAF50' : '#FF4444' }}
+      {branchesLoading ? (
+        <BranchListSkeleton />
+      ) : (
+        <ScrollView className="flex-1 px-4">
+            {filteredBranches.map(branch => (
+              <TouchableOpacity
+                key={branch.id}
+                className="bg-white rounded-xl p-4 mb-3 border border-[#E0E0E0]"
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+                onPress={() => handleBranchPress(branch)}
               >
-                <Ionicons name="location" size={20} color="white" />
+                <View className="flex-row items-start justify-between">
+                  <View className="flex-1 mr-3">
+                    <Text className="text-base font-semibold text-[#333]">{branch.name}</Text>
+                    <Text className="text-sm text-[#666] mt-1">{branch.address}</Text>
+                    <View className="flex-row items-center mt-2">
+                      <View
+                        className="px-2 py-0.5 rounded-full mr-2"
+                        style={{ backgroundColor: branch.status === 'Open' ? '#E8F5E9' : '#FFEBEE' }}
+                      >
+                        <Text
+                          className="text-xs font-medium"
+                          style={{ color: branch.status === 'Open' ? '#4CAF50' : '#F44336' }}
+                        >
+                          {branch.status}
+                        </Text>
+                      </View>
+                      <Ionicons name="location-outline" size={14} color="#999" />
+                      <Text className="text-xs text-[#999] ml-1">{branch.distance}</Text>
+                    </View>
+                  </View>
+                  <View
+                    className="w-10 h-10 rounded-full justify-center items-center"
+                    style={{ backgroundColor: selectedBranch?.id === branch.id ? '#4CAF50' : '#FF4444' }}
+                  >
+                    <Ionicons name="location" size={20} color="white" />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+            {filteredBranches.length === 0 && (
+              <View className="items-center justify-center py-12">
+                <Ionicons name="business-outline" size={48} color="#CCC" />
+                <Text className="text-[#999] mt-3 text-base">No branches found</Text>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-        {filteredBranches.length === 0 && (
-          <View className="items-center justify-center py-12">
-            <Ionicons name="business-outline" size={48} color="#CCC" />
-            <Text className="text-[#999] mt-3 text-base">No branches found</Text>
-          </View>
-        )}
-      </ScrollView>
+            )}
+          </ScrollView>
+      )}
 
       <BranchDetailsModal
         visible={!!selectedBranch}

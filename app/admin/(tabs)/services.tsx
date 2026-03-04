@@ -2,8 +2,8 @@ import { auth, db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
 import { get, ref, set, update } from "firebase/database";
 import { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AddBayModal from "../../../components/ui/admin/services/AddBayModal";
 import AddOns from "../../../components/ui/admin/services/AddOns";
 import AddTimeSlotModal from "../../../components/ui/admin/services/AddTimeSlotModal";
@@ -12,68 +12,70 @@ import Services from "../../../components/ui/admin/services/Services";
 import TimeSlots from "../../../components/ui/admin/services/TimeSlot";
 
 export default function AdminServicesScreen() {
-  const insets = useSafeAreaInsets();
   const { alert, AlertComponent } = useAlert();
   const [timeModalVisible, setTimeModalVisible] = useState(false);
   const [bayModalVisible, setBayModalVisible] = useState(false);
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F5F5F5' }} edges={['top']}>
+    <View className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
         {/* Header */}
-        <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200" style={{ marginTop: -insets.top, paddingTop: insets.top + 16 }}>
-        <View className="w-8" />
-
-        <Text className="flex-1 text-center text-2xl font-semibold text-[#1E1E1E]">
-          Services & Prices
-        </Text>
-
-        <View className="w-8" />
-      </View>
-
-      {/* Body */}
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 8, paddingLeft: 26, paddingBottom: 16 }}
-      >
-        {/* Services */}
-        <Text className="text-2xl font-semibold mt-4 mb-3">
-          Services
-        </Text>
-        <Services />
-
-        {/* Add-ons */}
-        <Text className="text-2xl font-semibold mt-6 mb-3">
-          Add ons
-        </Text>
-        <AddOns />
-
-        {/* Time Slots */}
-        <View className="flex flex-row items-center justify-between mt-6 mb-3">
-          <Text className="text-2xl font-semibold">
-            Time slots
-          </Text>
-
-          <TouchableOpacity onPress={() => setTimeModalVisible(true)} style={{ paddingRight: 26 }}>
-            <Text className="text-[#F9EF08] font-medium">Add time slot</Text>
-          </TouchableOpacity>
+        <View className="px-5 pt-4 pb-4">
+          <Text className="text-3xl font-bold text-[#1A1A1A]">Services & Prices</Text>
         </View>
-        <TimeSlots />
 
-        {/* Bays */}
-        <View className="flex flex-row items-center justify-between mt-6 mb-3">
-          <Text className="text-2xl font-semibold">
-            Bays
+        {/* Body */}
+        <ScrollView
+          className="flex-1 bg-white"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+        >
+          {/* Services */}
+          <Text className="text-sm font-semibold text-gray-500 mb-2" style={{ fontFamily: 'Inter_600SemiBold' }}>
+            Services
           </Text>
-          <TouchableOpacity onPress={() => setBayModalVisible(true)} style={{ paddingRight: 26 }}>
-            <Text className="text-[#F9EF08] font-medium">Add bay</Text>
-          </TouchableOpacity>
-        </View>
-        <Bays />
-      </ScrollView>
+          <Services />
 
-       {/* MODAL */}
+          {/* Add-ons */}
+          <Text className="text-sm font-semibold text-gray-500 mt-6 mb-2" style={{ fontFamily: 'Inter_600SemiBold' }}>
+            Add-ons
+          </Text>
+          <AddOns />
+
+          {/* Time Slots – full-width row so horizontal list isn’t cut on the right */}
+          <View className="mt-6" style={{ marginHorizontal: -20 }}>
+            <View className="flex-row items-center justify-between mb-2 px-5">
+              <Text className="text-sm font-semibold text-gray-500" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                Time slots
+              </Text>
+              <TouchableOpacity onPress={() => setTimeModalVisible(true)}>
+                <Text className="text-sm font-bold text-[#1E1E1E]" style={{ fontFamily: 'Inter_700Bold' }}>
+                  Add time slot
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TimeSlots />
+          </View>
+
+          {/* Bays – full-width row so list isn’t cut on the right */}
+          <View className="mt-6" style={{ marginHorizontal: -20 }}>
+            <View className="flex-row items-center justify-between mb-2 px-5">
+              <Text className="text-sm font-semibold text-gray-500" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                Bays
+              </Text>
+              <TouchableOpacity onPress={() => setBayModalVisible(true)}>
+                <Text className="text-sm font-bold text-[#1E1E1E]" style={{ fontFamily: 'Inter_700Bold' }}>
+                  Add bay
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Bays />
+          </View>
+        </ScrollView>
+
+        {/* MODAL */}
       <AddTimeSlotModal
         visible={timeModalVisible}
         onClose={() => setTimeModalVisible(false)}

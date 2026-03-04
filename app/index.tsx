@@ -176,10 +176,10 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Logo */}
-          <View className="items-center pt-12 mb-8">
+          <View className="items-center pt-12 -mb-2">
             <Image
               source={require('../assets/images/ndcwlogo.png')}
-              style={{ width: 120, height: 60 }}
+              style={{ width: 200, height: 100 }}
               resizeMode="contain"
             />
           </View>
@@ -200,7 +200,7 @@ export default function LoginScreen() {
               Email Address
             </Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-3.5 text-[13px] text-[#1A1A1A]"
+              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
               placeholder="sample@gmail.com"
               placeholderTextColor="#C4C4C4"
               value={email}
@@ -214,9 +214,9 @@ export default function LoginScreen() {
             <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">
               Password
             </Text>
-            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4">
+            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 min-h-[52px]">
               <TextInput
-                className="flex-1 py-3.5 text-[13px] text-[#1A1A1A]"
+                className="flex-1 py-4 text-[13px] text-[#1A1A1A]"
                 placeholder="Enter your password"
                 placeholderTextColor="#C4C4C4"
                 value={password}
@@ -238,7 +238,7 @@ export default function LoginScreen() {
 
           {/* Sign in button */}
           <TouchableOpacity
-            className={`bg-[#F9EF08] rounded-2xl py-3.5 items-center mb-4 ${isSigningIn ? 'opacity-60' : ''}`}
+            className={`bg-[#F9EF08] rounded-lg py-4 items-center mb-4 min-h-[52px] justify-center ${isSigningIn ? 'opacity-60' : ''}`}
             onPress={handleSignIn}
             disabled={isSigningIn}
             activeOpacity={0.85}
@@ -259,7 +259,7 @@ export default function LoginScreen() {
 
           {/* Google */}
           <TouchableOpacity
-            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3.5 px-4 mb-3"
+            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-3 min-h-[52px]"
             onPress={() => googlePromptAsync()}
             activeOpacity={0.85}
           >
@@ -269,7 +269,7 @@ export default function LoginScreen() {
 
           {/* Facebook */}
           <TouchableOpacity
-            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3.5 px-4 mb-8"
+            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-8 min-h-[52px]"
             activeOpacity={0.85}
           >
             <Image source={require('../assets/images/facebooklogo.png')} style={{ width: 18, height: 18, marginRight: 10 }} resizeMode="contain" />

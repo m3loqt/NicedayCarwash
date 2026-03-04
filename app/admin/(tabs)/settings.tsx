@@ -1,13 +1,14 @@
-import { AdminAccountInfo, TransactionSummaryCard } from '@/components/ui/admin/profile';
+import { AccountSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
+import SignOutModal from '@/components/ui/SignOutModal';
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { get, onValue, ref } from 'firebase/database';
+import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type AdminData = {
   firstName: string;
@@ -17,17 +18,19 @@ type AdminData = {
 };
 
 export default function AdminSettingsScreen() {
-  const insets = useSafeAreaInsets();
   const { alert, AlertComponent } = useAlert();
   const [admin, setAdmin] = useState<AdminData | null>(null);
-  const [totalTransactions, setTotalTransactions] = useState<number>(0);
-  const [branchId, setBranchId] = useState<string | null>(null);
+  const [signOutModalVisible, setSignOutModalVisible] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAdminData = async () => {
       const uid = auth.currentUser?.uid;
-      if (!uid) return;
-
+      if (!uid) {
+        setLoading(false);
+        return;
+      }
       try {
         const snapshot = await get(ref(db, `users/${uid}`));
         if (snapshot.exists()) {
@@ -38,106 +41,138 @@ export default function AdminSettingsScreen() {
             email: data.email || '',
             profileImage: data.profileImage,
           });
-          const adminBranchId = data.branchId || data.branch;
-          if (adminBranchId) {
-            setBranchId(adminBranchId);
-          }
         }
       } catch (error) {
         console.error('Error fetching admin data:', error);
+      } finally {
+        setLoading(false);
       }
     };
-
     fetchAdminData();
   }, []);
 
-  useEffect(() => {
-    if (!branchId) return;
-
-    const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
-
-    const unsubscribe = onValue(bookingsRef, (snapshot) => {
-      let total = 0;
-      snapshot.forEach((dateSnap) => {
-        dateSnap.forEach(() => {
-          total++;
-        });
-      });
-      setTotalTransactions(total);
-    });
-
-    return () => unsubscribe();
-  }, [branchId]);
-
-  const handleEditAccount = () => {
-    router.push('/admin/edit-profile');
+  const handleNotifications = () => {
+    alert('Notifications', 'Notification settings will be available in a future update.');
   };
 
-  const handleSignOut = async () => {
+  const handleSignOutPress = () => {
+    setSignOutModalVisible(true);
+  };
+
+  const handleSignOutConfirm = async () => {
+    setSigningOut(true);
     try {
-      alert('Logout', 'Are you sure you want to sign out?', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            // Preserving onboarding status before clearing storage
-            const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-            await auth.signOut();
-            await AsyncStorage.clear();
-            // Restoring onboarding status after clearing
-            if (hasSeenOnboarding === 'true') {
-              await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-            }
-            router.replace('/');
-          },
-        },
-      ]);
+      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+      await auth.signOut();
+      await AsyncStorage.clear();
+      if (hasSeenOnboarding === 'true') {
+        await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+      }
+      router.replace('/');
     } catch (error) {
       console.error('Error signing out:', error);
+    } finally {
+      setSigningOut(false);
+      setSignOutModalVisible(false);
     }
   };
 
-  return (
-    <View className="flex-1" style={{ backgroundColor: '#F5F5F5' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F5F5F5' }} edges={['top']}>
+  if (loading) {
+    return (
+      <View className="flex-1 bg-white">
         <StatusBar barStyle="dark-content" backgroundColor="white" />
+        <SafeAreaView className="flex-1" edges={['top']}>
+          <View className="px-5 pt-4 pb-4">
+            <Text className="text-3xl font-bold text-[#1A1A1A]">Account</Text>
+          </View>
+          <AccountSkeleton />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
+  return (
+    <View className="flex-1 bg-white">
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <SafeAreaView className="flex-1" edges={['top']}>
         {/* Header */}
-        <View className="flex flex-row items-center p-4 bg-white border-b border-gray-200" style={{ marginTop: -insets.top, paddingTop: insets.top + 16 }}>
-          <View className="w-8" />
-          <Text className="flex-1 text-center text-2xl font-semibold text-[#1E1E1E]">Account</Text>
-          <View className="w-8" />
+        <View className="px-5 pt-4 pb-4">
+          <Text className="text-3xl font-bold text-[#1A1A1A]">Account</Text>
         </View>
 
-        {/* Transaction Summary Card */}
-        <TransactionSummaryCard totalTransactions={totalTransactions} />
+        {/* Profile section */}
+        <View className="items-center pt-2 pb-6">
+          <View className="mb-3" style={{ width: 80, height: 80 }}>
+            <View className="w-20 h-20 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">
+              {admin?.profileImage ? (
+                <Image
+                  source={{ uri: admin.profileImage }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-full h-full items-center justify-center">
+                  <Ionicons name="person" size={36} color="#BDBDBD" />
+                </View>
+              )}
+            </View>
+          </View>
+          <Text className="text-xl font-bold text-[#1A1A1A]">
+            {admin ? `${admin.firstName} ${admin.lastName}` : '...'}
+          </Text>
+          <Text className="text-[13px] text-[#999] mt-0.5">
+            {admin?.email || ''}
+          </Text>
+        </View>
 
-        {/* Admin Account Info */}
-        {admin && (
-          <AdminAccountInfo
-            firstName={admin.firstName}
-            lastName={admin.lastName}
-            email={admin.email}
-            profileImage={admin.profileImage}
-            onEditAccount={handleEditAccount}
-          />
-        )}
-
-        {/* Sign Out Section */}
-        <View className="mx-6 mt-4">
+        {/* Menu items */}
+        <View className="mx-5 mt-2">
           <TouchableOpacity
-            className="bg-white rounded-lg p-4 flex flex-row items-center shadow-md"
-            onPress={handleSignOut}
+            className="bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between mb-1.5"
+            onPress={() => router.push('/admin/edit-profile')}
+            activeOpacity={0.7}
           >
-            <Ionicons name="log-out" size={24} color="#1E1E1E" style={{ marginRight: 12 }} />
-            <Text className="text-lg text-[#1E1E1E]">Sign Out</Text>
+            <View className="flex-row items-center">
+              <Ionicons name="person-outline" size={18} color="#999" />
+              <Text className="text-[15px] text-[#1A1A1A] ml-3">Edit profile</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between mb-1.5"
+            onPress={handleNotifications}
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center">
+              <Ionicons name="notifications-outline" size={18} color="#999" />
+              <Text className="text-[15px] text-[#1A1A1A] ml-3">Notifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+          </TouchableOpacity>
+
+          {/* Sign out */}
+          <TouchableOpacity
+            className="bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between mt-1.5"
+            onPress={handleSignOutPress}
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center">
+              <Ionicons name="log-out-outline" size={18} color="#999" />
+              <Text className="text-[15px] text-[#1A1A1A] ml-3">Sign out</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
           </TouchableOpacity>
         </View>
+
         {AlertComponent}
+
+        <SignOutModal
+          visible={signOutModalVisible}
+          onClose={() => setSignOutModalVisible(false)}
+          onConfirm={handleSignOutConfirm}
+          loading={signingOut}
+        />
       </SafeAreaView>
     </View>
   );

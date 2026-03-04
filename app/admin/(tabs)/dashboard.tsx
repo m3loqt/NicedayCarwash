@@ -1,15 +1,19 @@
 import {
     AdminDashboardHeader,
     ManageServicesCard,
+    NextUpCard,
     NotificationsList,
     TransactionSummaryCards,
 } from '@/components/ui/admin/dashboard';
+import type { NextUpItem } from '@/components/ui/admin/dashboard/NextUpCard';
+import { DashboardSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
+import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
 import { router } from 'expo-router';
 import { get, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StatusBar, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Booking {
   appointmentId: string;
@@ -20,6 +24,7 @@ interface Booking {
   timeSlot: {
     appointmentDate: string;
     time: string;
+    estCompletion?: string | number;
   };
   vehicleDetails: {
     vehicleName: string;
@@ -27,6 +32,10 @@ interface Booking {
     classification: string;
   };
   amountDue: number;
+  services?: Array<{ name?: string; price?: number | string }>;
+  addOns?: Array<{ name?: string; price?: number | string }>;
+  paymentMethod?: string;
+  note?: string;
 }
 
 interface TransactionCounts {
@@ -68,6 +77,7 @@ const parseAppointmentDateTime = (appointmentDate: string, time: string): Date =
 };
 
 export default function AdminDashboardScreen() {
+  const insets = useSafeAreaInsets();
   const [transactionCounts, setTransactionCounts] = useState<TransactionCounts>({
     pending: 0,
     ongoing: 0,
@@ -77,6 +87,9 @@ export default function AdminDashboardScreen() {
   const [pendingReservations, setPendingReservations] = useState<Booking[]>([]);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nextUpList, setNextUpList] = useState<NextUpItem[]>([]);
+  const [selectedNotificationBooking, setSelectedNotificationBooking] = useState<Booking | null>(null);
+  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchAdminBranch = async () => {
@@ -140,6 +153,10 @@ export default function AdminDashboardScreen() {
                 classification: '',
               },
               amountDue: data.amountDue || 0,
+              services: data.services,
+              addOns: data.addOns,
+              paymentMethod: data.paymentMethod,
+              note: data.note,
             };
 
             bookings.push(booking);
@@ -168,6 +185,26 @@ export default function AdminDashboardScreen() {
         })
         .slice(0, 10);
 
+      const now = new Date();
+      const nextUp = bookings
+        .filter((b) => {
+          const dt = parseAppointmentDateTime(b.timeSlot?.appointmentDate || '', b.timeSlot?.time || '');
+          return dt.getTime() >= now.getTime();
+        })
+        .sort((a, b) => {
+          const dateA = parseAppointmentDateTime(a.timeSlot.appointmentDate, a.timeSlot.time);
+          const dateB = parseAppointmentDateTime(b.timeSlot.appointmentDate, b.timeSlot.time);
+          return dateA.getTime() - dateB.getTime();
+        })
+        .slice(0, 3)
+        .map((b): NextUpItem => ({
+          appointmentId: b.appointmentId,
+          timeLabel: b.timeSlot?.time || '—',
+          vehicleLabel: b.vehicleDetails?.vehicleName || b.vehicleDetails?.classification || 'Vehicle',
+          amountFormatted: `P${(b.amountDue ?? 0).toFixed(2)}`,
+        }));
+
+      setNextUpList(nextUp);
       setPendingReservations(pending);
       setTransactionCounts(counts);
       setLoading(false);
@@ -247,42 +284,114 @@ export default function AdminDashboardScreen() {
     router.push('/admin/services');
   };
 
+  const handleTransactionCardPress = (tab: 'pending' | 'ongoing' | 'completed' | 'cancelled') => {
+    router.push(`/admin/bookings?tab=${tab}`);
+  };
+
+  const handleNotificationEntryPress = (reservation: Booking) => {
+    setSelectedNotificationBooking(reservation);
+    setDetailsModalVisible(true);
+  };
+
+  const handleCloseDetailsModal = () => {
+    setDetailsModalVisible(false);
+    setSelectedNotificationBooking(null);
+  };
+
+  const handleDetailsModalAction = () => {
+    handleCloseDetailsModal();
+    router.push('/admin/bookings?tab=pending');
+  };
+
   if (loading) {
     return (
-      <View className="flex-1" style={{ backgroundColor: 'white' }}>
-        <SafeAreaView className="flex-1" style={{ backgroundColor: 'white' }} edges={['top']}>
-          <View className="flex-1 justify-center items-center">
-            <Text className="text-gray-600" style={{ fontFamily: 'Inter_400Regular' }}>
-              Loading...
-            </Text>
-          </View>
+      <View className="flex-1 bg-white">
+        <StatusBar barStyle="dark-content" backgroundColor="#F9EF08" />
+        <View style={{ height: insets.top, backgroundColor: '#F9EF08' }} />
+        <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 80, flexGrow: 1 }}
+          >
+            <AdminDashboardHeader />
+            <DashboardSkeleton />
+          </ScrollView>
         </SafeAreaView>
       </View>
     );
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#F8F8F8' }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F8F8F8' }} edges={['top']}>
+    <View className="flex-1 bg-white">
+      <StatusBar barStyle="dark-content" backgroundColor="#F9EF08" />
+      <View style={{ height: insets.top, backgroundColor: '#F9EF08' }} />
+      <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
         <ScrollView
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          style={{ backgroundColor: '#F8F8F8', flex: 1 }}
-          contentContainerStyle={{
-            backgroundColor: '#F8F8F8',
-            paddingBottom: 80,
-            flexGrow: 1,
-          }}
-        >
-          <AdminDashboardHeader />
-          <TransactionSummaryCards counts={transactionCounts} />
-          <ManageServicesCard onPress={handleManageServicesPress} />
-          <NotificationsList
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            style={{ backgroundColor: '#FFFFFF', flex: 1 }}
+            contentContainerStyle={{
+              backgroundColor: '#FFFFFF',
+              paddingBottom: 80,
+              flexGrow: 1,
+            }}
+          >
+            <AdminDashboardHeader />
+            <TransactionSummaryCards counts={transactionCounts} onCardPress={handleTransactionCardPress} />
+            <ManageServicesCard onPress={handleManageServicesPress} />
+            <NextUpCard items={nextUpList} />
+            <NotificationsList
             reservations={pendingReservations}
             formatDate={formatDate}
             formatPrice={formatPrice}
+            onEntryPress={handleNotificationEntryPress}
           />
         </ScrollView>
+
+        {selectedNotificationBooking && (
+          <AppointmentDetailsModal
+            visible={detailsModalVisible}
+            branchName={selectedNotificationBooking.branchName}
+            branchAddress={selectedNotificationBooking.branchAddress}
+            branchImage={require('../../../assets/images/branch1.jpg')}
+            vehicleName={selectedNotificationBooking.vehicleDetails.vehicleName}
+            plateNumber={selectedNotificationBooking.vehicleDetails.plateNumber}
+            classification={selectedNotificationBooking.vehicleDetails.classification}
+            date={selectedNotificationBooking.timeSlot.appointmentDate}
+            time={selectedNotificationBooking.timeSlot.time}
+            orderSummary={[
+              ...(selectedNotificationBooking.services?.map((s) => ({
+                label: (s?.name ?? 'Service') as string,
+                price: `₱${s?.price ?? '0'}`,
+              })) ?? []),
+              ...(selectedNotificationBooking.addOns?.map((a) => ({
+                label: (a?.name ?? 'Add-on') as string,
+                price: `₱${a?.price ?? '0'}`,
+              })) ?? []),
+              { label: 'Booking Fee', price: '₱25' },
+            ]}
+            amountDue={`₱${selectedNotificationBooking.amountDue.toFixed(2)}`}
+            paymentMethod={selectedNotificationBooking.paymentMethod || 'Not selected'}
+            estimatedCompletion={
+              selectedNotificationBooking.timeSlot.estCompletion != null
+                ? typeof selectedNotificationBooking.timeSlot.estCompletion === 'number'
+                  ? `${selectedNotificationBooking.timeSlot.estCompletion} Hours`
+                  : String(selectedNotificationBooking.timeSlot.estCompletion)
+                : undefined
+            }
+            note={selectedNotificationBooking.note}
+            status={selectedNotificationBooking.status}
+            isPaid={selectedNotificationBooking.isPaid}
+            appointmentId={selectedNotificationBooking.appointmentId}
+            isAdminView
+            onClose={handleCloseDetailsModal}
+            onAccept={handleDetailsModalAction}
+            onCancel={handleDetailsModalAction}
+            onComplete={handleDetailsModalAction}
+          />
+        )}
       </SafeAreaView>
     </View>
   );

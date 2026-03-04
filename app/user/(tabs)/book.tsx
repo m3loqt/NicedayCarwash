@@ -31,6 +31,7 @@ export default function UserBookScreen() {
   };
 
   return (
+    <View style={styles.container}>
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={{ flex: 1 }}>
@@ -43,6 +44,7 @@ export default function UserBookScreen() {
         {/* TODO: Add other steps here */}
       </View>
     </SafeAreaView>
+    </View>
   );
 }
 

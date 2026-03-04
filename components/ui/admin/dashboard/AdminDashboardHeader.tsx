@@ -36,12 +36,12 @@ export default function AdminDashboardHeader() {
   }, []);
 
   return (
-    <View className="bg-white px-6 pb-4 mb-4 flex-row justify-between items-start" style={{ marginTop: -insets.top, paddingTop: insets.top + 24 }}>
+    <View className="bg-[#F9EF08] px-6 pb-4 mb-4 flex-row justify-between items-start" style={{ marginTop: -insets.top, paddingTop: insets.top + 12 }}>
       <View>
-        <Text className="text-gray-900 text-2xl font-semibold" style={{ fontFamily: 'Inter_700Bold' }}>
-          Hello Branch
+        <Text className="text-[#1A1A1A] text-2xl font-semibold" style={{ fontFamily: 'Inter_700Bold' }}>
+          Admin Panel
         </Text>
-        <Text className="text-gray-900 text-lg font-semibold mt-1" style={{ fontFamily: 'Inter_600SemiBold' }}>
+        <Text className="text-[#1A1A1A] text-lg font-semibold mt-1" style={{ fontFamily: 'Inter_600SemiBold' }}>
           {branchName}
         </Text>
       </View>

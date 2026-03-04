@@ -17,10 +17,10 @@ export default function AdminAccountInfo({
   onEditAccount,
 }: AdminAccountInfoProps) {
   return (
-    <View className="bg-white rounded-lg shadow-md mx-6 mt-4 p-4">
-      <View className="flex flex-row items-center">
+    <View className="mx-5 mt-4 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4">
+      <View className="flex-row items-center">
         {/* Profile Image or Placeholder */}
-        <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden mr-4">
+        <View className="w-16 h-16 rounded-full bg-[#FAFAFA] border border-[#EEEEEE] overflow-hidden mr-4">
           {profileImage ? (
             <Image
               source={{ uri: profileImage }}
@@ -28,23 +28,23 @@ export default function AdminAccountInfo({
               resizeMode="cover"
             />
           ) : (
-            <View className="w-full h-full flex items-center justify-center bg-gray-200">
-              <Ionicons name="person" size={36} color="#9CA3AF" />
+            <View className="w-full h-full items-center justify-center">
+              <Ionicons name="person-outline" size={32} color="#BDBDBD" />
             </View>
           )}
         </View>
-        <View className="flex flex-col">
-          <Text className="text-2xl font-semibold text-[#1E1E1E]">
+        <View className="flex-1">
+          <Text className="text-[16px] font-bold text-[#1A1A1A]">
             {firstName} {lastName}
           </Text>
-          <Text className="text-sm text-gray-500">{email}</Text>
+          <Text className="text-[13px] text-[#999] mt-0.5">{email}</Text>
         </View>
       </View>
       <TouchableOpacity
-        className="mt-4 px-6 py-4 border border-[#F9EF08] rounded-md bg-white"
+        className="mt-4 bg-[#F9EF08] rounded-2xl py-3.5 items-center"
         onPress={onEditAccount}
       >
-        <Text className="text-[#F9EF08] text-center font-semibold">Edit Account</Text>
+        <Text className="text-[14px] font-bold text-[#1A1A00]">Edit Account</Text>
       </TouchableOpacity>
     </View>
   );

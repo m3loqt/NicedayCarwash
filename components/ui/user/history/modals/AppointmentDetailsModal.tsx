@@ -22,6 +22,9 @@ interface AppointmentDetailsModalProps {
   appointmentId?: string;
   isAdminView?: boolean;
   onClose: () => void;
+  onAccept?: () => void;
+  onCancel?: () => void;
+  onComplete?: () => void;
 }
 
 const formatDate = (dateString?: string): string => {
@@ -96,6 +99,9 @@ export default function AppointmentDetailsModal({
   appointmentId,
   isAdminView = false,
   onClose,
+  onAccept,
+  onCancel,
+  onComplete,
 }: AppointmentDetailsModalProps) {
   const estHours = estimatedCompletion
     ? parseInt(String(estimatedCompletion).replace(/\D/g, ''), 10) || 0
@@ -138,7 +144,9 @@ export default function AppointmentDetailsModal({
           <ScrollView
             showsVerticalScrollIndicator={false}
             bounces={false}
-            contentContainerStyle={{ paddingBottom: 16 }}
+            contentContainerStyle={{
+              paddingBottom: isAdminView && (status === 'pending' || status === 'accepted' || status === 'ongoing') ? 8 : 16,
+            }}
           >
             {/* Branch */}
             <View className="px-5 py-3 flex-row items-center">
@@ -224,14 +232,68 @@ export default function AppointmentDetailsModal({
               </View>
             </View>
 
-            {/* Disclaimer */}
-            <View className="px-5 pt-4 pb-2">
-              <Text className="text-[13px] font-semibold text-[#1A1A1A] text-center mb-1">Disclaimer</Text>
-              <Text className="text-[11px] text-[#999] italic text-center leading-[16px]">
-                Final duration of the carwash will depend on the car size and state
-              </Text>
-            </View>
+            {/* Disclaimer – user side only */}
+            {!isAdminView && (
+              <View className="px-5 pt-4 pb-2">
+                <Text className="text-[13px] font-semibold text-[#1A1A1A] text-center mb-1">Disclaimer</Text>
+                <Text className="text-[11px] text-[#999] italic text-center leading-[16px]">
+                  Final duration of the carwash will depend on the car size and state
+                </Text>
+              </View>
+            )}
           </ScrollView>
+
+          {/* Admin action buttons – fixed footer so they stay visible */}
+          {isAdminView && (status === 'pending' || status === 'accepted' || status === 'ongoing') && (
+            <>
+              <Divider />
+              <View className="px-5 py-4 flex-row gap-3 bg-white">
+                {status === 'pending' || status === 'accepted' ? (
+                  <>
+                    <TouchableOpacity
+                      className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
+                      onPress={onAccept}
+                      activeOpacity={0.85}
+                    >
+                      <Text className="text-[13px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
+                        Accept
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
+                      onPress={onCancel}
+                      activeOpacity={0.85}
+                    >
+                      <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : status === 'ongoing' ? (
+                  <>
+                    <TouchableOpacity
+                      className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
+                      onPress={onComplete}
+                      activeOpacity={0.85}
+                    >
+                      <Text className="text-[13px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
+                        Complete
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
+                      onPress={onCancel}
+                      activeOpacity={0.85}
+                    >
+                      <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </View>
+            </>
+          )}
         </View>
       </View>
     </Modal>

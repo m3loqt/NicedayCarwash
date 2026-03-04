@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
 import { SelectBayModal, type Bay } from '@/components/ui/admin/dashboard';
 import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
@@ -1349,8 +1350,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center py-20">
-        <Text className="text-lg text-gray-500">Loading appointments...</Text>
+      <View className="flex-1">
+        <ListSkeleton rowCount={6} />
       </View>
     );
   }
@@ -1387,10 +1388,10 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         ) : (
           <View className="flex-1 justify-center items-center py-20">
             <Text className="text-lg text-gray-500 text-center">
-              No {activeTab} appointments found
+              No {activeTab} bookings found
             </Text>
             <Text className="text-sm text-gray-400 text-center mt-2">
-              {searchQuery ? 'Try a different search term' : `Your ${activeTab} appointments will appear here`}
+              {searchQuery ? 'Try a different search term' : `Your ${activeTab} bookings will appear here`}
             </Text>
           </View>
         )}
@@ -1462,6 +1463,18 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           appointmentId={selectedBooking.appointmentId}
           isAdminView={true}
           onClose={handleCloseDetailsModal}
+          onAccept={() => {
+            handleCloseDetailsModal();
+            handleAccept(selectedBooking);
+          }}
+          onCancel={() => {
+            handleCloseDetailsModal();
+            handleCancel(selectedBooking);
+          }}
+          onComplete={() => {
+            handleCloseDetailsModal();
+            handleComplete(selectedBooking);
+          }}
         />
       )}
 

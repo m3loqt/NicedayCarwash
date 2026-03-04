@@ -111,7 +111,7 @@ export default function AvailabilityModal({
 
         {/* Modal content container */}
         <View 
-          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-100"
+          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -141,7 +141,7 @@ export default function AvailabilityModal({
 
             <TouchableOpacity
               onPress={() => setDropdownOpen(!dropdownOpen)}
-              className="border border-gray-100 rounded-lg px-4 py-3 flex-row justify-between items-center bg-white"
+              className="rounded-lg px-4 py-3 flex-row justify-between items-center bg-white"
             >
               <Text className="text-gray-800">{selectedText}</Text>
               <Ionicons
@@ -153,7 +153,7 @@ export default function AvailabilityModal({
 
             {/* Dropdown items list */}
             {dropdownOpen && (
-              <View className="mt-2 border border-gray-100 rounded-lg bg-white">
+              <View className="mt-2 rounded-lg bg-white">
                 {["Available", "Unavailable"].map((option) => (
                   <TouchableOpacity
                     key={option}

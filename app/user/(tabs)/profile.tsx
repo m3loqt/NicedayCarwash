@@ -1,11 +1,12 @@
-import { useAlert } from '@/hooks/use-alert';
+import { AccountSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import SignOutModal from '@/components/ui/SignOutModal';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Alert, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../../../firebase/firebase';
 
 type UserData = {
@@ -24,15 +25,18 @@ const menuItems = [
 ];
 
 export default function UserProfileScreen() {
-  const insets = useSafeAreaInsets();
-  const { alert, AlertComponent } = useAlert();
   const [user, setUser] = useState<UserData | null>(null);
+  const [signOutModalVisible, setSignOutModalVisible] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
       const uid = auth.currentUser?.uid;
-      if (!uid) return;
-
+      if (!uid) {
+        setLoading(false);
+        return;
+      }
       try {
         const snapshot = await get(ref(db, `users/${uid}`));
         if (snapshot.exists()) {
@@ -47,6 +51,8 @@ export default function UserProfileScreen() {
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -57,20 +63,37 @@ export default function UserProfileScreen() {
     if (route) router.push(route as any);
   };
 
-  const handleSignOut = async () => {
-    Alert.alert('Logout', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await auth.signOut();
-          await AsyncStorage.clear();
-          router.replace('/');
-        },
-      },
-    ]);
+  const handleSignOutPress = () => {
+    setSignOutModalVisible(true);
   };
+
+  const handleSignOutConfirm = async () => {
+    setSigningOut(true);
+    try {
+      await auth.signOut();
+      await AsyncStorage.clear();
+      router.replace('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setSigningOut(false);
+      setSignOutModalVisible(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 bg-white">
+        <StatusBar barStyle="dark-content" backgroundColor="white" />
+        <SafeAreaView className="flex-1" edges={['top']}>
+          <View className="px-5 pt-4 pb-4">
+            <Text className="text-3xl font-bold text-[#1A1A1A]">Account</Text>
+          </View>
+          <AccountSkeleton />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-white">
@@ -139,7 +162,7 @@ export default function UserProfileScreen() {
           {/* Logout */}
           <TouchableOpacity
             className="bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between mt-1.5"
-            onPress={handleSignOut}
+            onPress={handleSignOutPress}
             activeOpacity={0.7}
           >
             <View className="flex-row items-center">
@@ -149,6 +172,13 @@ export default function UserProfileScreen() {
             <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
           </TouchableOpacity>
         </View>
+
+        <SignOutModal
+          visible={signOutModalVisible}
+          onClose={() => setSignOutModalVisible(false)}
+          onConfirm={handleSignOutConfirm}
+          loading={signingOut}
+        />
       </SafeAreaView>
     </View>
   );

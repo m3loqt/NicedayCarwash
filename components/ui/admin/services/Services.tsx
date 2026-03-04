@@ -1,8 +1,8 @@
 import { auth, db } from "@/firebase/firebase";
-import { get, onValue, ref } from "firebase/database";
+import { get, onValue, ref, set } from "firebase/database";
 import { useEffect, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import AvailabilityModal from "./AvailabilityModal";
+import { Switch, Text, View } from "react-native";
+import AvailabilityConfirmModal from "./AvailabilityConfirmModal";
 
 interface Service {
   id: string;
@@ -14,11 +14,11 @@ interface Service {
 }
 
 export default function Services() {
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ item: Service; newValue: boolean } | null>(null);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -29,7 +29,6 @@ export default function Services() {
 
     let unsubscribeServices: (() => void) | null = null;
 
-    // Getting branchId first
     const getUserBranchId = async () => {
       try {
         const userSnapshot = await get(ref(db, `users/${uid}`));
@@ -47,12 +46,9 @@ export default function Services() {
 
         setBranchId(fetchedBranchId);
 
-        // Setting up real-time listener for services
         const servicesRef = ref(db, `Branches/${fetchedBranchId}/Services`);
-        
         unsubscribeServices = onValue(servicesRef, (snapshot) => {
           setLoading(false);
-          
           if (snapshot.exists()) {
             const data: Service[] = [];
             snapshot.forEach((child) => {
@@ -81,99 +77,83 @@ export default function Services() {
     };
 
     getUserBranchId();
-
-    // Unsubscribing when component unmounts
     return () => {
-      if (unsubscribeServices) {
-        unsubscribeServices();
-      }
+      if (unsubscribeServices) unsubscribeServices();
     };
   }, []);
 
-  const handleEditAvailability = (itemId: string) => {
-    setSelectedServiceId(itemId);
-    setModalVisible(true);
+  const handleToggleRequest = (item: Service, newValue: boolean) => {
+    setConfirmModal({ item, newValue });
+  };
+
+  const handleConfirmToggle = async () => {
+    if (!branchId || !confirmModal) return;
+    const { item, newValue } = confirmModal;
+    setUpdatingId(item.id);
+    try {
+      const path = `Branches/${branchId}/Services/${item.id}/isAvailable`;
+      await set(ref(db, path), newValue);
+      setConfirmModal(null);
+    } catch (error) {
+      console.error("Error updating service availability:", error);
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   if (loading) {
     return (
       <View className="py-4">
-        <Text className="text-center text-gray-400">Loading services...</Text>
+        <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: "Inter_400Regular" }}>
+          Loading services...
+        </Text>
       </View>
     );
   }
 
   if (services.length === 0) {
     return (
-      <View className="py-4">
-        <Text className="text-center text-gray-400">No services available</Text>
+      <View className="rounded-lg bg-[#FAFAFA] px-4 py-4">
+        <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: "Inter_400Regular" }}>
+          No services yet
+        </Text>
       </View>
     );
   }
 
   return (
-    <>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: 16 }}
-      >
-        {services.map((item, index) => (
-          <TouchableOpacity
-            key={item.id}
-            onPress={() => handleEditAvailability(item.id)}
-            style={{ 
-              width: 220, 
-              height: 140,
-              marginLeft: index === 0 ? 0 : 8,
-              opacity: item.isAvailable === false ? 0.5 : 1,
-            }}
-            className="rounded-2xl bg-white border-2 border-transparent flex-col p-1"
-          >
-            <View className="flex-1 justify-center px-5">
-              <Text className="text-2xl font-semibold text-gray-400 text-center">
-                {item.name}
-              </Text>
-            </View>
-
-            <View className="bg-yellow-300 px-4 py-2 rounded-b-2xl">
-              <View className="flex-row justify-between mb-1.5">
-                <Text className="text-white font-medium text-lg">Sedan</Text>
-                <Text className="text-white font-medium text-lg">
-                  ₱{item.sedan}.00
-                </Text>
-              </View>
-              <View className="flex-row justify-between mb-1">
-                <Text className="text-white font-medium text-lg">SUV</Text>
-                <Text className="text-white font-medium text-lg">₱{item.suv}.00</Text>
-              </View>
-              <View className="flex-row justify-between">
-                <Text className="text-white font-medium text-lg">Pick Up</Text>
-                <Text className="text-white font-medium text-lg">
-                  ₱{item.pickup}.00
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* AVAILABILITY MODAL */}
-      <AvailabilityModal
-        visible={modalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          setSelectedServiceId(null);
-        }}
-        branchId={branchId}
-        itemId={selectedServiceId}
-        itemName={selectedServiceId ? services.find(s => s.id === selectedServiceId)?.name || null : null}
+    <View className="rounded-lg bg-[#FAFAFA] overflow-hidden">
+      {services.map((item, index) => (
+        <View
+          key={item.id}
+          className="flex-row items-center justify-between px-4 py-3"
+        >
+          <View className="flex-1 mr-3">
+            <Text className="text-[#1E1E1E] text-base font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
+              {item.name}
+            </Text>
+            <Text className="text-gray-500 text-xs mt-0.5" style={{ fontFamily: "Inter_400Regular" }}>
+              Sedan ₱{item.sedan} · SUV ₱{item.suv} · Pick up ₱{item.pickup}
+            </Text>
+          </View>
+          <Switch
+            value={item.isAvailable !== false}
+            onValueChange={(value) => handleToggleRequest(item, value)}
+            disabled={updatingId === item.id}
+            trackColor={{ false: "#E5E7EB", true: "#F9EF08" }}
+            thumbColor="#fff"
+          />
+        </View>
+      ))}
+      <AvailabilityConfirmModal
+        visible={!!confirmModal}
         type="service"
-        onFinish={() => {
-          setModalVisible(false);
-          setSelectedServiceId(null);
-        }}
+        itemName={confirmModal?.item.name ?? ""}
+        enable={confirmModal?.newValue ?? false}
+        onClose={() => setConfirmModal(null)}
+        onConfirm={handleConfirmToggle}
+        loading={updatingId === confirmModal?.item.id}
       />
-    </>
+    </View>
   );
 }

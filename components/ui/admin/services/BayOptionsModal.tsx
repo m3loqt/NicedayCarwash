@@ -1,23 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
 
-interface SetAvailabilityModalProps {
+interface BayOptionsModalProps {
   visible: boolean;
-  onClose: () => void;
-  onSave: (status: string) => void;
-  currentStatus: string;
   bayName: string;
+  currentStatus: string;
+  onClose: () => void;
+  onSaveAvailability: (status: string) => void;
+  onDelete: () => void;
 }
 
-export default function SetAvailabilityModal({
+export default function BayOptionsModal({
   visible,
-  onClose,
-  onSave,
-  currentStatus,
   bayName,
-}: SetAvailabilityModalProps) {
+  currentStatus,
+  onClose,
+  onSaveAvailability,
+  onDelete,
+}: BayOptionsModalProps) {
   const isAvailable = currentStatus === "available";
-  const targetUnavailable = isAvailable; // offer to set as unavailable if currently available
+  const targetUnavailable = isAvailable;
   const title = targetUnavailable ? "Set as unavailable?" : "Set as available?";
   const message = targetUnavailable
     ? `${bayName} will be hidden from the schedule.`
@@ -25,7 +27,7 @@ export default function SetAvailabilityModal({
   const confirmText = targetUnavailable ? "Set unavailable" : "Set available";
 
   const handleConfirm = () => {
-    onSave(targetUnavailable ? "unavailable" : "available");
+    onSaveAvailability(targetUnavailable ? "unavailable" : "available");
   };
 
   return (
@@ -55,10 +57,10 @@ export default function SetAvailabilityModal({
           <View className="flex-row gap-3">
             <TouchableOpacity
               className="flex-1 bg-[#FAFAFA] rounded-lg py-3 items-center"
-              onPress={onClose}
+              onPress={onDelete}
             >
-              <Text className="text-[#1E1E1E] font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
-                Cancel
+              <Text className="text-red-600 font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
+                Delete bay
               </Text>
             </TouchableOpacity>
             <TouchableOpacity

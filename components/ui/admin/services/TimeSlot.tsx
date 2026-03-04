@@ -183,15 +183,27 @@ export default function TimeSlots() {
   if (loading) {
     return (
       <View className="py-4">
-        <Text className="text-center text-gray-400">Loading timeslots...</Text>
+        <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: 'Inter_400Regular' }}>Loading time slots...</Text>
       </View>
     );
   }
 
+  // Parses "8:00 AM" -> { period: "AM", numbers: "8:00" }
+  const parseTimeDisplay = (timeStr: string): { period: string; numbers: string } => {
+    const match = timeStr.match(/^(\d{1,2}:\d{2})\s*(AM|PM|am|pm)?$/i);
+    if (match) {
+      return {
+        numbers: match[1] ?? timeStr,
+        period: (match[2] ?? "").toUpperCase(),
+      };
+    }
+    return { numbers: timeStr, period: "" };
+  };
+
   if (timeSlots.length === 0) {
     return (
-      <View className="py-4">
-        <Text className="text-center text-gray-400">No timeslots available</Text>
+      <View className="py-4 rounded-lg bg-[#FAFAFA] px-4 py-4">
+        <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: 'Inter_400Regular' }}>No time slots available</Text>
       </View>
     );
   }
@@ -201,44 +213,42 @@ export default function TimeSlots() {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingRight: 16 }}
+      contentContainerStyle={{ paddingLeft: 20, paddingRight: 24 }}
     >
-      {timeSlots.map((item, index) => (
-        <View
-          key={item.id}
-          style={{
-            width: 95,
-            height: 65,
-            marginLeft: index === 0 ? 0 : 8,
-            opacity: item.status === "unavailable" ? 0.5 : 1,
-          }}
-          className="rounded-2xl bg-white border-2 border-transparent flex-col overflow-hidden"
-        >
-          {/* Time - Centered at top */}
-          <View className="flex-1 justify-center px-4">
-            <Text 
-              className="text-center text-gray-400 font-bold text-base"
-              style={{ fontFamily: 'Inter_400Regular' }}
-            >
-              {item.time}
-            </Text>
-          </View>
-
-          {/* Set Button */}
+      {timeSlots.map((item, index) => {
+        const { period, numbers } = parseTimeDisplay(item.time);
+        return (
           <TouchableOpacity
-            className="bg-yellow-300 py-2 rounded-b-2xl"
+            key={item.id}
             activeOpacity={0.8}
             onPress={() => handleSetAvailability(item)}
+            style={{
+              width: 56,
+              height: 68,
+              marginLeft: index === 0 ? 0 : 8,
+              opacity: item.status === "unavailable" ? 0.5 : 1,
+            }}
+            className="rounded-lg bg-[#FAFAFA] flex-col overflow-hidden"
           >
-            <Text 
-              className="text-center text-white text-sm"
-              style={{ fontFamily: 'Inter_500Medium' }}
-            >
-              Set
-            </Text>
+            <View className="flex-1 justify-center items-center pt-1.5 pb-1.5">
+              {period ? (
+                <Text
+                  className="text-[#1E1E1E] font-bold text-base uppercase"
+                  style={{ fontFamily: 'Inter_700Bold' }}
+                >
+                  {period}
+                </Text>
+              ) : null}
+              <Text
+                className="text-[#1E1E1E] font-bold text-sm mt-0.5"
+                style={{ fontFamily: 'Inter_700Bold' }}
+              >
+                {numbers}
+              </Text>
+            </View>
           </TouchableOpacity>
-        </View>
-      ))}
+        );
+      })}
     </ScrollView>
     {AlertComponent}
     <SetAvailabilityModal

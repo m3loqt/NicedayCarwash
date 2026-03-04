@@ -3,7 +3,7 @@ import { useAlert } from "@/hooks/use-alert";
 import { get, onValue, ref, remove, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import SetAvailabilityModal from "./SetAvailabilityModal";
+import BayOptionsModal from "./BayOptionsModal";
 
 interface Bay {
   id: string | number;
@@ -18,7 +18,7 @@ export default function Bays() {
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [baysDataType, setBaysDataType] = useState<'array' | 'object'>('array');
-  const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
+  const [bayModalVisible, setBayModalVisible] = useState(false);
   const [selectedBay, setSelectedBay] = useState<Bay | null>(null);
 
   // Parsing bays data from database
@@ -148,9 +148,9 @@ export default function Bays() {
     };
   }, []);
 
-  const handleSetAvailability = (bay: Bay) => {
+  const handleOpenBayOptions = (bay: Bay) => {
     setSelectedBay(bay);
-    setAvailabilityModalVisible(true);
+    setBayModalVisible(true);
   };
 
   const handleSaveAvailability = async (newStatus: string) => {
@@ -183,8 +183,7 @@ export default function Bays() {
         }
       }
 
-      // Real-time listener will update automatically
-      setAvailabilityModalVisible(false);
+      setBayModalVisible(false);
       setSelectedBay(null);
       alert("Success", `${selectedBay.name} availability has been updated.`);
     } catch (error) {
@@ -193,15 +192,16 @@ export default function Bays() {
     }
   };
 
-  const handleDelete = (bay: Bay) => {
+  const handleDeletePress = () => {
+    if (!selectedBay) return;
+    setBayModalVisible(false);
+    const bay = selectedBay;
+    setSelectedBay(null);
     alert(
       "Confirm Delete",
       `Are you sure you want to delete ${bay.name}?`,
       [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
@@ -212,36 +212,26 @@ export default function Bays() {
                 alert("Error", "User not authenticated.");
                 return;
               }
-
               const baysRef = ref(db, `Branches/${branchId}/Bays`);
-              
-              if (baysDataType === 'array') {
-                // Getting the array, removing the item, and setting it back for array format
+              if (baysDataType === "array") {
                 const baysSnapshot = await get(baysRef);
                 if (baysSnapshot.exists()) {
-                  const baysArray = baysSnapshot.val();
-                  const index = parseInt(bay.originalKey || '0');
-                  // Setting the item at index to null
+                  const index = parseInt(bay.originalKey || "0");
                   const updates: any = {};
                   updates[index] = null;
                   await update(baysRef, updates);
                 }
-              } else {
-                // Removing the key for object format
-                if (bay.originalKey) {
-                  const bayRef = ref(db, `Branches/${branchId}/Bays/${bay.originalKey}`);
-                  await remove(bayRef);
-                }
+              } else if (bay.originalKey) {
+                const bayRef = ref(db, `Branches/${branchId}/Bays/${bay.originalKey}`);
+                await remove(bayRef);
               }
-
-              // Real-time listener will update automatically
               alert("Success", `${bay.name} has been deleted successfully.`);
             } catch (error) {
               console.error("Error deleting bay:", error);
               alert("Error", "Failed to delete bay.");
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -249,15 +239,15 @@ export default function Bays() {
   if (loading) {
     return (
       <View className="py-4">
-        <Text className="text-center text-gray-400">Loading bays...</Text>
+        <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: 'Inter_400Regular' }}>Loading bays...</Text>
       </View>
     );
   }
 
   if (bays.length === 0) {
     return (
-      <View className="py-4">
-        <Text className="text-center text-gray-400">No bays available</Text>
+      <View className="py-4 rounded-lg bg-[#FAFAFA] px-4 py-4">
+        <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: 'Inter_400Regular' }}>No bays available</Text>
       </View>
     );
   }
@@ -267,70 +257,43 @@ export default function Bays() {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingRight: 16 }}
+      contentContainerStyle={{ paddingLeft: 20, paddingRight: 24 }}
     >
       {bays.map((item, index) => (
-        <View
+        <TouchableOpacity
           key={item.id}
+          activeOpacity={0.8}
+          onPress={() => handleOpenBayOptions(item)}
           style={{
-            width: 95,
-            height: 65,
+            width: 64,
+            height: 56,
             marginLeft: index === 0 ? 0 : 8,
             opacity: item.status === "unavailable" ? 0.5 : 1,
           }}
-          className="rounded-2xl bg-white border-2 border-transparent flex-col overflow-hidden"
+          className="rounded-lg bg-[#FAFAFA] flex-col overflow-hidden"
         >
-          {/* Bay Name - Centered at top */}
-          <View className="flex-1 justify-center px-4">
-            <Text 
-              className="text-center text-gray-400 font-bold text-base"
-              style={{ fontFamily: 'Inter_400Regular' }}
+          <View className="flex-1 justify-center px-3">
+            <Text
+              className="text-center text-[#1E1E1E] font-semibold text-sm"
+              style={{ fontFamily: "Inter_600SemiBold" }}
             >
               {item.name}
             </Text>
           </View>
-
-          {/* Set and Delete Buttons - Side by side at bottom */}
-          <View className="flex-row">
-            <TouchableOpacity
-              className="bg-yellow-300 flex-1 py-2 rounded-bl-2xl"
-              style={{ marginRight: 2 }}
-              activeOpacity={0.8}
-              onPress={() => handleSetAvailability(item)}
-            >
-              <Text 
-                className="text-center text-white text-sm"
-                style={{ fontFamily: 'Inter_500Medium' }}
-              >
-                Set
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="bg-yellow-300 flex-1 py-2 rounded-br-2xl"
-              activeOpacity={0.8}
-              onPress={() => handleDelete(item)}
-            >
-              <Text 
-                className="text-center text-white text-sm"
-                style={{ fontFamily: 'Inter_500Medium' }}
-              >
-                Delete
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </TouchableOpacity>
       ))}
     </ScrollView>
     {AlertComponent}
-    <SetAvailabilityModal
-      visible={availabilityModalVisible}
+    <BayOptionsModal
+      visible={bayModalVisible}
+      bayName={selectedBay?.name ?? ""}
+      currentStatus={selectedBay?.status ?? "available"}
       onClose={() => {
-        setAvailabilityModalVisible(false);
+        setBayModalVisible(false);
         setSelectedBay(null);
       }}
-      onSave={handleSaveAvailability}
-      currentStatus={selectedBay?.status || "available"}
-      bayName={selectedBay?.name || ""}
+      onSaveAvailability={handleSaveAvailability}
+      onDelete={handleDeletePress}
     />
   </>
   );

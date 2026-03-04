@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -5,7 +6,6 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref, remove } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   ImageSourcePropType,
   Modal,
@@ -121,8 +121,8 @@ export default function VehiclesList() {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
-        <ActivityIndicator size="small" color="#1A1A1A" />
+      <View className="flex-1 bg-white">
+        <ListSkeleton rowCount={4} />
       </View>
     );
   }

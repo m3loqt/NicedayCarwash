@@ -60,7 +60,7 @@ export default function EditTimeSlotModal({
       >
         <Pressable
           onPress={() => {}}
-          className="w-full bg-white rounded-2xl p-6 border border-gray-200"
+          className="w-full bg-white rounded-2xl p-6"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -81,7 +81,7 @@ export default function EditTimeSlotModal({
           <View className="relative mb-6">
             <TouchableOpacity
               onPress={() => setOpenDropdown(!openDropdown)}
-              className="border border-gray-300 rounded-lg px-4 py-3 flex-row justify-between items-center"
+              className="bg-[#FAFAFA] rounded-lg px-4 py-3 flex-row justify-between items-center"
             >
               <Text className="text-gray-800">{selectedTime}</Text>
               <Ionicons
@@ -92,7 +92,7 @@ export default function EditTimeSlotModal({
             </TouchableOpacity>
 
             {openDropdown && (
-              <View className="absolute left-0 right-0 top-14 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48">
+              <View className="absolute left-0 right-0 top-14 bg-white rounded-lg shadow-lg z-20 max-h-48">
                 <ScrollView>
                   {times.map((t) => (
                     <TouchableOpacity

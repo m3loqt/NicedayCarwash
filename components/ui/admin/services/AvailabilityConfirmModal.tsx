@@ -1,32 +1,31 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
 
-interface SetAvailabilityModalProps {
+interface AvailabilityConfirmModalProps {
   visible: boolean;
+  type: "service" | "addon";
+  itemName: string;
+  enable: boolean; // true = "Enable ...?", false = "Disable ...?"
   onClose: () => void;
-  onSave: (status: string) => void;
-  currentStatus: string;
-  bayName: string;
+  onConfirm: () => void;
+  loading?: boolean;
 }
 
-export default function SetAvailabilityModal({
+export default function AvailabilityConfirmModal({
   visible,
+  type,
+  itemName,
+  enable,
   onClose,
-  onSave,
-  currentStatus,
-  bayName,
-}: SetAvailabilityModalProps) {
-  const isAvailable = currentStatus === "available";
-  const targetUnavailable = isAvailable; // offer to set as unavailable if currently available
-  const title = targetUnavailable ? "Set as unavailable?" : "Set as available?";
-  const message = targetUnavailable
-    ? `${bayName} will be hidden from the schedule.`
-    : `${bayName} will be available for bookings.`;
-  const confirmText = targetUnavailable ? "Set unavailable" : "Set available";
-
-  const handleConfirm = () => {
-    onSave(targetUnavailable ? "unavailable" : "available");
-  };
+  onConfirm,
+  loading = false,
+}: AvailabilityConfirmModalProps) {
+  const label = type === "service" ? "service" : "add-on";
+  const title = enable ? `Enable ${label}?` : `Disable ${label}?`;
+  const message = enable
+    ? `${itemName} will be available for customers.`
+    : `${itemName} will be hidden from customers.`;
+  const confirmText = enable ? "Enable" : "Disable";
 
   return (
     <Modal
@@ -56,6 +55,7 @@ export default function SetAvailabilityModal({
             <TouchableOpacity
               className="flex-1 bg-[#FAFAFA] rounded-lg py-3 items-center"
               onPress={onClose}
+              disabled={loading}
             >
               <Text className="text-[#1E1E1E] font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
                 Cancel
@@ -63,10 +63,11 @@ export default function SetAvailabilityModal({
             </TouchableOpacity>
             <TouchableOpacity
               className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
-              onPress={handleConfirm}
+              onPress={onConfirm}
+              disabled={loading}
             >
               <Text className="text-[#1A1A1A] font-bold" style={{ fontFamily: "Inter_700Bold" }}>
-                {confirmText}
+                {loading ? "..." : confirmText}
               </Text>
             </TouchableOpacity>
           </View>
