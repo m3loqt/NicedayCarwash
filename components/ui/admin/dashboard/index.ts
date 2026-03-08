@@ -1,3 +1,4 @@
+export { default as ActiveBookingBar } from './ActiveBookingBar';
 export { default as AdminDashboardHeader } from './AdminDashboardHeader';
 export { default as BayButton, type BayStatus } from './BayButton';
 export { default as BaySelectionGrid, type Bay } from './BaySelectionGrid';

@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TouchableOpacity, View } from 'react-native';
 
 export type CancelReason = 'Washer Unavailable' | 'Service Unavailable' | 'Power Interruption' | 'Late arrival';
 
@@ -30,76 +29,84 @@ export default function CancelReasonModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <BlurView intensity={80} tint="light" className="flex-1 justify-center items-center">
-        {/* Backdrop: tapping this closes the modal */}
-        <Pressable 
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
-          onPress={onClose} 
-        />
+      <View className="flex-1 bg-black/40 justify-end">
+        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
 
-        {/* Modal Content */}
-        <View 
-          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-100"
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 4,
-          }}
-        >
-          {/* Close Button - Top Right */}
-          <TouchableOpacity
-            className="absolute top-4 right-4 z-10"
-            onPress={onClose}
-          >
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-
-          {/* Title - Centered and Bigger */}
-          <View className="items-center mb-6 mt-2">
-            <Text className="text-3xl font-bold text-[#1E1E1E]">
-              State Reason
-            </Text>
+        <View className="bg-white rounded-t-3xl">
+          {/* Handle */}
+          <View className="items-center pt-3 pb-1">
+            <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
           </View>
 
-          {/* Reason Options */}
-          <View className="mb-6">
-            {REASONS.map((reason, index) => {
+          {/* Header */}
+          <View className="flex-row items-center justify-between px-5 pt-3 pb-4">
+            <Text className="text-[17px] font-bold text-[#1A1A1A]">Cancel Booking</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={22} color="#999" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="h-[0.5px] bg-[#F0F0F0]" />
+
+          {/* Body */}
+          <View className="px-5 pt-4 pb-3">
+            <Text className="text-[13px] text-[#999] mb-4">
+              Select a reason for cancelling this booking.
+            </Text>
+
+            {REASONS.map((reason) => {
               const isSelected = selectedReason === reason;
               return (
                 <TouchableOpacity
                   key={reason}
-                  className={`bg-white rounded-xl py-2.5 px-4 mb-3 border ${
-                    isSelected ? 'border-[#F9EF08]' : 'border-gray-100'
-                  }`}
                   onPress={() => onReasonSelect(reason)}
+                  className={`flex-row items-center px-4 py-3.5 rounded-2xl mb-2 ${
+                    isSelected ? 'bg-[#FAFAFA] border border-[#D4D4D4]' : 'bg-[#FAFAFA]'
+                  }`}
+                  activeOpacity={0.7}
                 >
-                  <Text className="text-base text-[#1E1E1E] font-normal">
-                    {reason}
-                  </Text>
+                  <View
+                    className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${
+                      isSelected ? 'border-[#1A1A1A]' : 'border-[#D4D4D4]'
+                    }`}
+                  >
+                    {isSelected && (
+                      <View className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]" />
+                    )}
+                  </View>
+                  <Text className="text-[13px] font-medium text-[#1A1A1A]">{reason}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Finish Button */}
-          <TouchableOpacity
-            className="bg-[#F9EF08] rounded-xl py-4 items-center"
-            onPress={onFinish}
-            disabled={!selectedReason}
-            style={{ opacity: selectedReason ? 1 : 0.5 }}
-          >
-            <Text className="text-base font-semibold text-white">
-              Finish
-            </Text>
-          </TouchableOpacity>
+          {/* Confirm button */}
+          <View className="px-5 pb-10 pt-2">
+            <TouchableOpacity
+              className={`rounded-2xl py-4 items-center ${
+                selectedReason ? 'bg-[#1A1A1A]' : 'bg-[#F5F5F5]'
+              }`}
+              onPress={onFinish}
+              disabled={!selectedReason}
+              activeOpacity={0.85}
+            >
+              <Text
+                className={`text-[14px] font-bold ${
+                  selectedReason ? 'text-white' : 'text-[#BDBDBD]'
+                }`}
+              >
+                Confirm Cancellation
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </BlurView>
+      </View>
     </Modal>
   );
 }
-

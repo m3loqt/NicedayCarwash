@@ -17,10 +17,6 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import BookingFlow from './BookingFlow';
 import BranchDetailsModal from './BranchDetailsModal';
 
-// Ensuring expo-location module is loaded before using location features
-if (!Location) {
-  console.error('expo-location module failed to load');
-}
 
 
 const { height } = Dimensions.get('window');
@@ -39,7 +35,7 @@ interface Branch {
   };
 }
 
-export default function BranchSelection({ onBranchSelect, onNextStep }: { onBranchSelect: (branch: Branch) => void; onNextStep: () => void }) {
+export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (branch: Branch) => void } = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
@@ -174,31 +170,28 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
 
 const handleSearch = (q: string) => {
   setSearchQuery(q);
-
   const query = q.trim().toLowerCase();
+
   if (!query) {
+    setFilteredBranches(branches);
     return;
   }
 
-  const match = branches.find(
+  const filtered = branches.filter(
     (b) =>
       b.name.toLowerCase().includes(query) ||
       b.address.toLowerCase().includes(query)
   );
+  setFilteredBranches(filtered);
 
-  if (match && mapRef.current) {
-    const lat = Number(match.coordinates.latitude);
-    const lng = Number(match.coordinates.longitude);
+  const first = filtered[0];
+  if (first && mapRef.current) {
+    const lat = Number(first.coordinates.latitude);
+    const lng = Number(first.coordinates.longitude);
     if (isFinite(lat) && isFinite(lng)) {
-      // zoom into the matched branch but keep other pins and list unchanged
-      // @ts-ignore - mapRef may not be strongly typed
+      // @ts-ignore
       mapRef.current.animateToRegion(
-        {
-          latitude: lat,
-          longitude: lng,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
+        { latitude: lat, longitude: lng, latitudeDelta: 0.01, longitudeDelta: 0.01 },
         400
       );
     }
@@ -310,13 +303,13 @@ const handleSearch = (q: string) => {
 
   const handleListPress = (branch: Branch) => {
     setBookingBranch(branch);
-    onBranchSelect(branch);
+    onBranchSelect?.(branch);
     setShowBookingFlow(true);
   };
 
   const handleSelectBranch = () => {
     if (!bookingBranch) return;
-    onBranchSelect(bookingBranch);
+    onBranchSelect?.(bookingBranch);
     setShowBookingFlow(true);
     setSelectedBranch(null);
   };

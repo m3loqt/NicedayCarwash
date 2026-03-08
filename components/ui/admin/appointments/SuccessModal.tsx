@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import React from 'react';
-import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TouchableOpacity, View } from 'react-native';
 
 interface SuccessModalProps {
   visible: boolean;
@@ -9,136 +8,88 @@ interface SuccessModalProps {
   onClose: () => void;
 }
 
-/**
- * Formats message string with semi-bold styling for plate numbers, dates, times, and bay numbers
- * Uses nested Text components to apply font-semibold to specific parts
- */
 const formatMessageWithBold = (message: string): React.ReactNode => {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
-  
-  // Regex patterns matching plate numbers, dates, times, bay numbers, and quoted text
+
   const patterns = [
-    /\(([A-Z0-9]+)\)/g, // Matches plate numbers in parentheses
-    /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d+,\s+\d{4}/g, // Matches full date format
-    /\d{1,2}:\d{2}\s*(AM|PM)/gi, // Matches 12-hour time format
-    /Bay\s+\d+/gi, // Matches bay number references
-    /"([^"]+)"/g, // Matches quoted text
+    /\(([A-Z0-9]+)\)/g,
+    /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d+,\s+\d{4}/g,
+    /\d{1,2}:\d{2}\s*(AM|PM)/gi,
+    /Bay\s+\d+/gi,
+    /"([^"]+)"/g,
   ];
-  
+
   const matches: Array<{ start: number; end: number; text: string }> = [];
-  
-  patterns.forEach(pattern => {
+  patterns.forEach((pattern) => {
     let match;
     while ((match = pattern.exec(message)) !== null) {
-      matches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        text: match[0],
-      });
+      matches.push({ start: match.index, end: match.index + match[0].length, text: match[0] });
     }
   });
-  
-  // Sorting matches by their start position in the message
+
   matches.sort((a, b) => a.start - b.start);
-  
-  // Filtering out overlapping matches, keeping the first occurrence
-  const filteredMatches: Array<{ start: number; end: number; text: string }> = [];
-  matches.forEach(match => {
-    const overlaps = filteredMatches.some(
-      existing => match.start < existing.end && match.end > existing.start
-    );
-    if (!overlaps) {
-      filteredMatches.push(match);
-    }
+  const filtered: typeof matches = [];
+  matches.forEach((m) => {
+    if (!filtered.some((e) => m.start < e.end && m.end > e.start)) filtered.push(m);
   });
-  
-  // Building formatted message with bold styling for matched patterns
-  filteredMatches.forEach((match, index) => {
-    // Adding text segment before the current match
-    if (match.start > lastIndex) {
-      parts.push(message.substring(lastIndex, match.start));
-    }
-    
-    // Adding matched text with semi-bold styling
+
+  filtered.forEach((match, i) => {
+    if (match.start > lastIndex) parts.push(message.substring(lastIndex, match.start));
     parts.push(
-      <Text key={`bold-${index}`} className="font-semibold">
+      <Text key={i} className="font-semibold text-[#1A1A1A]">
         {match.text}
       </Text>
     );
-    
     lastIndex = match.end;
   });
-  
-  // Adding remaining text after all matches
-  if (lastIndex < message.length) {
-    parts.push(message.substring(lastIndex));
-  }
-  
+  if (lastIndex < message.length) parts.push(message.substring(lastIndex));
   return parts.length > 0 ? <Text>{parts}</Text> : message;
 };
 
-/**
- * Branded Success Modal Component
- * Displays success messages with NicedayCarwash branding (yellow #F9EF08)
- * Used for appointment actions (accept, complete, cancel)
- */
-export default function SuccessModal({
-  visible,
-  message,
-  onClose,
-}: SuccessModalProps) {
+export default function SuccessModal({ visible, message, onClose }: SuccessModalProps) {
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <BlurView intensity={80} tint="light" className="flex-1 justify-center items-center">
-        {/* Backdrop pressable area that closes the modal */}
-        <Pressable 
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
-          onPress={onClose} 
-        />
+      <View className="flex-1 bg-black/40 justify-end">
+        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
 
-        {/* Modal content container */}
-        <View 
-          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-200"
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 4,
-          }}
-        >
-          {/* Close button in top right corner */}
-          <TouchableOpacity
-            className="absolute top-4 right-4 z-10"
-            onPress={onClose}
-          >
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
+        <View className="bg-white rounded-t-3xl">
+          {/* Handle */}
+          <View className="items-center pt-3 pb-1">
+            <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
+          </View>
 
-          {/* Success icon display */}
-          <View className="items-center mb-6 mt-2">
-            <View className="w-24 h-24 bg-[#F9EF08] rounded-full items-center justify-center mb-4 shadow-lg">
-              <Ionicons name="checkmark" size={48} color="white" />
+          {/* Body */}
+          <View className="px-5 pt-6 pb-4 items-center">
+            {/* Icon */}
+            <View className="w-14 h-14 rounded-full bg-[#F5F5F5] items-center justify-center mb-4">
+              <Ionicons name="checkmark" size={28} color="#1A1A1A" />
             </View>
 
-            {/* Success message text with formatted bold sections */}
-            <Text className="text-3xl font-bold text-[#1E1E1E] text-center mb-2">
-              Success!
+            <Text className="text-[20px] font-bold text-[#1A1A1A] mb-2">Done!</Text>
+
+            <Text className="text-[13px] text-[#666] text-center leading-[19px] px-4">
+              {formatMessageWithBold(message)}
             </Text>
-            <View className="items-center">
-              <Text className="text-base text-gray-600 font-normal text-center">
-                {formatMessageWithBold(message)}
-              </Text>
-            </View>
+          </View>
+
+          {/* Close button */}
+          <View className="px-5 pb-10 pt-2">
+            <TouchableOpacity
+              className="bg-[#F5F5F5] rounded-2xl py-4 items-center"
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text className="text-[14px] font-semibold text-[#1A1A1A]">Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </BlurView>
+      </View>
     </Modal>
   );
 }

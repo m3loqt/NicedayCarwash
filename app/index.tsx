@@ -103,7 +103,7 @@ export default function LoginScreen() {
 
     setIsSigningIn(true);
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email.trim(), password);
       const uid = result.user.uid;
 
       const snapshot = await get(ref(db, "users/" + uid));
@@ -259,7 +259,7 @@ export default function LoginScreen() {
 
           {/* Google */}
           <TouchableOpacity
-            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-3 min-h-[52px]"
+            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-8 min-h-[52px]"
             onPress={() => googlePromptAsync()}
             activeOpacity={0.85}
           >
@@ -267,14 +267,6 @@ export default function LoginScreen() {
             <Text className="text-[13px] text-[#1A1A1A] font-medium">Continue with Google</Text>
           </TouchableOpacity>
 
-          {/* Facebook */}
-          <TouchableOpacity
-            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-8 min-h-[52px]"
-            activeOpacity={0.85}
-          >
-            <Image source={require('../assets/images/facebooklogo.png')} style={{ width: 18, height: 18, marginRight: 10 }} resizeMode="contain" />
-            <Text className="text-[13px] text-[#1A1A1A] font-medium">Continue with Facebook</Text>
-          </TouchableOpacity>
 
           {/* Footer */}
           <View className="items-center pb-8">

@@ -31,7 +31,6 @@ export default function VehicleCard({
     <TouchableOpacity
       className="bg-[#FAFAFA] rounded-2xl mx-5 mb-1.5 px-5 py-5 items-center"
       onPress={onEdit}
-      delayPressIn={50}
       activeOpacity={0.7}
     >
       <Image

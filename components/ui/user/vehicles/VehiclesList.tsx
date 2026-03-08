@@ -6,7 +6,6 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref, remove } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   ImageSourcePropType,
   Modal,
   ScrollView,
@@ -74,7 +73,7 @@ export default function VehiclesList() {
 
   const handleDelete = (plateNumber: string) => {
     setSelectedVehicle(null);
-    Alert.alert(
+    alert(
       'Confirm Delete',
       `Are you sure you want to delete vehicle ${plateNumber}?`,
       [
@@ -87,7 +86,7 @@ export default function VehiclesList() {
               const auth = getAuth();
               const userId = auth.currentUser?.uid;
               if (!userId) {
-                Alert.alert('Error', 'User not authenticated.');
+                alert('Error', 'User not authenticated.');
                 return;
               }
               const db = getDatabase();
@@ -95,9 +94,8 @@ export default function VehiclesList() {
               await remove(vehicleRef);
               setVehicles((prev) => prev.filter((v) => v.vplateNumber !== plateNumber));
               setShowDeleteSuccess(true);
-            } catch (err) {
-              console.error('Failed to delete vehicle:', err);
-              Alert.alert('Error', 'Failed to delete vehicle.');
+            } catch {
+              alert('Error', 'Failed to delete vehicle.');
             }
           },
         },
@@ -214,6 +212,7 @@ export default function VehiclesList() {
           </View>
         </View>
       </Modal>
+      {AlertComponent}
     </View>
   );
 }

@@ -1,9 +1,12 @@
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 export default function MemberPromoCard() {
+  const { alert, AlertComponent } = useAlert();
+
   const handleClaimOffer = () => {
-    console.log('Claim offer pressed');
+    alert('Coming Soon', 'Member promotions will be available soon. Stay tuned!');
   };
 
   return (
@@ -38,5 +41,6 @@ export default function MemberPromoCard() {
         </TouchableOpacity>
       </View>
     </View>
+    {AlertComponent}
   );
 }

@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import VehicleCard from '../vehicles/VehicleCard';
 
 interface VehicleProfile {
@@ -43,10 +45,31 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
     );
   }
 
+  if (vehicles.length === 0) {
+    return (
+      <View className="flex-1 bg-white items-center justify-center px-8">
+        <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-4">
+          <Ionicons name="car-outline" size={28} color="#BDBDBD" />
+        </View>
+        <Text className="text-[16px] font-bold text-[#1A1A1A] text-center mb-1">No vehicles yet</Text>
+        <Text className="text-[13px] text-[#999] text-center mb-6">
+          Add a vehicle to your profile before booking a service.
+        </Text>
+        <TouchableOpacity
+          className="bg-[#F9EF08] rounded-2xl py-3.5 px-8 items-center"
+          activeOpacity={0.85}
+          onPress={() => router.push('/user/add-vehicle')}
+        >
+          <Text className="text-[14px] font-bold text-[#1A1A00]">Add Vehicle</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-white">
-      <ScrollView 
-        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }} 
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
         className="flex-1"
         showsVerticalScrollIndicator={false}
       >

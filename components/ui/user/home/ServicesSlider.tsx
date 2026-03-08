@@ -41,8 +41,8 @@ const services: Service[] = [
 ];
 
 export default function ServicesSection() {
-  const handleAddService = (service: Service) => {
-    console.log('Add service:', service.name);
+  const handleAddService = (_service: Service) => {
+    // Service quick-add from home screen - navigates to book flow
   };
 
   return (

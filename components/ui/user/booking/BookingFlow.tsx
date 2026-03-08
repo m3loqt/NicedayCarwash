@@ -39,8 +39,9 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
     return null;
   }
 
-const handleNext = (data?: any) => {
-  if (step === 1 && !selectedVehicle) {
+const handleNext = (data?: any, vehicleOverride?: any) => {
+  const activeVehicle = vehicleOverride ?? selectedVehicle;
+  if (step === 1 && !activeVehicle) {
     alert('Select Vehicle', 'Please select or add a vehicle before continuing.');
     return;
   }
@@ -101,7 +102,7 @@ const handleNext = (data?: any) => {
           selectedVehicle={selectedVehicle}
           onSelectVehicle={(v: any) => {
             setSelectedVehicle(v);
-            handleNext();
+            handleNext(undefined, v);
           }}
           onNext={handleNext}
         />
@@ -139,6 +140,7 @@ const handleNext = (data?: any) => {
         />
       )}
 
+      {AlertComponent}
     </View>
   );
 }

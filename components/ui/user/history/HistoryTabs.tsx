@@ -9,7 +9,6 @@ const tabs = [
   { id: 'pending', label: 'Pending' },
   { id: 'ongoing', label: 'Ongoing' },
   { id: 'completed', label: 'Completed' },
-  { id: 'cancelled', label: 'Cancelled' },
 ];
 
 export default function HistoryTabs({ activeTab, onTabChange }: HistoryTabsProps) {

@@ -1,5 +1,6 @@
 import { AccountSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import SignOutModal from '@/components/ui/SignOutModal';
+import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -18,13 +19,12 @@ type UserData = {
 };
 
 const menuItems = [
-  { label: 'Account details', icon: 'person-outline' as const, route: '/user/edit-profile' },
-  { label: 'Payment method', icon: 'card-outline' as const, route: null },
-  { label: 'Addresses', icon: 'location-outline' as const, route: null },
-  { label: 'Reset password', icon: 'lock-closed-outline' as const, route: '/forgot-password' },
+  { label: 'Account details', icon: 'person-outline' as const, route: '/user/edit-profile' as const, comingSoon: false },
+  { label: 'Reset password', icon: 'lock-closed-outline' as const, route: '/forgot-password' as const, comingSoon: false },
 ];
 
 export default function UserProfileScreen() {
+  const { alert, AlertComponent } = useAlert();
   const [user, setUser] = useState<UserData | null>(null);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -63,23 +63,29 @@ export default function UserProfileScreen() {
     if (route) router.push(route as any);
   };
 
-  const handleSignOutPress = () => {
-    setSignOutModalVisible(true);
-  };
-
-  const handleSignOutConfirm = async () => {
+  const handleSignOutConfirmWithOnboarding = async () => {
     setSigningOut(true);
     try {
+      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
       await auth.signOut();
       await AsyncStorage.clear();
+      if (hasSeenOnboarding === 'true') {
+        await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+      }
       router.replace('/');
-    } catch (error) {
-      console.error('Error signing out:', error);
+    } catch {
+      // sign out failed
     } finally {
       setSigningOut(false);
       setSignOutModalVisible(false);
     }
   };
+
+  const handleSignOutPress = () => {
+    setSignOutModalVisible(true);
+  };
+
+  const handleSignOutConfirm = handleSignOutConfirmWithOnboarding;
 
   if (loading) {
     return (
@@ -125,6 +131,7 @@ export default function UserProfileScreen() {
               className="absolute w-6 h-6 rounded-full bg-[#1A1A1A] items-center justify-center border-2 border-white"
               style={{ bottom: '15%', right: '10%' }}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              onPress={() => router.push('/user/edit-profile')}
             >
               <Ionicons name="camera" size={11} color="#FFFFFF" />
             </TouchableOpacity>
@@ -179,6 +186,7 @@ export default function UserProfileScreen() {
           onConfirm={handleSignOutConfirm}
           loading={signingOut}
         />
+        {AlertComponent}
       </SafeAreaView>
     </View>
   );

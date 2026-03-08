@@ -649,45 +649,40 @@ export default function ServicesStep({
         {/* ------------------- PAYMENT OPTIONS ------------------- */}
         <Text className="text-xl font-semibold mt-6 mb-3 px-4">Payment Option</Text>
         <View className="px-4">
-          {[
-            {
-              id: "COD",
-              title: "Cash on Delivery",
-              desc: "Pay cash when you arrive at the branch.",
-              icon: "cash-outline" as const,
-            },
-            {
-              id: "E-Wallet",
-              title: "E-Wallet",
-              desc: "GCash, Maya, and other supported wallets.",
-              icon: "wallet-outline" as const,
-            },
-            {
-              id: "Card",
-              title: "Debit / Credit Card",
-              desc: "Mastercard, Visa, and other supported cards.",
-              icon: "card-outline" as const,
-            },
-          ].map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              onPress={() => setPaymentMethod(p.id)}
-              className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 ${
-                paymentMethod === p.id
-                  ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
-                  : 'bg-[#FAFAFA] border border-transparent'
-              }`}
-              activeOpacity={0.8}
-            >
-              <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
-                <Ionicons name={p.icon} size={20} color="#1A1A1A" />
+            {/* COD – disabled / coming soon */}
+          <View className="flex-row items-center px-4 py-3 rounded-2xl mb-3 bg-[#FAFAFA] border border-transparent opacity-50">
+            <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
+              <Ionicons name="cash-outline" size={20} color="#BDBDBD" />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-[13px] font-semibold text-[#BDBDBD]">Cash on Delivery</Text>
+                <View className="bg-[#F0F0F0] rounded-full px-2 py-0.5">
+                  <Text className="text-[10px] font-semibold text-[#BDBDBD]">Coming soon</Text>
+                </View>
               </View>
-              <View className="flex-1">
-                <Text className="text-[13px] font-semibold text-[#1A1A1A]">{p.title}</Text>
-                <Text className="text-[11px] text-[#999] mt-0.5">{p.desc}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+              <Text className="text-[11px] text-[#C4C4C4] mt-0.5">Not available at the moment.</Text>
+            </View>
+          </View>
+
+          {/* E-Wallet */}
+          <TouchableOpacity
+            onPress={() => setPaymentMethod('E-Wallet')}
+            className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 ${
+              paymentMethod === 'E-Wallet'
+                ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
+                : 'bg-[#FAFAFA] border border-transparent'
+            }`}
+            activeOpacity={0.8}
+          >
+            <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
+              <Ionicons name="wallet-outline" size={20} color="#1A1A1A" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-[13px] font-semibold text-[#1A1A1A]">E-Wallet</Text>
+              <Text className="text-[11px] text-[#999] mt-0.5">GCash, Maya, and other supported wallets.</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* NEXT BUTTON */}

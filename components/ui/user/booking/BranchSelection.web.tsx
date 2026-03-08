@@ -28,7 +28,7 @@ interface Branch {
   };
 }
 
-export default function BranchSelection({ onBranchSelect, onNextStep }: { onBranchSelect: (branch: Branch) => void; onNextStep: () => void }) {
+export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (branch: Branch) => void } = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
@@ -111,10 +111,10 @@ export default function BranchSelection({ onBranchSelect, onNextStep }: { onBran
         );
         const updatedBranch = { ...branch, distance: formatDistance(distanceMeters) };
         setSelectedBranch(updatedBranch);
-        if (onBranchSelect) onBranchSelect(updatedBranch);
+        onBranchSelect?.(updatedBranch);
       } else {
         setSelectedBranch(branch);
-        if (onBranchSelect) onBranchSelect(branch);
+        onBranchSelect?.(branch);
       }
     } catch (err) {
       console.error('Error handling branch press', err);

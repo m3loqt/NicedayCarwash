@@ -27,8 +27,19 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!firstName || !lastName || !email || !password) {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
       alert('Error', 'Please fill out all fields.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      alert('Error', 'Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      alert('Error', 'Password must be at least 6 characters.');
       return;
     }
 
@@ -36,7 +47,7 @@ export default function RegisterScreen() {
     const auth = getAuth();
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
       if (user) {
         const userId = user.uid;
@@ -44,9 +55,9 @@ export default function RegisterScreen() {
         const userRef = ref(db, `users/${userId}`);
 
         const userMap = {
-          firstName,
-          lastName,
-          email,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim().toLowerCase(),
           role: 'default',
           profileImage: '',
         };

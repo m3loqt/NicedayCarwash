@@ -1,7 +1,9 @@
 import { auth, db } from "@/firebase/firebase";
-import { get, onValue, ref, set } from "firebase/database";
+import { useAlert } from "@/hooks/use-alert";
+import { Ionicons } from "@expo/vector-icons";
+import { get, onValue, ref, remove, set } from "firebase/database";
 import { useEffect, useState } from "react";
-import { Switch, Text, View } from "react-native";
+import { Switch, Text, TouchableOpacity, View } from "react-native";
 import AvailabilityConfirmModal from "./AvailabilityConfirmModal";
 
 interface Service {
@@ -13,36 +15,32 @@ interface Service {
   isAvailable?: boolean;
 }
 
-export default function Services() {
+interface ServicesProps {
+  branchId?: string | null;
+}
+
+export default function Services({ branchId: propBranchId }: ServicesProps = {}) {
+  const { alert, AlertComponent } = useAlert();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [branchId, setBranchId] = useState<string | null>(null);
+  const [branchId, setBranchId] = useState<string | null>(propBranchId ?? null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ item: Service; newValue: boolean } | null>(null);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setLoading(false);
-      return;
-    }
+    if (!uid) { setLoading(false); return; }
 
     let unsubscribeServices: (() => void) | null = null;
 
     const getUserBranchId = async () => {
       try {
         const userSnapshot = await get(ref(db, `users/${uid}`));
-        if (!userSnapshot.exists()) {
-          setLoading(false);
-          return;
-        }
+        if (!userSnapshot.exists()) { setLoading(false); return; }
 
         const userData = userSnapshot.val();
-        const fetchedBranchId = userData.branchId || userData.branch;
-        if (!fetchedBranchId) {
-          setLoading(false);
-          return;
-        }
+        const fetchedBranchId = propBranchId ?? userData.branchId ?? userData.branch;
+        if (!fetchedBranchId) { setLoading(false); return; }
 
         setBranchId(fetchedBranchId);
 
@@ -66,20 +64,14 @@ export default function Services() {
           } else {
             setServices([]);
           }
-        }, (error) => {
-          console.error("Error listening to services:", error);
-          setLoading(false);
-        });
-      } catch (error) {
-        console.error("Error fetching user branch ID:", error);
+        }, () => setLoading(false));
+      } catch {
         setLoading(false);
       }
     };
 
     getUserBranchId();
-    return () => {
-      if (unsubscribeServices) unsubscribeServices();
-    };
+    return () => { if (unsubscribeServices) unsubscribeServices(); };
   }, []);
 
   const handleToggleRequest = (item: Service, newValue: boolean) => {
@@ -91,14 +83,35 @@ export default function Services() {
     const { item, newValue } = confirmModal;
     setUpdatingId(item.id);
     try {
-      const path = `Branches/${branchId}/Services/${item.id}/isAvailable`;
-      await set(ref(db, path), newValue);
+      await set(ref(db, `Branches/${branchId}/Services/${item.id}/isAvailable`), newValue);
       setConfirmModal(null);
-    } catch (error) {
-      console.error("Error updating service availability:", error);
+    } catch {
+      alert("Error", "Failed to update service availability.");
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleDelete = (item: Service) => {
+    alert(
+      "Delete Service",
+      `Are you sure you want to delete "${item.name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!branchId) return;
+            try {
+              await remove(ref(db, `Branches/${branchId}/Services/${item.id}`));
+            } catch {
+              alert("Error", "Failed to delete service.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -123,17 +136,14 @@ export default function Services() {
 
   return (
     <View className="rounded-lg bg-[#FAFAFA] overflow-hidden">
-      {services.map((item, index) => (
-        <View
-          key={item.id}
-          className="flex-row items-center justify-between px-4 py-3"
-        >
+      {services.map((item) => (
+        <View key={item.id} className="flex-row items-center px-4 py-3 border-b border-[#F5F5F5] last:border-0">
           <View className="flex-1 mr-3">
             <Text className="text-[#1E1E1E] text-base font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
               {item.name}
             </Text>
             <Text className="text-gray-500 text-xs mt-0.5" style={{ fontFamily: "Inter_400Regular" }}>
-              Sedan ₱{item.sedan} · SUV ₱{item.suv} · Pick up ₱{item.pickup}
+              Sedan ₱{item.sedan} · SUV ₱{item.suv} · Pickup ₱{item.pickup}
             </Text>
           </View>
           <Switch
@@ -143,6 +153,13 @@ export default function Services() {
             trackColor={{ false: "#E5E7EB", true: "#F9EF08" }}
             thumbColor="#fff"
           />
+          <TouchableOpacity
+            onPress={() => handleDelete(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="ml-3"
+          >
+            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+          </TouchableOpacity>
         </View>
       ))}
       <AvailabilityConfirmModal
@@ -154,6 +171,7 @@ export default function Services() {
         onConfirm={handleConfirmToggle}
         loading={updatingId === confirmModal?.item.id}
       />
+      {AlertComponent}
     </View>
   );
 }

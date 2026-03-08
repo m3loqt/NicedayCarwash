@@ -51,10 +51,6 @@ export default function AdminSettingsScreen() {
     fetchAdminData();
   }, []);
 
-  const handleNotifications = () => {
-    alert('Notifications', 'Notification settings will be available in a future update.');
-  };
-
   const handleSignOutPress = () => {
     setSignOutModalVisible(true);
   };
@@ -135,18 +131,6 @@ export default function AdminSettingsScreen() {
             <View className="flex-row items-center">
               <Ionicons name="person-outline" size={18} color="#999" />
               <Text className="text-[15px] text-[#1A1A1A] ml-3">Edit profile</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between mb-1.5"
-            onPress={handleNotifications}
-            activeOpacity={0.7}
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="notifications-outline" size={18} color="#999" />
-              <Text className="text-[15px] text-[#1A1A1A] ml-3">Notifications</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
           </TouchableOpacity>

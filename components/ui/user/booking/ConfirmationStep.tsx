@@ -162,7 +162,7 @@ export default function ConfirmationStep({
       }
       const db = getDatabase();
       const appointmentId = generateAppointmentId();
-      const datePath = formatDateForPath(new Date());
+      const datePath = formatDateForPath(date);
       const classification = vehicle.classification || getClassificationName(vehicle.vtype) || '';
       const bookingData = {
         appointmentId,

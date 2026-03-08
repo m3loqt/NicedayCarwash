@@ -41,3 +41,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Firebase  
+ndcw-12f99-default-rtdb-export

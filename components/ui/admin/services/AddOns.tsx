@@ -1,7 +1,9 @@
 import { auth, db } from "@/firebase/firebase";
-import { get, onValue, ref, set } from "firebase/database";
+import { useAlert } from "@/hooks/use-alert";
+import { Ionicons } from "@expo/vector-icons";
+import { get, onValue, ref, remove, set } from "firebase/database";
 import { useEffect, useState } from "react";
-import { Switch, Text, View } from "react-native";
+import { Switch, Text, TouchableOpacity, View } from "react-native";
 import AvailabilityConfirmModal from "./AvailabilityConfirmModal";
 
 interface Addon {
@@ -12,6 +14,7 @@ interface Addon {
 }
 
 export default function AddOns() {
+  const { alert, AlertComponent } = useAlert();
   const [addons, setAddons] = useState<Addon[]>([]);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
@@ -20,27 +23,18 @@ export default function AddOns() {
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setLoading(false);
-      return;
-    }
+    if (!uid) { setLoading(false); return; }
 
     let unsubscribeAddons: (() => void) | null = null;
 
     const getUserBranchId = async () => {
       try {
         const userSnapshot = await get(ref(db, `users/${uid}`));
-        if (!userSnapshot.exists()) {
-          setLoading(false);
-          return;
-        }
+        if (!userSnapshot.exists()) { setLoading(false); return; }
 
         const userData = userSnapshot.val();
-        const fetchedBranchId = userData.branchId || userData.branch;
-        if (!fetchedBranchId) {
-          setLoading(false);
-          return;
-        }
+        const fetchedBranchId = userData.branchId ?? userData.branch;
+        if (!fetchedBranchId) { setLoading(false); return; }
 
         setBranchId(fetchedBranchId);
 
@@ -62,20 +56,14 @@ export default function AddOns() {
           } else {
             setAddons([]);
           }
-        }, (error) => {
-          console.error("Error listening to addons:", error);
-          setLoading(false);
-        });
-      } catch (error) {
-        console.error("Error fetching user branch ID:", error);
+        }, () => setLoading(false));
+      } catch {
         setLoading(false);
       }
     };
 
     getUserBranchId();
-    return () => {
-      if (unsubscribeAddons) unsubscribeAddons();
-    };
+    return () => { if (unsubscribeAddons) unsubscribeAddons(); };
   }, []);
 
   const handleToggleRequest = (item: Addon, newValue: boolean) => {
@@ -87,14 +75,35 @@ export default function AddOns() {
     const { item, newValue } = confirmModal;
     setUpdatingId(item.id);
     try {
-      const path = `Branches/${branchId}/AddOns/${item.id}/isAvailable`;
-      await set(ref(db, path), newValue);
+      await set(ref(db, `Branches/${branchId}/AddOns/${item.id}/isAvailable`), newValue);
       setConfirmModal(null);
-    } catch (error) {
-      console.error("Error updating add-on availability:", error);
+    } catch {
+      alert("Error", "Failed to update add-on availability.");
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleDelete = (item: Addon) => {
+    alert(
+      "Delete Add-on",
+      `Are you sure you want to delete "${item.name}"?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!branchId) return;
+            try {
+              await remove(ref(db, `Branches/${branchId}/AddOns/${item.id}`));
+            } catch {
+              alert("Error", "Failed to delete add-on.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -119,11 +128,8 @@ export default function AddOns() {
 
   return (
     <View className="rounded-lg bg-[#FAFAFA] overflow-hidden">
-      {addons.map((item, index) => (
-        <View
-          key={item.id}
-          className="flex-row items-center justify-between px-4 py-3"
-        >
+      {addons.map((item) => (
+        <View key={item.id} className="flex-row items-center px-4 py-3 border-b border-[#F5F5F5] last:border-0">
           <View className="flex-1 mr-3">
             <Text className="text-[#1E1E1E] text-base font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
               {item.name}
@@ -139,6 +145,13 @@ export default function AddOns() {
             trackColor={{ false: "#E5E7EB", true: "#F9EF08" }}
             thumbColor="#fff"
           />
+          <TouchableOpacity
+            onPress={() => handleDelete(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="ml-3"
+          >
+            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+          </TouchableOpacity>
         </View>
       ))}
       <AvailabilityConfirmModal
@@ -150,6 +163,7 @@ export default function AddOns() {
         onConfirm={handleConfirmToggle}
         loading={updatingId === confirmModal?.item.id}
       />
+      {AlertComponent}
     </View>
   );
 }

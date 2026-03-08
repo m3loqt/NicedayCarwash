@@ -4,8 +4,8 @@ import { router } from 'expo-router';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   StatusBar,
   Text,
@@ -23,15 +23,16 @@ export default function ForgotPasswordScreen() {
   const handleBack = () => router.push('/');
 
   const handleResetPassword = async () => {
-    if (!email.trim()) {
-      Alert.alert('Missing info', 'Please enter your email address.');
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      alert('Missing info', 'Please enter your email address.');
       return;
     }
     try {
-      await sendPasswordResetEmail(getAuth(), email);
+      await sendPasswordResetEmail(getAuth(), trimmedEmail);
       setShowSuccessScreen(true);
     } catch (error: any) {
-      Alert.alert('Failed', error.message || 'Failed to send reset email.');
+      alert('Failed', error.message || 'Failed to send reset email.');
     }
   };
 
@@ -60,7 +61,7 @@ export default function ForgotPasswordScreen() {
           <TouchableOpacity
             className="w-full bg-[#F9EF08] rounded-2xl py-3.5 items-center mb-4"
             activeOpacity={0.85}
-            onPress={() => console.log('Open email app')}
+            onPress={() => Linking.openURL('mailto:')}
           >
             <Text className="text-[14px] font-bold text-[#1A1A00]">Open email app</Text>
           </TouchableOpacity>

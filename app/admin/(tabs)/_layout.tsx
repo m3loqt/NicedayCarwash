@@ -41,6 +41,15 @@ export default function AdminTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name={focused ? 'calendar-number' : 'calendar-number-outline'} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="services"
         options={{
           title: 'Services',
