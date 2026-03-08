@@ -8,9 +8,10 @@ interface AppointmentsTabsProps {
 export default function AppointmentsTabs({ activeTab, onTabChange }: AppointmentsTabsProps) {
   const tabs = [
     { id: 'pending', label: 'Pending' },
+    { id: 'confirmed', label: 'Confirmed' },
     { id: 'ongoing', label: 'Ongoing' },
     { id: 'completed', label: 'Completed' },
-    { id: 'cancelled', label: 'Canceled' },
+    // { id: 'cancelled', label: 'Canceled' },
   ];
 
   return (

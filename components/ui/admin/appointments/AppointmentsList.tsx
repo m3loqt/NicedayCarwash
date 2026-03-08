@@ -448,6 +448,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [selectedCancelReason, setSelectedCancelReason] = useState<CancelReason | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  // const [bookingToOngoing, setBookingToOngoing] = useState<Booking | null>(null);
   const [completeModalVisible, setCompleteModalVisible] = useState(false);
   const [bookingToComplete, setBookingToComplete] = useState<Booking | null>(null);
   
@@ -482,6 +483,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           const adminBranchId = userData.branchId || userData.branch;
           if (adminBranchId) {
             setBranchId(adminBranchId);
+
+            await autoStartTodayBookings(adminBranchId);
           } else {
             setLoading(false);
           }
@@ -554,9 +557,10 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             // Filtering by active tab
             // Accepted bookings should appear in pending tab (until paid)
             const statusMatchesTab = 
-              booking.status === activeTab || 
-              (activeTab === 'pending' && booking.status === 'accepted') ||
-              (activeTab === 'cancelled' && booking.status === 'cancelled');
+              (activeTab === 'pending' && booking.status === 'pending') ||
+              (activeTab === 'confirmed' && booking.status === 'accepted') ||
+              (activeTab === 'ongoing' && booking.status === 'ongoing') ||
+              (activeTab === 'completed' && booking.status === 'completed');
             
             if (statusMatchesTab) {
               // Filtering by search query
@@ -729,6 +733,19 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     }
   };
 
+  const isSameDay = (dateString: string) => {
+  const [month, day, year] = dateString.split('-').map(Number);
+
+  const bookingDate = new Date(year, month - 1, day);
+  const today = new Date();
+
+  return (
+    bookingDate.getFullYear() === today.getFullYear() &&
+    bookingDate.getMonth() === today.getMonth() &&
+    bookingDate.getDate() === today.getDate()
+  );
+};
+
   const handleAccept = async (booking: Booking) => {
     if (!branchId) return;
 
@@ -819,7 +836,16 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         }
       }
 
-      setBookingToAccept(booking);
+          // Determine if appointment is today
+      const shouldStartImmediately = isSameDay(booking.timeSlot.appointmentDate);
+
+    // Set booking status based on date
+      const updatedBooking: Booking = {
+        ...booking,
+        status: shouldStartImmediately ? 'ongoing' : 'accepted',
+      };
+
+      setBookingToAccept(updatedBooking);
       setSelectedBay(null);
       // Fetching real-time bay availability before showing modal
       await fetchBayAvailability(booking.timeSlot.appointmentDate, booking.timeSlot.time);
@@ -829,6 +855,54 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       alert('Error', 'Failed to validate booking availability. Please try again.');
     }
   };
+
+  const autoStartTodayBookings = async (branchId: string) => {
+  try {
+    const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
+    const snapshot = await get(bookingsRef);
+
+    if (!snapshot.exists()) return;
+
+    const today = new Date();
+
+    snapshot.forEach((dateSnap) => {
+      const dateKey = dateSnap.key;
+
+      dateSnap.forEach((bookingSnap) => {
+        const booking = bookingSnap.val();
+
+        if (!booking) return;
+
+        if (booking.status === 'accepted') {
+          const [month, day, year] = booking.timeSlot?.appointmentDate
+            ?.split('-')
+            .map(Number);
+
+          const bookingDate = new Date(year, month - 1, day);
+
+          const isToday =
+            bookingDate.getFullYear() === today.getFullYear() &&
+            bookingDate.getMonth() === today.getMonth() &&
+            bookingDate.getDate() === today.getDate();
+
+          if (isToday) {
+            const bookingRef = ref(
+              db,
+              `Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingSnap.key}`
+            );
+
+            update(bookingRef, {
+              status: 'ongoing',
+              startedAt: toLocalISOString(new Date()),
+            });
+          }
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Auto start booking check failed:', error);
+  }
+};
 
   const handleBaySelect = (bayNumber: number) => {
     setSelectedBay(bayNumber);

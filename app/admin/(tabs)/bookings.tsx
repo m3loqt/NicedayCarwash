@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react';
 import { StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const VALID_TABS = ['pending', 'ongoing', 'completed', 'cancelled'] as const;
+const VALID_TABS = ['pending', 'confirmed', 'completed', 'cancelled'] as const;
+// const VALID_TABS = ['pending', 'ongoing', 'completed', 'cancelled'] as const;
 
 export default function AdminBookingsScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();

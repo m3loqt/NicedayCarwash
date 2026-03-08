@@ -60,6 +60,7 @@ interface AppointmentCardProps {
   completedAt?: string;
   onAccept?: () => void;
   onCancel?: () => void;
+  onStartWash?: () => void;
   onComplete?: () => void;
   onViewMore?: () => void;
 }
@@ -77,6 +78,7 @@ export default function AppointmentCard({
   completedAt,
   onAccept,
   onCancel,
+  onStartWash,
   onComplete,
   onViewMore,
 }: AppointmentCardProps) {
