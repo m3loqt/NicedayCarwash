@@ -18,7 +18,7 @@ export default function SuccessModal({ visible, message, onDismiss }: SuccessMod
         <TouchableOpacity
           activeOpacity={1}
           onPress={(e) => e.stopPropagation()}
-          className="bg-white w-full rounded-t-3xl items-center px-8 pt-10 pb-12"
+          className="bg-white w-full rounded-t-xl items-center px-8 pt-10 pb-12"
         >
           {/* Handle bar */}
           <View className="w-10 h-1 rounded-full bg-[#E0E0E0] mb-8" />

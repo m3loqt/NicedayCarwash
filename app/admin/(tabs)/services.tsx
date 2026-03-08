@@ -1,13 +1,11 @@
 import { auth, db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
-import { get, push, ref, set, update } from "firebase/database";
+import { get, ref, set, update } from "firebase/database";
 import { useState } from "react";
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AddAddonModal, { AddonFormData } from "../../../components/ui/admin/services/AddAddonModal";
 import AddBayModal from "../../../components/ui/admin/services/AddBayModal";
 import AddOns from "../../../components/ui/admin/services/AddOns";
-import AddServiceModal, { ServiceFormData } from "../../../components/ui/admin/services/AddServiceModal";
 import AddTimeSlotModal from "../../../components/ui/admin/services/AddTimeSlotModal";
 import Bays from "../../../components/ui/admin/services/Bays";
 import Services from "../../../components/ui/admin/services/Services";
@@ -17,8 +15,6 @@ export default function AdminServicesScreen() {
   const { alert, AlertComponent } = useAlert();
   const [timeModalVisible, setTimeModalVisible] = useState(false);
   const [bayModalVisible, setBayModalVisible] = useState(false);
-  const [serviceModalVisible, setServiceModalVisible] = useState(false);
-  const [addonModalVisible, setAddonModalVisible] = useState(false);
 
   const getAdminBranchId = async (): Promise<string | null> => {
     const uid = auth.currentUser?.uid;
@@ -27,38 +23,6 @@ export default function AdminServicesScreen() {
     if (!snap.exists()) return null;
     const data = snap.val();
     return data.branchId ?? data.branch ?? null;
-  };
-
-  const handleAddService = async (data: ServiceFormData) => {
-    const branchId = await getAdminBranchId();
-    if (!branchId) throw new Error("Branch not found");
-    const servicesRef = ref(db, `Branches/${branchId}/Services`);
-    await push(servicesRef, {
-      name: data.name,
-      sedanPrice: data.sedanPrice,
-      suvPrice: data.suvPrice,
-      pickupPrice: data.pickupPrice,
-      estimatedTime: data.estimatedTime,
-      description: data.description,
-      isAvailable: true,
-    });
-    setServiceModalVisible(false);
-    alert("Success", "Service added successfully.");
-  };
-
-  const handleAddAddon = async (data: AddonFormData) => {
-    const branchId = await getAdminBranchId();
-    if (!branchId) throw new Error("Branch not found");
-    const addonsRef = ref(db, `Branches/${branchId}/AddOns`);
-    await push(addonsRef, {
-      name: data.name,
-      price: data.price,
-      estimatedTime: data.estimatedTime,
-      description: data.description,
-      isAvailable: true,
-    });
-    setAddonModalVisible(false);
-    alert("Success", "Add-on added successfully.");
   };
 
   return (
@@ -78,28 +42,18 @@ export default function AdminServicesScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
         >
           {/* Services */}
-          <View className="flex-row items-center justify-between mb-2">
+          <View className="mb-2">
             <Text className="text-sm font-semibold text-gray-500" style={{ fontFamily: 'Inter_600SemiBold' }}>
               Services
             </Text>
-            <TouchableOpacity onPress={() => setServiceModalVisible(true)}>
-              <Text className="text-sm font-bold text-[#1E1E1E]" style={{ fontFamily: 'Inter_700Bold' }}>
-                Add service
-              </Text>
-            </TouchableOpacity>
           </View>
           <Services />
 
           {/* Add-ons */}
-          <View className="flex-row items-center justify-between mt-6 mb-2">
+          <View className="mt-6 mb-2">
             <Text className="text-sm font-semibold text-gray-500" style={{ fontFamily: 'Inter_600SemiBold' }}>
               Add-ons
             </Text>
-            <TouchableOpacity onPress={() => setAddonModalVisible(true)}>
-              <Text className="text-sm font-bold text-[#1E1E1E]" style={{ fontFamily: 'Inter_700Bold' }}>
-                Add add-on
-              </Text>
-            </TouchableOpacity>
           </View>
           <AddOns />
 
@@ -135,18 +89,6 @@ export default function AdminServicesScreen() {
         </ScrollView>
 
         {/* MODALS */}
-        <AddServiceModal
-          visible={serviceModalVisible}
-          onClose={() => setServiceModalVisible(false)}
-          onAdd={handleAddService}
-        />
-
-        <AddAddonModal
-          visible={addonModalVisible}
-          onClose={() => setAddonModalVisible(false)}
-          onAdd={handleAddAddon}
-        />
-
         <AddTimeSlotModal
           visible={timeModalVisible}
           onClose={() => setTimeModalVisible(false)}

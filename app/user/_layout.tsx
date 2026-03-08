@@ -25,18 +25,34 @@ export default function UserLayout() {
           presentation: 'modal'
         }} 
       />
-      <Stack.Screen 
-        name="booking-success" 
-        options={{ 
+      <Stack.Screen
+        name="booking-success"
+        options={{
           headerShown: false
-        }} 
+        }}
       />
-      <Stack.Screen 
-        name="payment" 
-        options={{ 
+      <Stack.Screen
+        name="booking-progress"
+        options={{
+          headerShown: false
+        }}
+      />
+      <Stack.Screen
+        name="cancelled-bookings"
+        options={{
+          headerShown: false
+        }}
+      />
+      <Stack.Screen
+        name="payment"
+        options={{
           headerShown: false,
           presentation: 'modal'
-        }} 
+        }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{ headerShown: false }}
       />
     </Stack>
   );

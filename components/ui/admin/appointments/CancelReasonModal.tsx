@@ -35,7 +35,7 @@ export default function CancelReasonModal({
       <View className="flex-1 bg-black/40 justify-end">
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
 
-        <View className="bg-white rounded-t-3xl">
+        <View className="bg-white rounded-t-xl">
           {/* Handle */}
           <View className="items-center pt-3 pb-1">
             <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
@@ -73,11 +73,11 @@ export default function CancelReasonModal({
                 >
                   <View
                     className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${
-                      isSelected ? 'border-[#1A1A1A]' : 'border-[#D4D4D4]'
+                      isSelected ? 'border-[#F9EF08]' : 'border-[#D4D4D4]'
                     }`}
                   >
                     {isSelected && (
-                      <View className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]" />
+                      <View className="w-2.5 h-2.5 rounded-full bg-[#F9EF08]" />
                     )}
                   </View>
                   <Text className="text-[13px] font-medium text-[#1A1A1A]">{reason}</Text>
@@ -90,7 +90,7 @@ export default function CancelReasonModal({
           <View className="px-5 pb-10 pt-2">
             <TouchableOpacity
               className={`rounded-2xl py-4 items-center ${
-                selectedReason ? 'bg-[#1A1A1A]' : 'bg-[#F5F5F5]'
+                selectedReason ? 'bg-[#F9EF08]' : 'bg-[#F5F5F5]'
               }`}
               onPress={onFinish}
               disabled={!selectedReason}
@@ -98,7 +98,7 @@ export default function CancelReasonModal({
             >
               <Text
                 className={`text-[14px] font-bold ${
-                  selectedReason ? 'text-white' : 'text-[#BDBDBD]'
+                  selectedReason ? 'text-[#1A1A1A]' : 'text-[#BDBDBD]'
                 }`}
               >
                 Confirm Cancellation

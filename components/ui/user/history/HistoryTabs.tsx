@@ -7,6 +7,7 @@ interface HistoryTabsProps {
 
 const tabs = [
   { id: 'pending', label: 'Pending' },
+  { id: 'accepted', label: 'Confirmed' },
   { id: 'ongoing', label: 'Ongoing' },
   { id: 'completed', label: 'Completed' },
 ];

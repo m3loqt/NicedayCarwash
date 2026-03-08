@@ -266,20 +266,24 @@ export default function Bays() {
           onPress={() => handleOpenBayOptions(item)}
           style={{
             width: 64,
-            height: 56,
+            height: 68,
             marginLeft: index === 0 ? 0 : 8,
-            opacity: item.status === "unavailable" ? 0.5 : 1,
+            opacity: item.status === "unavailable" ? 0.4 : 1,
           }}
-          className="rounded-lg bg-[#FAFAFA] flex-col overflow-hidden"
+          className="rounded-xl bg-[#FAFAFA] items-center justify-center"
         >
-          <View className="flex-1 justify-center px-3">
-            <Text
-              className="text-center text-[#1E1E1E] font-semibold text-sm"
-              style={{ fontFamily: "Inter_600SemiBold" }}
-            >
-              {item.name}
-            </Text>
-          </View>
+          <Text
+            className="text-[10px] text-[#999]"
+            style={{ fontFamily: "Inter_400Regular", lineHeight: 13 }}
+          >
+            Bay
+          </Text>
+          <Text
+            className="text-[26px] font-bold text-[#1E1E1E]"
+            style={{ fontFamily: "Inter_700Bold", lineHeight: 30 }}
+          >
+            {item.id}
+          </Text>
         </TouchableOpacity>
       ))}
     </ScrollView>

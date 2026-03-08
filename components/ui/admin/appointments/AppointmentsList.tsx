@@ -3,7 +3,7 @@ import { SelectBayModal, type Bay } from '@/components/ui/admin/dashboard';
 import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
-import { get, onValue, ref, set, update } from 'firebase/database';
+import { get, onValue, push, ref, set, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import AppointmentCard from './AppointmentCard';
@@ -1004,6 +1004,16 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
                         assignedBy: adminUserId,
                       }).then(() => {})
                     );
+                    // Sending notification to customer
+                    push(ref(db, `users/${userId}/notifications`), {
+                      title: 'Booking Confirmed',
+                      body: `Your appointment (${bookingToAccept.appointmentId}) has been confirmed. Bay ${selectedBay} assigned.`,
+                      appointmentId: bookingToAccept.appointmentId,
+                      date: bookingToAccept.timeSlot.appointmentDate,
+                      type: 'accepted',
+                      read: false,
+                      createdAt: acceptedAt,
+                    });
                   }
                 }
               }
@@ -1011,7 +1021,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           }
         }
       }
-      
+
       // Waiting for all user updates to complete
       if (updatePromises.length > 0) {
         await Promise.all(updatePromises);
@@ -1204,6 +1214,16 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
                       completedAt: completedAtTimestamp,
                     }).then(() => {})
                   );
+                  // Sending notification to customer
+                  push(ref(db, `users/${userId}/notifications`), {
+                    title: 'Car Wash Complete!',
+                    body: `Your vehicle is clean and ready. Appointment ${bookingToComplete.appointmentId} has been completed.`,
+                    appointmentId: bookingToComplete.appointmentId,
+                    date: bookingToComplete.timeSlot.appointmentDate,
+                    type: 'completed',
+                    read: false,
+                    createdAt: completedAtTimestamp,
+                  });
                 }
               });
             });
@@ -1318,6 +1338,16 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
                       cancelledAt: cancelledAtTimestamp,
                     }).then(() => {})
                   );
+                  // Sending notification to customer
+                  push(ref(db, `users/${userId}/notifications`), {
+                    title: 'Booking Cancelled',
+                    body: `Your appointment (${bookingToCancel.appointmentId}) was cancelled. Reason: ${selectedCancelReason}.`,
+                    appointmentId: bookingToCancel.appointmentId,
+                    date: bookingToCancel.timeSlot.appointmentDate,
+                    type: 'cancelled',
+                    read: false,
+                    createdAt: cancelledAtTimestamp,
+                  });
                 }
               });
             });

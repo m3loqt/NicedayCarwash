@@ -174,7 +174,7 @@ export default function VehiclesList() {
             activeOpacity={1}
             onPress={() => setSelectedVehicle(null)}
           />
-          <View className="bg-white rounded-t-3xl px-5 pb-10 pt-3">
+          <View className="bg-white rounded-t-xl px-5 pb-10 pt-3">
             {/* Handle bar */}
             <View className="items-center mb-5">
               <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />

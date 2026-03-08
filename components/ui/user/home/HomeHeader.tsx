@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { get, ref } from 'firebase/database';
+import { router } from 'expo-router';
+import { get, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ export default function HomeHeader() {
   const insets = useSafeAreaInsets();
   const [showFilter, setShowFilter] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const fetchUserName = async () => {
@@ -38,11 +40,24 @@ export default function HomeHeader() {
           });
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        // ignore
       }
     };
 
     fetchUserName();
+  }, []);
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const notifRef = ref(db, `users/${uid}/notifications`);
+    const unsub = onValue(notifRef, (snap) => {
+      if (!snap.exists()) { setUnreadCount(0); return; }
+      const data = snap.val();
+      const count = Object.values(data).filter((n: any) => !n.read).length;
+      setUnreadCount(count);
+    });
+    return () => unsub();
   }, []);
 
   const handleFilterToggle = () => {
@@ -79,11 +94,16 @@ export default function HomeHeader() {
             <TouchableOpacity
               className="ml-3 w-10 h-10 rounded-full bg-[#1A1A00]/10 items-center justify-center"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => router.push('/user/notifications')}
             >
               <Ionicons name="notifications-outline" size={20} color="#1A1A00" />
-              <View
-                className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-[#F9EF08]"
-              />
+              {unreadCount > 0 && (
+                <View className="absolute top-1.5 right-1.5 min-w-[10px] h-[10px] rounded-full bg-red-500 border-2 border-[#F9EF08] items-center justify-center px-[1px]">
+                  {unreadCount > 9 ? (
+                    <Text style={{ fontSize: 6, color: '#fff', fontWeight: '700', lineHeight: 8 }}>9+</Text>
+                  ) : null}
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>

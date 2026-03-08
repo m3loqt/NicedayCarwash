@@ -43,7 +43,7 @@ export default function BranchDetailsModal({
         <Pressable style={{ flex: 1 }} onPress={onClose} />
 
         <View
-          className="bg-white rounded-t-3xl px-5 pt-4"
+          className="bg-white rounded-t-xl px-5 pt-4"
           style={{
             paddingBottom: Platform.OS === 'ios' ? 32 : 20,
             maxHeight: height * 0.55,

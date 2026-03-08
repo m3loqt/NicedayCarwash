@@ -226,65 +226,60 @@ export default function BookingProgressScreen() {
         {/* Progress Steps */}
         {booking.status !== 'cancelled' && (
           <View className="mx-5 mb-6">
+            {/* Circles + connectors row */}
             <View className="flex-row items-center">
               {STEPS.map((step, index) => {
                 const stepIndex = STATUS_ORDER[step.id] ?? index;
                 const isCompleted = currentStepIndex > stepIndex;
                 const isCurrent = currentStepIndex === stepIndex;
-                const isFuture = currentStepIndex < stepIndex;
 
                 return (
-                  <View key={step.id} className="flex-1 items-center">
-                    {/* Connector line before (skip first) */}
-                    <View className="flex-row items-center w-full">
-                      {index > 0 && (
-                        <View
-                          className="flex-1 h-[2px]"
-                          style={{ backgroundColor: isCompleted || isCurrent ? '#F9EF08' : '#E5E5E5' }}
-                        />
-                      )}
-                      {/* Circle */}
+                  <View key={step.id} className="flex-1 flex-row items-center">
+                    {/* Connector before (skip first) */}
+                    {index > 0 && (
                       <View
-                        className="w-9 h-9 rounded-full items-center justify-center"
-                        style={{
-                          backgroundColor: isCurrent
-                            ? '#F9EF08'
-                            : isCompleted
-                            ? '#F9EF08'
-                            : '#F5F5F5',
-                        }}
-                      >
-                        {isCompleted ? (
-                          <Ionicons name="checkmark" size={16} color="#1A1A00" />
-                        ) : (
-                          <Ionicons
-                            name={step.icon}
-                            size={16}
-                            color={isCurrent ? '#1A1A00' : '#BDBDBD'}
-                          />
-                        )}
-                      </View>
-                      {/* Connector line after (skip last) */}
-                      {index < STEPS.length - 1 && (
-                        <View
-                          className="flex-1 h-[2px]"
-                          style={{
-                            backgroundColor:
-                              currentStepIndex > stepIndex ? '#F9EF08' : '#E5E5E5',
-                          }}
-                        />
+                        className="flex-1 h-[2px]"
+                        style={{ backgroundColor: isCompleted || isCurrent ? '#F9EF08' : '#E5E5E5' }}
+                      />
+                    )}
+                    <View
+                      className="w-9 h-9 rounded-full items-center justify-center"
+                      style={{ backgroundColor: isCurrent || isCompleted ? '#F9EF08' : '#F5F5F5' }}
+                    >
+                      {isCompleted ? (
+                        <Ionicons name="checkmark" size={16} color="#1A1A00" />
+                      ) : (
+                        <Ionicons name={step.icon} size={16} color={isCurrent ? '#1A1A00' : '#BDBDBD'} />
                       )}
                     </View>
-                    <Text
-                      className="text-[10px] mt-1.5 text-center"
-                      style={{
-                        fontWeight: isCurrent ? '700' : '400',
-                        color: isFuture ? '#BDBDBD' : '#1A1A1A',
-                      }}
-                    >
-                      {step.label}
-                    </Text>
+                    {/* Connector after (skip last) */}
+                    {index < STEPS.length - 1 && (
+                      <View
+                        className="flex-1 h-[2px]"
+                        style={{ backgroundColor: currentStepIndex > stepIndex ? '#F9EF08' : '#E5E5E5' }}
+                      />
+                    )}
                   </View>
+                );
+              })}
+            </View>
+            {/* Labels row */}
+            <View className="flex-row mt-1.5">
+              {STEPS.map((step, index) => {
+                const stepIndex = STATUS_ORDER[step.id] ?? index;
+                const isCurrent = currentStepIndex === stepIndex;
+                const isFuture = currentStepIndex < stepIndex;
+                return (
+                  <Text
+                    key={step.id}
+                    className="flex-1 text-[10px] text-center"
+                    style={{
+                      fontWeight: isCurrent ? '700' : '400',
+                      color: isFuture ? '#BDBDBD' : '#1A1A1A',
+                    }}
+                  >
+                    {step.label}
+                  </Text>
                 );
               })}
             </View>

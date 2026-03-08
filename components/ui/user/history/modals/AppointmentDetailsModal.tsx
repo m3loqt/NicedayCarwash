@@ -122,7 +122,7 @@ export default function AppointmentDetailsModal({
 
         {/* Sheet */}
         <View
-          className="bg-white rounded-t-3xl"
+          className="bg-white rounded-t-xl"
           style={{ maxHeight: '82%' }}
         >
           {/* Handle bar */}

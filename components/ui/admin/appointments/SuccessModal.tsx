@@ -58,7 +58,7 @@ export default function SuccessModal({ visible, message, onClose }: SuccessModal
       <View className="flex-1 bg-black/40 justify-end">
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
 
-        <View className="bg-white rounded-t-3xl">
+        <View className="bg-white rounded-t-xl">
           {/* Handle */}
           <View className="items-center pt-3 pb-1">
             <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />

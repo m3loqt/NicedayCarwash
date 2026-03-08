@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import BookingCard from './BookingCard';
 import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 
@@ -108,7 +108,7 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
   }, [activeTab]);
 
   const handleBookingPress = (booking: Booking) => {
-    if (booking.status === 'pending' || booking.status === 'accepted' || booking.status === 'ongoing') {
+    if (booking.status === 'accepted' || booking.status === 'ongoing' || booking.status === 'completed') {
       router.push({
         pathname: '/user/booking-progress' as any,
         params: { appointmentId: booking.appointmentId, date: booking.appointmentDate },
@@ -160,33 +160,14 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
           <View className="flex-1 justify-center items-center py-24">
             <Ionicons name="receipt-outline" size={48} color="#E0E0E0" />
             <Text className="text-base text-[#999] mt-4">
-              No {activeTab} bookings
+              No {activeTab === 'accepted' ? 'confirmed' : activeTab} bookings
             </Text>
             <Text className="text-[13px] text-[#CCC] mt-1">
-              Your {activeTab} bookings will appear here
+              Your {activeTab === 'accepted' ? 'confirmed' : activeTab} bookings will appear here
             </Text>
           </View>
         )}
 
-        {/* Cancelled bookings link – only visible on completed tab */}
-        {activeTab === 'completed' && (
-          <TouchableOpacity
-            className="mx-5 mt-4 mb-2 flex-row items-center justify-between px-4 py-4 rounded-2xl bg-[#FAFAFA]"
-            onPress={() => router.push('/user/cancelled-bookings' as any)}
-            activeOpacity={0.7}
-          >
-            <View className="flex-row items-center">
-              <View className="w-8 h-8 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
-                <Ionicons name="close-circle-outline" size={18} color="#BDBDBD" />
-              </View>
-              <View>
-                <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancelled Bookings</Text>
-                <Text className="text-[11px] text-[#999] mt-0.5">View your cancelled appointments</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
       {selectedBooking && (

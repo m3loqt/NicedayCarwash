@@ -1,5 +1,4 @@
 import {
-    ActiveBookingBar,
     AdminDashboardHeader,
     ManageServicesCard,
     NextUpCard,
@@ -89,10 +88,6 @@ export default function AdminDashboardScreen() {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [nextUpList, setNextUpList] = useState<NextUpItem[]>([]);
-  const [activeBooking, setActiveBooking] = useState<{
-    appointmentId: string; vehicleName: string; plateNumber: string;
-    time: string; status: 'pending' | 'accepted' | 'ongoing';
-  } | null>(null);
   const [selectedNotificationBooking, setSelectedNotificationBooking] = useState<Booking | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
 
@@ -208,26 +203,6 @@ export default function AdminDashboardScreen() {
           vehicleLabel: b.vehicleDetails?.vehicleName || b.vehicleDetails?.classification || 'Vehicle',
           amountFormatted: `P${(b.amountDue ?? 0).toFixed(2)}`,
         }));
-
-      // Pick most urgent active booking: ongoing first, then accepted, then pending
-      const ongoingBookings = bookings.filter((b) => b.status === 'ongoing');
-      const urgentBooking =
-        ongoingBookings[0] ??
-        bookings.find((b) => b.status === 'accepted') ??
-        bookings.find((b) => b.status === 'pending') ??
-        null;
-
-      setActiveBooking(
-        urgentBooking
-          ? {
-              appointmentId: urgentBooking.appointmentId,
-              vehicleName: urgentBooking.vehicleDetails.vehicleName || urgentBooking.vehicleDetails.classification || 'Vehicle',
-              plateNumber: urgentBooking.vehicleDetails.plateNumber,
-              time: urgentBooking.timeSlot.time,
-              status: urgentBooking.status as 'pending' | 'accepted' | 'ongoing',
-            }
-          : null
-      );
 
       setNextUpList(nextUp);
       setPendingReservations(pending);
@@ -359,7 +334,7 @@ export default function AdminDashboardScreen() {
             style={{ backgroundColor: '#FFFFFF', flex: 1 }}
             contentContainerStyle={{
               backgroundColor: '#FFFFFF',
-              paddingBottom: 140,
+              paddingBottom: 80,
               flexGrow: 1,
             }}
           >
@@ -374,11 +349,6 @@ export default function AdminDashboardScreen() {
             onEntryPress={handleNotificationEntryPress}
           />
         </ScrollView>
-
-        <ActiveBookingBar
-          booking={activeBooking}
-          pendingCount={transactionCounts.pending}
-        />
 
         {selectedNotificationBooking && (
           <AppointmentDetailsModal

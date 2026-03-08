@@ -1,9 +1,8 @@
 import { auth, db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
-import { Ionicons } from "@expo/vector-icons";
-import { get, onValue, ref, remove, set } from "firebase/database";
+import { get, onValue, ref, set } from "firebase/database";
 import { useEffect, useState } from "react";
-import { Switch, Text, TouchableOpacity, View } from "react-native";
+import { Switch, Text, View } from "react-native";
 import AvailabilityConfirmModal from "./AvailabilityConfirmModal";
 
 interface Service {
@@ -92,28 +91,6 @@ export default function Services({ branchId: propBranchId }: ServicesProps = {})
     }
   };
 
-  const handleDelete = (item: Service) => {
-    alert(
-      "Delete Service",
-      `Are you sure you want to delete "${item.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            if (!branchId) return;
-            try {
-              await remove(ref(db, `Branches/${branchId}/Services/${item.id}`));
-            } catch {
-              alert("Error", "Failed to delete service.");
-            }
-          },
-        },
-      ]
-    );
-  };
-
   if (loading) {
     return (
       <View className="py-4">
@@ -153,13 +130,6 @@ export default function Services({ branchId: propBranchId }: ServicesProps = {})
             trackColor={{ false: "#E5E7EB", true: "#F9EF08" }}
             thumbColor="#fff"
           />
-          <TouchableOpacity
-            onPress={() => handleDelete(item)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            className="ml-3"
-          >
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-          </TouchableOpacity>
         </View>
       ))}
       <AvailabilityConfirmModal

@@ -10,7 +10,6 @@ interface ScheduleUnavailableModalProps {
 
 export default function ScheduleUnavailableModal({
   visible,
-  reason,
   branchSchedule,
   onClose,
 }: ScheduleUnavailableModalProps) {
@@ -18,68 +17,54 @@ export default function ScheduleUnavailableModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <View className="flex-1 justify-center items-center bg-black/50">
-        <View className="bg-white rounded-2xl px-6 py-8 mx-6 max-w-sm w-full relative">
-          {/* Close Icon - Top Right */}
-          <TouchableOpacity
-            className="absolute top-4 right-4 z-10"
-            onPress={onClose}
-          >
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-          
-          {/* Calendar Icon */}
-          <View className="items-center mb-6">
-            <View className="relative mb-4">
-              {/* Calendar body - light gray */}
-              <View className="w-20 h-20 bg-gray-200 rounded-lg items-center justify-center">
-                {/* Calendar top bar - yellow theme */}
-                <View className="absolute top-0 left-0 right-0 h-6 bg-[#F9EF08] rounded-t-lg" />
-                {/* Calendar grid - white squares */}
-                <View className="flex-row flex-wrap justify-center items-center mt-2 px-2">
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <View
-                      key={i}
-                      className="w-2 h-2 bg-white rounded-sm m-0.5"
-                    />
-                  ))}
-                </View>
-              </View>
-            </View>
-            
-            {/* Main Heading */}
-            <Text className="text-2xl font-bold text-[#333] mb-2">
-              Date not available!
-            </Text>
-            
-            {/* Sub-heading */}
-            <Text className="text-base text-gray-600 text-center">
-              Sorry! The store is closed on this date
-            </Text>
+      <View className="flex-1 bg-black/40 justify-end">
+        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+
+        <View className="bg-white rounded-t-xl">
+          {/* Handle */}
+          <View className="items-center pt-3 pb-1">
+            <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
           </View>
-          
-          {/* Store Hours */}
-          {branchSchedule && (
-            <View className="flex-row items-center justify-center mb-6">
-              <Ionicons name="time-outline" size={16} color="#666" />
-              <Text className="text-sm text-gray-600 ml-2">
-                Store Hours: {branchSchedule.openTime} - {branchSchedule.closeTime}
-              </Text>
-            </View>
-          )}
-          
-          {/* Action Button */}
-          <TouchableOpacity
-            className="bg-[#F9EF08] py-4 rounded-xl items-center"
-            onPress={onClose}
-          >
-            <Text className="text-[#1E1E1E] text-base font-semibold">
-              Try another date
+
+          {/* Header */}
+          <View className="flex-row items-center justify-between px-5 pt-3 pb-4">
+            <Text className="text-[17px] font-bold text-[#1A1A1A]">Date Not Available</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={22} color="#999" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="h-[0.5px] bg-[#F0F0F0]" />
+
+          {/* Body */}
+          <View className="px-5 pt-5 pb-3">
+            <Text className="text-[14px] text-[#666] leading-[20px]">
+              Sorry, the branch is closed on the selected date.
             </Text>
-          </TouchableOpacity>
+
+            {branchSchedule && (
+              <View className="flex-row items-center mt-3">
+                <Ionicons name="time-outline" size={15} color="#999" />
+                <Text className="text-[13px] text-[#999] ml-1.5">
+                  Store Hours: {branchSchedule.openTime} – {branchSchedule.closeTime}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Button */}
+          <View className="px-5 pb-10 pt-3">
+            <TouchableOpacity
+              className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+              onPress={onClose}
+              activeOpacity={0.85}
+            >
+              <Text className="text-[14px] font-bold text-[#1A1A1A]">Try Another Date</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
