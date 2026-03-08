@@ -23,6 +23,7 @@ interface AppointmentDetailsModalProps {
   isAdminView?: boolean;
   onClose: () => void;
   onAccept?: () => void;
+  // onStartWash?: () => void;
   onCancel?: () => void;
   onComplete?: () => void;
 }
@@ -101,6 +102,7 @@ export default function AppointmentDetailsModal({
   onClose,
   onAccept,
   onCancel,
+  // onStartWash,
   onComplete,
 }: AppointmentDetailsModalProps) {
   const estHours = estimatedCompletion
@@ -248,7 +250,7 @@ export default function AppointmentDetailsModal({
             <>
               <Divider />
               <View className="px-5 py-4 flex-row gap-3 bg-white">
-                {status === 'pending' || status === 'accepted' ? (
+                {status === 'pending' ? (
                   <>
                     <TouchableOpacity
                       className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
@@ -269,6 +271,19 @@ export default function AppointmentDetailsModal({
                       </Text>
                     </TouchableOpacity>
                   </>
+                        ) : status === 'accepted' ? (
+
+        <>
+          <TouchableOpacity
+            className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
+            onPress={onCancel}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
+              Cancel
+            </Text>
+          </TouchableOpacity>
+        </>
                 ) : status === 'ongoing' ? (
                   <>
                     <TouchableOpacity
