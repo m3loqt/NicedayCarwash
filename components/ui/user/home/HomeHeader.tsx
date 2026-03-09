@@ -50,7 +50,7 @@ export default function HomeHeader() {
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
-    const notifRef = ref(db, `users/${uid}/notifications`);
+    const notifRef = ref(db, `Notifications/ByUser/${uid}`);
     const unsub = onValue(notifRef, (snap) => {
       if (!snap.exists()) { setUnreadCount(0); return; }
       const data = snap.val();

@@ -13,10 +13,10 @@ export default function BayButton({ bayNumber, status, onPress }: BayButtonProps
   const isSelected = status === 'selected';
 
   const bgColor = isSelected
-    ? 'bg-[#FFFDE7] border-2 border-[#F9EF08]'
+    ? 'bg-white border-2 border-[#F9EF08]'
     : isUnavailable
     ? 'bg-[#F5F5F5]'
-    : 'bg-[#FFFDE7] border border-[#F9EF08]';
+    : 'bg-white border border-[#D4D4D4]';
 
   const textColor = isSelected
     ? 'text-[#1A1A1A]'
@@ -26,7 +26,7 @@ export default function BayButton({ bayNumber, status, onPress }: BayButtonProps
 
   return (
     <TouchableOpacity
-      className={`rounded-2xl py-2.5 px-3 items-center justify-center ${bgColor}`}
+      className={`rounded-xl py-4 px-3 items-center justify-center ${bgColor}`}
       onPress={onPress}
       disabled={isUnavailable}
       activeOpacity={isUnavailable ? 1 : 0.75}

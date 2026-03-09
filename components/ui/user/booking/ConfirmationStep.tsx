@@ -171,6 +171,7 @@ export default function ConfirmationStep({
         paymentMethod: paymentMethod || '',
         status: 'pending',
         isPaid: false,
+        createdAt: new Date().toISOString(),
         note: note.trim() || '',
         amountDue,
         timeSlot: {
@@ -196,7 +197,14 @@ export default function ConfirmationStep({
         })),
       };
       await set(ref(db, `Reservations/ReservationsByUser/${userId}/${datePath}/${appointmentId}`), bookingData);
-      await set(ref(db, `Reservations/ReservationsByBranch/${branch.id}/${datePath}/${appointmentId}`), bookingData);
+      await set(ref(db, `Notifications/ByBranch/${branch.id}/pendingBookings/${appointmentId}`), {
+        userId,
+        dateKey: datePath,
+        appointmentId,
+        branchId: branch.id,
+        branchName: branch.name,
+        createdAt: bookingData.createdAt,
+      });
       setSubmitting(false);
       onDone?.();
       router.replace({ pathname: '/user/booking-success', params: { appointmentId } } as any);

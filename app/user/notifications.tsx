@@ -48,7 +48,7 @@ export default function NotificationsScreen() {
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
-    const unsub = onValue(ref(db, `users/${uid}/notifications`), (snap) => {
+    const unsub = onValue(ref(db, `Notifications/ByUser/${uid}`), (snap) => {
       if (!snap.exists()) { setNotifications([]); return; }
       const list: Notification[] = Object.entries(snap.val()).map(([id, val]: [string, any]) => ({ id, ...val }));
       list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -60,7 +60,7 @@ export default function NotificationsScreen() {
   const handlePress = (notif: Notification) => {
     const uid = auth.currentUser?.uid;
     if (uid && !notif.read) {
-      update(ref(db, `users/${uid}/notifications/${notif.id}`), { read: true });
+      update(ref(db, `Notifications/ByUser/${uid}/${notif.id}`), { read: true });
     }
     if (notif.appointmentId && notif.date) {
       router.push({ pathname: '/user/booking-progress', params: { appointmentId: notif.appointmentId, date: notif.date } });
@@ -71,7 +71,7 @@ export default function NotificationsScreen() {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
     const updates: Record<string, boolean> = {};
-    notifications.forEach((n) => { if (!n.read) updates[`users/${uid}/notifications/${n.id}/read`] = true; });
+    notifications.forEach((n) => { if (!n.read) updates[`Notifications/ByUser/${uid}/${n.id}/read`] = true; });
     if (Object.keys(updates).length > 0) update(ref(db), updates);
   };
 

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
+  Modal,
   ScrollView,
   StatusBar,
   Text,
@@ -12,7 +14,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface DayBooking {
   appointmentId: string;
@@ -34,14 +37,14 @@ const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: '#F9EF08',
-  accepted: '#34D399',
-  ongoing: '#60A5FA',
-  completed: '#A3A3A3',
-  cancelled: '#F87171',
+const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+  pending:   { bg: '#F9EF08', text: '#7A6F00', label: 'Pending' },
+  accepted:  { bg: '#34D399', text: '#fff',    label: 'Confirmed' },
+  ongoing:   { bg: '#60A5FA', text: '#fff',    label: 'Ongoing' },
+  completed: { bg: '#A3A3A3', text: '#fff',    label: 'Completed' },
+  cancelled: { bg: '#F87171', text: '#fff',    label: 'Cancelled' },
 };
 
 const formatDatePath = (date: Date): string => {
@@ -51,23 +54,15 @@ const formatDatePath = (date: Date): string => {
   return `${m}-${d}-${y}`;
 };
 
-const parseDatePath = (path: string): Date | null => {
-  const parts = path.split('-');
-  if (parts.length !== 3) return null;
-  return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
-};
-
 export default function AdminCalendarScreen() {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [bookingsByDate, setBookingsByDate] = useState<Record<string, DayBooking[]>>({});
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedBooking, setSelectedBooking] = useState<DayBooking | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [modalVisible, setModalVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
-  // Load branchId from user profile
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
@@ -79,7 +74,6 @@ export default function AdminCalendarScreen() {
     });
   }, []);
 
-  // Load bookings for branch
   useEffect(() => {
     if (!branchId) return;
     const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
@@ -101,13 +95,7 @@ export default function AdminCalendarScreen() {
             ? Object.values(data.services)
             : [];
           if (!grouped[dateKey]) grouped[dateKey] = [];
-          grouped[dateKey].push({
-            ...data,
-            addOns,
-            services,
-            dateKey,
-            key: bookingSnap.key || '',
-          });
+          grouped[dateKey].push({ ...data, addOns, services, dateKey, key: bookingSnap.key || '' });
         });
       });
       setBookingsByDate(grouped);
@@ -116,15 +104,29 @@ export default function AdminCalendarScreen() {
     return () => unsubscribe();
   }, [branchId]);
 
-  // Animate day list in when a date is selected
-  const handleDayPress = (date: Date) => {
+  const openModal = (date: Date) => {
     setSelectedDate(date);
-    slideAnim.setValue(30);
-    Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+    slideAnim.setValue(SCREEN_HEIGHT);
+    setModalVisible(true);
+    requestAnimationFrame(() => {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 22,
+        stiffness: 220,
+      }).start();
+    });
+  };
+
+  const closeModal = () => {
+    Animated.timing(slideAnim, {
+      toValue: SCREEN_HEIGHT,
+      duration: 240,
+      useNativeDriver: true,
+    }).start(() => setModalVisible(false));
   };
 
   const navigateMonth = (dir: 'prev' | 'next') => {
-    setSelectedDate(null);
     setCalendarMonth((prev) => {
       const d = new Date(prev);
       d.setMonth(prev.getMonth() + (dir === 'next' ? 1 : -1));
@@ -132,235 +134,348 @@ export default function AdminCalendarScreen() {
     });
   };
 
-  const getCalendarDays = (): (Date | null)[] => {
+  // Monday-first calendar weeks
+  const getWeeks = (): (Date | null)[][] => {
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days: (Date | null)[] = Array(firstDay).fill(null);
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
+    const offset = (firstDay + 6) % 7; // Mon=0 … Sun=6
+
+    const days: (Date | null)[] = Array(offset).fill(null);
+    for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+
+    const weeks: (Date | null)[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      const week = days.slice(i, i + 7);
+      while (week.length < 7) week.push(null);
+      weeks.push(week);
     }
-    return days;
+    // Ensure minimum 5 rows
+    while (weeks.length < 5) weeks.push(Array(7).fill(null));
+    return weeks;
   };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const isToday = (date: Date) =>
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear();
+  const isToday = (d: Date) =>
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate();
 
-  const isSelected = (date: Date) =>
-    selectedDate !== null &&
-    date.getDate() === selectedDate.getDate() &&
-    date.getMonth() === selectedDate.getMonth() &&
-    date.getFullYear() === selectedDate.getFullYear();
+  const isSelected = (d: Date) =>
+    !!selectedDate &&
+    d.getFullYear() === selectedDate.getFullYear() &&
+    d.getMonth() === selectedDate.getMonth() &&
+    d.getDate() === selectedDate.getDate();
 
-  const selectedDateBookings: DayBooking[] = selectedDate
+  const selectedBookings: DayBooking[] = selectedDate
     ? bookingsByDate[formatDatePath(selectedDate)] ?? []
     : [];
 
-  const calendarDays = getCalendarDays();
+  const weeks = getWeeks();
 
   return (
     <View className="flex-1 bg-white">
-      <SafeAreaView className="flex-1" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        {/* Header */}
-        <View className="px-5 pt-4 pb-2">
-          <Text className="text-3xl font-bold text-[#1A1A1A]">Calendar</Text>
+        {/* ── Month header ── */}
+        <View className="flex-row items-center px-5 pt-3 pb-4">
+          <Text className="text-[28px] font-bold text-[#1A1A1A] flex-1">
+            {MONTHS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigateMonth('prev')}
+            className="w-9 h-9 rounded-full border border-[#E0E0E0] items-center justify-center mr-2"
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={16} color="#1A1A1A" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigateMonth('next')}
+            className="w-9 h-9 rounded-full border border-[#E0E0E0] items-center justify-center mr-2"
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-forward" size={16} color="#1A1A1A" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="w-9 h-9 rounded-full border border-[#E0E0E0] items-center justify-center"
+            activeOpacity={0.7}
+          >
+            <Ionicons name="search-outline" size={16} color="#1A1A1A" />
+          </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* Month navigation */}
-          <View className="flex-row items-center px-5 py-3">
-            <Text className="text-[18px] font-bold text-[#1A1A1A] flex-1">
-              {MONTHS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
-            </Text>
-            <TouchableOpacity onPress={() => navigateMonth('prev')} className="p-2 mr-1">
-              <Ionicons name="chevron-back" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigateMonth('next')} className="p-2">
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Day labels */}
-          <View className="flex-row px-4 mb-1">
-            {DAY_LABELS.map((d, i) => (
-              <View key={i} className="flex-1 items-center">
-                <Text className="text-[11px] font-semibold text-[#BDBDBD]">{d}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Calendar grid */}
-          {loading ? (
-            <View className="items-center py-16">
-              <ActivityIndicator size="large" color="#F9EF08" />
-            </View>
-          ) : (
-            <View className="flex-row flex-wrap px-4">
-              {calendarDays.map((date, idx) => {
-                if (!date) return <View key={`empty-${idx}`} className="w-[14.28%] aspect-square" />;
-                const datePath = formatDatePath(date);
-                const dayBookings = bookingsByDate[datePath] ?? [];
-                const hasBookings = dayBookings.length > 0;
-                const sel = isSelected(date);
-                const tod = isToday(date);
-
-                return (
-                  <TouchableOpacity
-                    key={datePath}
-                    className="w-[14.28%] aspect-square items-center justify-center"
-                    onPress={() => handleDayPress(date)}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      className={`w-9 h-9 rounded-full items-center justify-center ${
-                        sel ? 'bg-[#F9EF08]' : tod ? 'bg-[#FFFDE7]' : ''
-                      }`}
-                    >
-                      <Text
-                        className={`text-[14px] ${
-                          sel
-                            ? 'font-bold text-[#1A1A00]'
-                            : tod
-                            ? 'font-bold text-[#F9A825]'
-                            : 'font-medium text-[#1A1A1A]'
-                        }`}
-                      >
-                        {date.getDate()}
-                      </Text>
-                    </View>
-                    {/* Booking dots */}
-                    {hasBookings && (
-                      <View className="flex-row mt-0.5 gap-0.5">
-                        {dayBookings.slice(0, 3).map((b, i) => (
-                          <View
-                            key={i}
-                            className="w-1.5 h-1.5 rounded-full"
-                            style={{
-                              backgroundColor: STATUS_COLORS[b.status] ?? '#BDBDBD',
-                            }}
-                          />
-                        ))}
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Legend */}
-          <View className="flex-row flex-wrap px-5 mt-4 gap-x-4 gap-y-2">
-            {Object.entries(STATUS_COLORS).map(([status, color]) => (
-              <View key={status} className="flex-row items-center">
-                <View className="w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: color }} />
-                <Text className="text-[11px] text-[#999] capitalize">{status}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Selected day bookings */}
-          {selectedDate && (
-            <Animated.View
-              className="mx-5 mt-5"
-              style={{ transform: [{ translateY: slideAnim }] }}
+        {/* ── Day-of-week labels ── */}
+        <View className="flex-row border-t border-b border-[#F0F0F0]">
+          {DAY_LABELS.map((label, i) => (
+            <View
+              key={i}
+              style={{ flex: 1 }}
+              className={`items-center py-2${i < DAY_LABELS.length - 1 ? ' border-r border-[#F0F0F0]' : ''}`}
             >
-              <View className="flex-row items-center mb-3">
-                <Text className="text-[16px] font-bold text-[#1A1A1A] flex-1">
-                  {selectedDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </Text>
-                <View className="bg-[#F5F5F5] rounded-full px-2.5 py-1">
-                  <Text className="text-[12px] font-semibold text-[#666]">
-                    {selectedDateBookings.length} booking{selectedDateBookings.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-              </View>
+              <Text className="text-[12px] font-semibold text-[#BDBDBD]">{label}</Text>
+            </View>
+          ))}
+        </View>
 
-              {selectedDateBookings.length === 0 ? (
-                <View className="bg-[#FAFAFA] rounded-2xl py-10 items-center">
-                  <Ionicons name="calendar-outline" size={32} color="#E0E0E0" />
-                  <Text className="text-[13px] text-[#999] mt-3">No bookings on this day</Text>
-                </View>
-              ) : (
-                selectedDateBookings.map((booking) => (
-                  <TouchableOpacity
-                    key={booking.appointmentId}
-                    className="bg-[#FAFAFA] rounded-2xl px-4 py-4 mb-2"
-                    onPress={() => { setSelectedBooking(booking); setShowDetails(true); }}
-                    activeOpacity={0.7}
-                  >
-                    <View className="flex-row items-center justify-between mb-2">
-                      <Text className="text-[14px] font-bold text-[#1A1A1A] flex-1 mr-2" numberOfLines={1}>
-                        {booking.vehicleDetails?.vehicleName || 'Vehicle'}
-                      </Text>
+        {/* ── Calendar grid ── */}
+        {loading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#F9EF08" />
+          </View>
+        ) : (
+          <View className="flex-1">
+            {weeks.map((week, wi) => (
+              <View
+                key={wi}
+                style={{ flex: 1, flexDirection: 'row' }}
+                className={wi < weeks.length - 1 ? 'border-b border-[#F0F0F0]' : ''}
+              >
+                {week.map((date, di) => {
+                  const isLastCol = di === 6;
+
+                  if (!date) {
+                    return (
                       <View
-                        className="rounded-full px-2.5 py-1"
-                        style={{ backgroundColor: `${STATUS_COLORS[booking.status]}20` }}
+                        key={`e-${wi}-${di}`}
+                        style={{ flex: 1 }}
+                        className={!isLastCol ? 'border-r border-[#F0F0F0]' : ''}
+                      />
+                    );
+                  }
+
+                  const datePath = formatDatePath(date);
+                  const dayBookings = bookingsByDate[datePath] ?? [];
+                  const visible = dayBookings.slice(0, 2);
+                  const overflow = dayBookings.length - 2;
+                  const sel = isSelected(date);
+                  const tod = isToday(date);
+                  const currentMonth = date.getMonth() === calendarMonth.getMonth();
+
+                  return (
+                    <TouchableOpacity
+                      key={datePath}
+                      style={{ flex: 1, paddingHorizontal: 3, paddingTop: 5, paddingBottom: 3, overflow: 'hidden' }}
+                      className={!isLastCol ? 'border-r border-[#F0F0F0]' : ''}
+                      onPress={() => openModal(date)}
+                      activeOpacity={0.6}
+                    >
+                      {/* Day number */}
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: sel ? '#F9EF08' : 'transparent',
+                          marginBottom: 3,
+                        }}
                       >
                         <Text
-                          className="text-[11px] font-semibold capitalize"
-                          style={{ color: STATUS_COLORS[booking.status] }}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: sel || tod ? '700' : '500',
+                            color: sel
+                              ? '#1A1A00'
+                              : tod
+                              ? '#F9A825'
+                              : currentMonth
+                              ? '#1A1A1A'
+                              : '#D0D0D0',
+                          }}
                         >
-                          {booking.status}
+                          {date.getDate()}
                         </Text>
                       </View>
-                    </View>
-                    <Text className="text-[12px] text-[#999]">
-                      {booking.vehicleDetails?.plateNumber}  ·  {booking.vehicleDetails?.classification}
-                    </Text>
-                    <View className="flex-row items-center justify-between mt-2">
-                      <View className="flex-row items-center">
-                        <Ionicons name="time-outline" size={13} color="#BDBDBD" />
-                        <Text className="text-[12px] text-[#BDBDBD] ml-1">{booking.timeSlot?.time}</Text>
-                      </View>
-                      <Text className="text-[13px] font-bold text-[#1A1A1A]">
-                        ₱{Number(booking.amountDue).toFixed(2)}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
-            </Animated.View>
-          )}
-        </ScrollView>
 
-        {selectedBooking && (
-          <AppointmentDetailsModal
-            visible={showDetails}
-            branchName={selectedBooking.branchName}
-            branchAddress={selectedBooking.branchAddress}
-            branchImage={require('../../../assets/images/samplebranch.png')}
-            vehicleName={selectedBooking.vehicleDetails?.vehicleName}
-            plateNumber={selectedBooking.vehicleDetails?.plateNumber}
-            classification={selectedBooking.vehicleDetails?.classification}
-            date={selectedBooking.timeSlot?.appointmentDate}
-            time={selectedBooking.timeSlot?.time}
-            orderSummary={[
-              ...(selectedBooking.services?.map((s: any) => ({ label: s?.name ?? 'Service', price: `₱${s?.price ?? 0}` })) ?? []),
-              ...(selectedBooking.addOns?.map((a: any) => ({ label: a?.name ?? 'Add-on', price: `₱${a?.price ?? 0}` })) ?? []),
-              { label: 'Booking Fee', price: '₱25' },
-            ]}
-            amountDue={String(selectedBooking.amountDue)}
-            paymentMethod={selectedBooking.paymentMethod}
-            estimatedCompletion={selectedBooking.timeSlot?.estCompletion}
-            note={selectedBooking.note}
-            status={selectedBooking.status}
-            appointmentId={selectedBooking.appointmentId}
-            isAdminView
-            onClose={() => { setShowDetails(false); setSelectedBooking(null); }}
-          />
+                      {/* Event pills */}
+                      {visible.map((b, idx) => {
+                        const s = STATUS_STYLE[b.status] ?? { bg: '#E0E0E0', text: '#666', label: b.status };
+                        const label =
+                          b.vehicleDetails?.vehicleName ||
+                          b.vehicleDetails?.plateNumber ||
+                          b.appointmentId;
+                        return (
+                          <View
+                            key={idx}
+                            style={{
+                              backgroundColor: s.bg,
+                              borderRadius: 4,
+                              paddingHorizontal: 4,
+                              paddingVertical: 2,
+                              marginBottom: 2,
+                            }}
+                          >
+                            <Text
+                              style={{ color: s.text, fontSize: 10, fontWeight: '600' }}
+                              numberOfLines={1}
+                            >
+                              {label}
+                            </Text>
+                          </View>
+                        );
+                      })}
+
+                      {overflow > 0 && (
+                        <Text style={{ fontSize: 9, color: '#999', fontWeight: '500' }}>
+                          +{overflow}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
         )}
+
+        {/* ── Bottom sheet modal ── */}
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="none"
+          onRequestClose={closeModal}
+        >
+          <View style={{ flex: 1 }}>
+            {/* Backdrop */}
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}
+              activeOpacity={1}
+              onPress={closeModal}
+            />
+
+            {/* Sheet */}
+            <Animated.View
+              style={{
+                transform: [{ translateY: slideAnim }],
+                backgroundColor: '#FFFFFF',
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                maxHeight: SCREEN_HEIGHT * 0.72,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -3 },
+                shadowOpacity: 0.08,
+                shadowRadius: 16,
+                elevation: 24,
+              }}
+            >
+              {/* Drag handle */}
+              <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+                <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E0E0E0' }} />
+              </View>
+
+              {/* Sheet header */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  paddingHorizontal: 20,
+                  paddingTop: 8,
+                  paddingBottom: 12,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A1A' }}>
+                    {selectedDate?.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                    {selectedBookings.length} booking{selectedBookings.length !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={closeModal}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: '#F5F5F5',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={16} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ height: 1, backgroundColor: '#F0F0F0', marginHorizontal: 20 }} />
+
+              {/* Bookings list */}
+              <ScrollView
+                style={{ paddingHorizontal: 20, paddingTop: 12 }}
+                contentContainerStyle={{ paddingBottom: 36 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {selectedBookings.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                    <Ionicons name="calendar-outline" size={36} color="#E0E0E0" />
+                    <Text style={{ fontSize: 13, color: '#BDBDBD', marginTop: 10 }}>
+                      No bookings on this day
+                    </Text>
+                  </View>
+                ) : (
+                  selectedBookings.map((booking) => {
+                    const s = STATUS_STYLE[booking.status] ?? { bg: '#E0E0E0', text: '#666', label: booking.status };
+                    return (
+                      <View
+                        key={booking.appointmentId}
+                        style={{
+                          backgroundColor: '#FAFAFA',
+                          borderRadius: 16,
+                          padding: 16,
+                          marginBottom: 10,
+                        }}
+                      >
+                        {/* Vehicle name + status */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <Text
+                            style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#1A1A1A', marginRight: 8 }}
+                            numberOfLines={1}
+                          >
+                            {booking.vehicleDetails?.vehicleName || 'Vehicle'}
+                          </Text>
+                          <View style={{ backgroundColor: s.bg, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '600', color: s.text }}>
+                              {s.label}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Plate · Type */}
+                        <Text style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
+                          {booking.vehicleDetails?.plateNumber}
+                          {booking.vehicleDetails?.plateNumber && booking.vehicleDetails?.classification ? '  ·  ' : ''}
+                          {booking.vehicleDetails?.classification}
+                        </Text>
+
+                        {/* Time + Amount */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="time-outline" size={13} color="#BDBDBD" />
+                            <Text style={{ fontSize: 12, color: '#BDBDBD', marginLeft: 4 }}>
+                              {booking.timeSlot?.time}
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A1A1A' }}>
+                            ₱{Number(booking.amountDue).toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+            </Animated.View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );

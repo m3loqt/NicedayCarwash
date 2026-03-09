@@ -27,7 +27,7 @@ import {
 } from "firebase/auth";
 import { auth, db } from "../firebase/firebase";
 
-import { get, ref, set } from "firebase/database";
+import { get, ref, set, update } from "firebase/database";
 
 import OnboardingScreen from '../components/OnboardingScreen';
 import SplashScreen from '../components/SplashScreen';
@@ -51,23 +51,42 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (googleResponse?.type === "success") {
-      const idToken = googleResponse.authentication.idToken;
+      const idToken = googleResponse.authentication?.idToken;
+      if (!idToken) return;
       const credential = GoogleAuthProvider.credential(idToken);
       signInWithCredential(auth, credential)
         .then(async (res) => {
           const uid = res.user.uid;
+          const userRef = ref(db, "users/" + uid);
+          const snapshot = await get(userRef);
 
-          await set(ref(db, "users/" + uid), {
-            email: res.user.email,
-            firstName: res.user.displayName?.split(' ')[0] || "",
-            lastName: res.user.displayName?.split(' ')[1] || "",
-            role: "default"
-          });
+          let role = "default";
+          if (snapshot.exists()) {
+            // Existing user: only update non-role fields to preserve their role
+            role = snapshot.val().role || "default";
+            await update(userRef, {
+              email: res.user.email,
+              firstName: res.user.displayName?.split(' ')[0] || "",
+              lastName: res.user.displayName?.split(' ')[1] || "",
+            });
+          } else {
+            // New user: create with default role
+            await set(userRef, {
+              email: res.user.email,
+              firstName: res.user.displayName?.split(' ')[0] || "",
+              lastName: res.user.displayName?.split(' ')[1] || "",
+              role: "default",
+            });
+          }
 
-          await AsyncStorage.setItem("role", "default");
+          await AsyncStorage.setItem("role", role);
           await AsyncStorage.setItem("uid", uid);
 
-          router.replace("/user/(tabs)/home");
+          if (role === "admin") {
+            router.replace("/admin/(tabs)/dashboard");
+          } else {
+            router.replace("/user/(tabs)/home");
+          }
         })
         .catch((err) => alert("Google Login Error", err.message));
     }

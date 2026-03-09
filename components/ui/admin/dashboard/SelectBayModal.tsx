@@ -54,24 +54,12 @@ export default function SelectBayModal({
 
           <View className="h-[0.5px] bg-[#F0F0F0]" />
 
-          {/* Legend */}
-          <View className="flex-row items-center px-5 pt-4 pb-1 gap-4">
-            <View className="flex-row items-center">
-              <View className="w-2.5 h-2.5 rounded-full bg-[#F9EF08] mr-1.5" />
-              <Text className="text-[12px] text-[#999]" style={{ fontFamily: 'Inter_400Regular' }}>Available</Text>
-            </View>
-            <View className="flex-row items-center">
-              <View className="w-2.5 h-2.5 rounded-full bg-[#E5E5E5] mr-1.5" />
-              <Text className="text-[12px] text-[#999]" style={{ fontFamily: 'Inter_400Regular' }}>Unavailable</Text>
-            </View>
-          </View>
-
           {/* Bay Grid */}
           <ScrollView
             showsVerticalScrollIndicator={false}
             bounces={false}
             style={{ maxHeight: 300 }}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}
           >
             {loading ? (
               <View className="py-10 items-center">
@@ -85,7 +73,7 @@ export default function SelectBayModal({
           </ScrollView>
 
           {/* Confirm Button */}
-          <View className="px-5 pb-10 pt-3">
+          <View className="px-5 pb-8 pt-1">
             <TouchableOpacity
               className={`rounded-2xl py-4 items-center ${selectedBay !== null ? 'bg-[#F9EF08]' : 'bg-[#F5F5F5]'}`}
               onPress={onFinish}

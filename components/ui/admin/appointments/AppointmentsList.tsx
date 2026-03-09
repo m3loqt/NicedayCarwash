@@ -4,8 +4,8 @@ import AppointmentDetailsModal from '@/components/ui/user/history/modals/Appoint
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
 import { get, onValue, push, ref, set, update } from 'firebase/database';
-import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AppointmentCard from './AppointmentCard';
 import CancelReasonModal, { CancelReason } from './CancelReasonModal';
 import CompleteConfirmationModal from './CompleteConfirmationModal';
@@ -37,6 +37,7 @@ interface Booking {
   note?: string;
   cancelledAt?: string;
   completedAt?: string;
+  userId?: string;
 }
 
 interface AppointmentsListProps {
@@ -64,33 +65,41 @@ const formatDateForDisplay = (dateString?: string): string => {
   return `${monthNames[month - 1]} ${day}, ${year}`;
 };
 
-// Parses appointment date (MM-DD-YYYY) and time (H:00 AM/PM or HH:00 AM/PM) into a Date object
+// Parses appointment date (MM-DD-YYYY) and time into a Date object.
+// Handles: "8:00 AM", "11:00 PM", "8:00", "08:00", "8" (hour only), or empty string.
 const parseAppointmentDateTime = (appointmentDate: string, time: string): Date => {
   try {
-    // Parsing date components from MM-DD-YYYY format
-    const [month, day, year] = appointmentDate.split('-').map(Number);
-    
-    // Parsing time components from 12-hour format
-    const timeMatch = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!timeMatch) {
-      throw new Error('Invalid time format');
+    const [month, day, year] = (appointmentDate || '').split('-').map(Number);
+    if (!month || !day || !year) return new Date();
+
+    let hours = 0;
+    let minutes = 0;
+
+    if (time) {
+      // "8:00 AM" / "11:00 PM"
+      const ampmMatch = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (ampmMatch) {
+        hours = parseInt(ampmMatch[1], 10);
+        minutes = parseInt(ampmMatch[2], 10);
+        const meridiem = ampmMatch[3].toUpperCase();
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        else if (meridiem === 'AM' && hours === 12) hours = 0;
+      } else {
+        // "8:00" or "08:00" (no meridiem — treat as 24-hour)
+        const colonMatch = time.match(/(\d{1,2}):(\d{2})/);
+        if (colonMatch) {
+          hours = parseInt(colonMatch[1], 10);
+          minutes = parseInt(colonMatch[2], 10);
+        } else {
+          // "8" or "11" — bare hour number
+          const numMatch = time.match(/^(\d{1,2})$/);
+          if (numMatch) hours = parseInt(numMatch[1], 10);
+        }
+      }
     }
-    
-    let hours = parseInt(timeMatch[1], 10);
-    const minutes = parseInt(timeMatch[2], 10);
-    const meridiem = timeMatch[3].toUpperCase();
-    
-    // Converting 12-hour format to 24-hour format
-    if (meridiem === 'PM' && hours !== 12) {
-      hours += 12;
-    } else if (meridiem === 'AM' && hours === 12) {
-      hours = 0;
-    }
-    
+
     return new Date(year, month - 1, day, hours, minutes);
-  } catch (error) {
-    // Returning current date when parsing fails
-    console.error('Error parsing appointment date/time:', error);
+  } catch {
     return new Date();
   }
 };
@@ -235,7 +244,7 @@ const updateCalendarEntry = async (
     const plateNumber = booking.vehicleDetails.plateNumber || '';
     const vehicleClassification = booking.vehicleDetails.classification || '';
     const formattedBayNumber = formatBayNumberForCalendar(bayNumber);
-    const userId = await findUserIdForAppointment(booking.appointmentId);
+    const userId = booking.userId || await findUserIdForAppointment(booking.appointmentId);
 
     const calendarRef = ref(
       db,
@@ -468,6 +477,33 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // State for Time Slot Unavailable bottom sheet
+  const [showTimeSlotSheet, setShowTimeSlotSheet] = useState(false);
+  const [blockedTimeSlot, setBlockedTimeSlot] = useState('');
+  const timeSlotSlideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+  const openTimeSlotSheet = (time: string) => {
+    setBlockedTimeSlot(time);
+    timeSlotSlideAnim.setValue(Dimensions.get('window').height);
+    setShowTimeSlotSheet(true);
+    requestAnimationFrame(() => {
+      Animated.spring(timeSlotSlideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 22,
+        stiffness: 220,
+      }).start();
+    });
+  };
+
+  const closeTimeSlotSheet = () => {
+    Animated.timing(timeSlotSlideAnim, {
+      toValue: Dimensions.get('window').height,
+      duration: 240,
+      useNativeDriver: true,
+    }).start(() => setShowTimeSlotSheet(false));
+  };
+
   useEffect(() => {
     const fetchAdminBranch = async () => {
       const uid = auth.currentUser?.uid;
@@ -485,6 +521,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             setBranchId(adminBranchId);
 
             await autoStartTodayBookings(adminBranchId);
+            await autoDeclineExpiredPendingBookings(adminBranchId);
           } else {
             setLoading(false);
           }
@@ -552,15 +589,16 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               services: services,
               paymentMethod: data.paymentMethod || '',
               note: data.note || '',
+              userId: data.userId || undefined,
             };
 
             // Filtering by active tab
-            // Accepted bookings should appear in pending tab (until paid)
-            const statusMatchesTab = 
-              (activeTab === 'pending' && booking.status === 'pending') ||
+            // Pending bookings are now sourced from Notifications/ByBranch pendingBookings (separate useEffect)
+            const statusMatchesTab =
               (activeTab === 'confirmed' && booking.status === 'accepted') ||
               (activeTab === 'ongoing' && booking.status === 'ongoing') ||
-              (activeTab === 'completed' && booking.status === 'completed');
+              (activeTab === 'completed' && booking.status === 'completed') ||
+              (activeTab === 'cancelled' && booking.status === 'cancelled');
             
             if (statusMatchesTab) {
               // Filtering by search query
@@ -579,6 +617,101 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       });
 
       // Sorting by appointment date/time (newest first)
+      bookingsList.sort((a, b) => {
+        const dateA = parseAppointmentDateTime(a.timeSlot.appointmentDate, a.timeSlot.time);
+        const dateB = parseAppointmentDateTime(b.timeSlot.appointmentDate, b.timeSlot.time);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      setBookings(bookingsList);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [branchId, activeTab, searchQuery]);
+
+  // Separate listener for pending bookings sourced from Notifications/ByBranch pendingBookings
+  useEffect(() => {
+    if (!branchId || activeTab !== 'pending') return;
+
+    const pendingNotifRef = ref(db, `Notifications/ByBranch/${branchId}/pendingBookings`);
+
+    const unsubscribe = onValue(pendingNotifRef, async (snapshot) => {
+      if (!snapshot.exists()) {
+        setBookings([]);
+        setLoading(false);
+        return;
+      }
+
+      const pendingEntries: Array<{ userId: string; dateKey: string; appointmentId: string }> = [];
+      snapshot.forEach((snap) => {
+        const data = snap.val();
+        if (data && data.userId && data.dateKey && data.appointmentId) {
+          pendingEntries.push({ userId: data.userId, dateKey: data.dateKey, appointmentId: data.appointmentId });
+        }
+      });
+
+      const bookingsList: Booking[] = [];
+      const searchLower = searchQuery.toLowerCase();
+
+      for (const entry of pendingEntries) {
+        try {
+          const userBookingRef = ref(db, `Reservations/ReservationsByUser/${entry.userId}/${entry.dateKey}/${entry.appointmentId}`);
+          const bookingSnap = await get(userBookingRef);
+          if (!bookingSnap.exists()) continue;
+
+          const data = bookingSnap.val();
+          if (!data) continue;
+
+          const addOnsObj = data.addOns;
+          let addOns: any[] = [];
+          if (Array.isArray(addOnsObj)) {
+            addOns = addOnsObj;
+          } else if (addOnsObj && typeof addOnsObj === 'object') {
+            addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
+          }
+
+          const servicesObj = data.services;
+          let services: any[] = [];
+          if (Array.isArray(servicesObj)) {
+            services = servicesObj;
+          } else if (servicesObj && typeof servicesObj === 'object') {
+            services = Object.keys(servicesObj).map((k) => servicesObj[k]);
+          }
+
+          const booking: Booking = {
+            appointmentId: data.appointmentId || entry.appointmentId,
+            branchName: data.branchName || '',
+            branchAddress: data.branchAddress || '',
+            status: data.status || 'pending',
+            isPaid: data.isPaid !== undefined ? data.isPaid : false,
+            timeSlot: data.timeSlot || { appointmentDate: '', time: '', estCompletion: undefined },
+            vehicleDetails: data.vehicleDetails || { vehicleName: '', plateNumber: '', classification: '' },
+            amountDue: data.amountDue || 0,
+            key: entry.appointmentId,
+            dateKey: entry.dateKey,
+            cancelledAt: data.cancelledAt || undefined,
+            completedAt: data.completedAt || undefined,
+            addOns,
+            services,
+            paymentMethod: data.paymentMethod || '',
+            note: data.note || '',
+            userId: entry.userId,
+          };
+
+          if (
+            !searchQuery ||
+            booking.appointmentId.toLowerCase().includes(searchLower) ||
+            booking.vehicleDetails.vehicleName.toLowerCase().includes(searchLower) ||
+            booking.vehicleDetails.plateNumber.toLowerCase().includes(searchLower)
+          ) {
+            bookingsList.push(booking);
+          }
+        } catch (error) {
+          console.error('Error fetching pending booking:', error);
+        }
+      }
+
       bookingsList.sort((a, b) => {
         const dateA = parseAppointmentDateTime(a.timeSlot.appointmentDate, a.timeSlot.time);
         const dateB = parseAppointmentDateTime(b.timeSlot.appointmentDate, b.timeSlot.time);
@@ -665,10 +798,11 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             const bayData = baySnap.val();
             let bayStatus: 'available' | 'unavailable' = 'available';
 
-            // Checking if bay is in maintenance or permanently unavailable
-            if (bayData.status === 'maintenance' || bayData.status === 'unavailable') {
-              bayStatus = 'unavailable';
-            } else if (occupiedBays.has(bayNumber)) {
+            // Admin-set unavailability (maintenance OR manually toggled off with no active booking)
+            const adminBlocked =
+              bayData.status === 'maintenance' ||
+              (bayData.status === 'unavailable' && !bayData.currentAppointmentId);
+            if (adminBlocked || occupiedBays.has(bayNumber)) {
               bayStatus = 'unavailable';
             }
 
@@ -698,10 +832,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             baysData.forEach((bay: any, index: number) => {
               if (bay && bay !== null) {
                 const bayNumber = bay.id || index;
-                const bayStatus: 'available' | 'unavailable' = 
-                  (bay.status === 'maintenance' || bay.status === 'unavailable') 
-                    ? 'unavailable' 
-                    : 'available';
+                const adminBlocked = bay.status === 'maintenance' ||
+                  (bay.status === 'unavailable' && !bay.currentAppointmentId);
+                const bayStatus: 'available' | 'unavailable' = adminBlocked ? 'unavailable' : 'available';
                 bayList.push({ number: bayNumber, status: bayStatus });
               }
             });
@@ -711,10 +844,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               const bayNumber = parseInt(baySnap.key || '0', 10);
               if (bayNumber > 0) {
                 const bayData = baySnap.val();
-                const bayStatus: 'available' | 'unavailable' = 
-                  (bayData.status === 'maintenance' || bayData.status === 'unavailable') 
-                    ? 'unavailable' 
-                    : 'available';
+                const adminBlocked = bayData.status === 'maintenance' ||
+                  (bayData.status === 'unavailable' && !bayData.currentAppointmentId);
+                const bayStatus: 'available' | 'unavailable' = adminBlocked ? 'unavailable' : 'available';
                 bayList.push({ number: bayNumber, status: bayStatus });
               }
             });
@@ -809,29 +941,25 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         }
       }
 
-      // Checking time slot availability
+      // Checking time slot availability — only block if admin explicitly set it to unavailable
       if (booking.timeSlot && booking.timeSlot.time) {
-        let timeSlotAvailable = false;
+        let timeSlotBlockedByAdmin = false;
         if (timeSlotsSnapshot.exists()) {
           const timeSlotsData = timeSlotsSnapshot.val();
-          if (Array.isArray(timeSlotsData)) {
-            timeSlotAvailable = timeSlotsData.some(
-              (slot: any) => slot && slot.time === booking.timeSlot.time && slot.status === 'available'
-            );
-          } else if (typeof timeSlotsData === 'object' && timeSlotsData !== null) {
-            Object.keys(timeSlotsData).forEach((key) => {
-              const slot = timeSlotsData[key];
-              if (slot && slot.time === booking.timeSlot.time && slot.status === 'available') {
-                timeSlotAvailable = true;
-              }
-            });
+          const slots: any[] = Array.isArray(timeSlotsData)
+            ? timeSlotsData
+            : Object.values(timeSlotsData);
+          const matchingSlot = slots.find(
+            (slot: any) => slot && slot.time === booking.timeSlot.time
+          );
+          // Only block if the slot is explicitly marked unavailable by admin
+          // (not because of a booking — bookings no longer change slot status)
+          if (matchingSlot && matchingSlot.status === 'unavailable') {
+            timeSlotBlockedByAdmin = true;
           }
         }
-        if (!timeSlotAvailable) {
-          alert(
-            'Time Slot Unavailable',
-            `The selected time slot (${booking.timeSlot.time}) is no longer available. Please inform the customer.`
-          );
+        if (timeSlotBlockedByAdmin) {
+          openTimeSlotSheet(booking.timeSlot.time);
           return;
         }
       }
@@ -904,6 +1032,78 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   }
 };
 
+  const autoDeclineExpiredPendingBookings = async (branchId: string) => {
+    try {
+      const pendingRef = ref(db, `Notifications/ByBranch/${branchId}/pendingBookings`);
+      const snapshot = await get(pendingRef);
+      if (!snapshot.exists()) return;
+
+      const now = new Date();
+      const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+      const AUTO_CANCEL_REASON = 'Branch might be too busy to accommodate your request at this time.';
+      const cancelledAtTimestamp = toLocalISOString(now);
+
+      const expiredEntries: Array<{ userId: string; dateKey: string; appointmentId: string }> = [];
+
+      snapshot.forEach((snap) => {
+        const data = snap.val();
+        if (!data || !data.createdAt) return;
+        const createdAt = new Date(data.createdAt);
+        if (now.getTime() - createdAt.getTime() > TWENTY_FOUR_HOURS_MS) {
+          expiredEntries.push({
+            userId: data.userId,
+            dateKey: data.dateKey,
+            appointmentId: data.appointmentId,
+          });
+        }
+      });
+
+      for (const expired of expiredEntries) {
+        const { userId, dateKey, appointmentId } = expired;
+
+        // Get full booking from ReservationsByUser
+        const userBookingRef = ref(db, `Reservations/ReservationsByUser/${userId}/${dateKey}/${appointmentId}`);
+        const bookingSnap = await get(userBookingRef);
+        const bookingData = bookingSnap.val();
+
+        // Update user booking to cancelled
+        await update(userBookingRef, {
+          status: 'cancelled',
+          cancelReason: AUTO_CANCEL_REASON,
+          cancelledAt: cancelledAtTimestamp,
+          cancelledBy: 'system',
+        });
+
+        // Write cancelled booking to ReservationsByBranch so it shows in cancelled tab
+        if (bookingData) {
+          const branchBookingRef = ref(db, `Reservations/ReservationsByBranch/${branchId}/${dateKey}/${appointmentId}`);
+          await set(branchBookingRef, {
+            ...bookingData,
+            status: 'cancelled',
+            cancelReason: AUTO_CANCEL_REASON,
+            cancelledAt: cancelledAtTimestamp,
+            cancelledBy: 'system',
+          });
+        }
+
+        // Notify user (written to ByBranch since admin can't write to ByUser)
+        await push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+          title: 'Booking Automatically Cancelled',
+          body: `Your appointment (${appointmentId}) was automatically cancelled. ${AUTO_CANCEL_REASON}`,
+          appointmentId,
+          type: 'cancelled',
+          read: false,
+          createdAt: cancelledAtTimestamp,
+        });
+
+        // Remove from pending bookings
+        await set(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${appointmentId}`), null);
+      }
+    } catch (error) {
+      console.error('Auto decline expired pending bookings failed:', error);
+    }
+  };
+
   const handleBaySelect = (bayNumber: number) => {
     setSelectedBay(bayNumber);
   };
@@ -948,91 +1148,79 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       // Calculating end time by adding estimated completion hours (converting hours to milliseconds)
       const estimatedEndTime = new Date(appointmentDateTime.getTime() + estCompletionHours * 60 * 60 * 1000);
 
-      // Updating in ReservationsByBranch
+      // Fetching full booking from ReservationsByUser to write to ReservationsByBranch
+      const userId = bookingToAccept.userId || '';
+      let customerName = 'Customer';
+      let fullBookingData: any = null;
+
+      if (userId) {
+        const userBookingRef = ref(
+          db,
+          `Reservations/ReservationsByUser/${userId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`
+        );
+        const userBookingSnap = await get(userBookingRef);
+        fullBookingData = userBookingSnap.val();
+
+        // Fetching customer name
+        try {
+          const userInfoSnapshot = await get(ref(db, `users/${userId}`));
+          if (userInfoSnapshot.exists()) {
+            const userInfo = userInfoSnapshot.val();
+            customerName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Customer';
+          }
+        } catch (error) {
+          console.error('Error fetching customer name:', error);
+        }
+      }
+
+      // Writing full accepted booking to ReservationsByBranch (includes all booking details + userId)
       const branchBookingRef = ref(
         db,
         `Reservations/ReservationsByBranch/${branchId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`
       );
-      await update(branchBookingRef, {
+      await set(branchBookingRef, {
+        ...(fullBookingData || {}),
         status: 'accepted',
         isPaid: false,
         bayNumber: selectedBay,
         acceptedAt: acceptedAt,
         assignedBy: adminUserId,
+        userId,
       });
 
-      // Finding and updating in ReservationsByUser, also fetching customer name
-      const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
-      const usersSnapshot = await get(reservationsByUserRef);
-      
-      const updatePromises: Promise<void>[] = [];
-      let customerName = 'Customer';
-      
-      if (usersSnapshot.exists()) {
-        for (const userId in usersSnapshot.val()) {
-          const userSnap = usersSnapshot.val()[userId];
-          if (userSnap) {
-            for (const dateKey in userSnap) {
-              const dateSnap = userSnap[dateKey];
-              if (dateSnap) {
-                for (const bookingKey in dateSnap) {
-                  const bookingData = dateSnap[bookingKey];
-                  if (bookingData && bookingData.appointmentId === bookingToAccept.appointmentId) {
-                    // Fetching customer name
-                    try {
-                      const userInfoSnapshot = await get(ref(db, `users/${userId}`));
-                      if (userInfoSnapshot.exists()) {
-                        const userInfo = userInfoSnapshot.val();
-                        const firstName = userInfo.firstName || '';
-                        const lastName = userInfo.lastName || '';
-                        customerName = `${firstName} ${lastName}`.trim() || 'Customer';
-                      }
-                    } catch (error) {
-                      console.error('Error fetching customer name:', error);
-                    }
-                    
-                    const userBookingRef = ref(
-                      db,
-                      `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingKey}`
-                    );
-                    updatePromises.push(
-                      update(userBookingRef, {
-                        status: 'accepted',
-                        isPaid: false,
-                        bayNumber: selectedBay,
-                        acceptedAt: acceptedAt,
-                        assignedBy: adminUserId,
-                      }).then(() => {})
-                    );
-                    // Sending notification to customer
-                    push(ref(db, `users/${userId}/notifications`), {
-                      title: 'Booking Confirmed',
-                      body: `Your appointment (${bookingToAccept.appointmentId}) has been confirmed. Bay ${selectedBay} assigned.`,
-                      appointmentId: bookingToAccept.appointmentId,
-                      date: bookingToAccept.timeSlot.appointmentDate,
-                      type: 'accepted',
-                      read: false,
-                      createdAt: acceptedAt,
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
+      // Updating user booking status directly
+      if (userId) {
+        const userBookingRef = ref(
+          db,
+          `Reservations/ReservationsByUser/${userId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`
+        );
+        await update(userBookingRef, {
+          status: 'accepted',
+          isPaid: false,
+          bayNumber: selectedBay,
+          acceptedAt: acceptedAt,
+          assignedBy: adminUserId,
+        });
+
+        // Sending notification to customer
+        push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+          title: 'Booking Confirmed',
+          body: `Your appointment (${bookingToAccept.appointmentId}) has been confirmed. Bay ${selectedBay} assigned.`,
+          appointmentId: bookingToAccept.appointmentId,
+          date: bookingToAccept.timeSlot.appointmentDate,
+          type: 'accepted',
+          read: false,
+          createdAt: acceptedAt,
+        });
       }
 
-      // Waiting for all user updates to complete
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises);
-      }
+      // Remove from pending bookings notification queue
+      await set(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${bookingToAccept.appointmentId}`), null);
 
-      // Updating bay status to unavailable
+      // Mark bay as occupied without changing admin-set status
       const bayRef = ref(db, `Branches/${branchId}/Bays/${selectedBay}`);
-      await set(bayRef, {
-        status: 'unavailable',
+      await update(bayRef, {
         currentAppointmentId: bookingToAccept.appointmentId,
-        // Storing estimated end time when bay becomes available (local time, no UTC conversion)
         occupiedUntil: toLocalISOString(estimatedEndTime),
         lastUpdated: toLocalISOString(new Date()),
       });
@@ -1055,8 +1243,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         acceptedAt: acceptedAt,
       });
 
-      // Updating time slot availability to unavailable (services/add-ons remain available for other bookings)
-      await updateTimeSlotStatus(branchId, bookingToAccept, 'unavailable');
+      // Time slot status is admin-managed only — not modified by bookings
 
       // Formatting date for display
       const formattedDate = formatDateForDisplay(bookingToAccept.timeSlot.appointmentDate);
@@ -1079,16 +1266,17 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     if (!branchId) return { hasConflict: false };
 
     try {
-      // Checking if bay is unavailable
+      // Checking if bay is manually set to maintenance (admin-only block)
       const bayRef = ref(db, `Branches/${branchId}/Bays/${bayNumber}`);
       const baySnapshot = await get(bayRef);
       if (baySnapshot.exists()) {
         const bayData = baySnapshot.val();
-        if (bayData.status === 'unavailable') {
-          // Allowing re-selecting same bay for same appointment, but blocking if different appointment
-          if (bayData.currentAppointmentId && bayData.currentAppointmentId !== booking.appointmentId) {
-            return { hasConflict: true, reason: 'Bay is currently unavailable' };
-          }
+        if (bayData.status === 'maintenance') {
+          return { hasConflict: true, reason: 'Bay is under maintenance' };
+        }
+        // Also check admin-set unavailable (manual toggle from Services page)
+        if (bayData.status === 'unavailable' && !bayData.currentAppointmentId) {
+          return { hasConflict: true, reason: 'Bay is set as unavailable' };
         }
       }
 
@@ -1189,58 +1377,34 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         completedAt: completedAtTimestamp,
       });
 
-      // Finding and updating in ReservationsByUser
-      const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
-      const usersSnapshot = await get(reservationsByUserRef);
-      
-      const updatePromises: Promise<void>[] = [];
-      
-      if (usersSnapshot.exists()) {
-        usersSnapshot.forEach((userSnap) => {
-          const userId = userSnap.key;
-          if (userId) {
-            userSnap.forEach((dateSnap) => {
-              const dateKey = dateSnap.key;
-              dateSnap.forEach((bookingSnap) => {
-                const bookingData = bookingSnap.val();
-                if (bookingData && bookingData.appointmentId === bookingToComplete.appointmentId) {
-                  const userBookingRef = ref(
-                    db,
-                    `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingSnap.key}`
-                  );
-                  updatePromises.push(
-                    update(userBookingRef, {
-                      status: 'completed',
-                      completedAt: completedAtTimestamp,
-                    }).then(() => {})
-                  );
-                  // Sending notification to customer
-                  push(ref(db, `users/${userId}/notifications`), {
-                    title: 'Car Wash Complete!',
-                    body: `Your vehicle is clean and ready. Appointment ${bookingToComplete.appointmentId} has been completed.`,
-                    appointmentId: bookingToComplete.appointmentId,
-                    date: bookingToComplete.timeSlot.appointmentDate,
-                    type: 'completed',
-                    read: false,
-                    createdAt: completedAtTimestamp,
-                  });
-                }
-              });
-            });
-          }
+      // Updating ReservationsByUser directly using stored userId
+      const userId = bookingToComplete.userId || '';
+      if (userId) {
+        const userBookingRef = ref(
+          db,
+          `Reservations/ReservationsByUser/${userId}/${bookingToComplete.dateKey}/${bookingToComplete.key}`
+        );
+        await update(userBookingRef, {
+          status: 'completed',
+          completedAt: completedAtTimestamp,
+        });
+
+        // Sending notification to customer
+        push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+          title: 'Car Wash Complete!',
+          body: `Your vehicle is clean and ready. Appointment ${bookingToComplete.appointmentId} has been completed.`,
+          appointmentId: bookingToComplete.appointmentId,
+          date: bookingToComplete.timeSlot.appointmentDate,
+          type: 'completed',
+          read: false,
+          createdAt: completedAtTimestamp,
         });
       }
-      
-      // Waiting for all user updates to complete
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises);
-      }
 
-      // Releasing bay if it was assigned
+      // Releasing bay occupancy without changing admin-set status
       if (bayNumber) {
         const bayRef = ref(db, `Branches/${branchId}/Bays/${bayNumber}`);
         await update(bayRef, {
-          status: 'available',
           currentAppointmentId: null,
           occupiedUntil: null,
           lastUpdated: toLocalISOString(new Date()),
@@ -1263,11 +1427,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       // Updating calendar entry
       await updateCalendarEntry(branchId, bookingToComplete, 'completed', bayNumber, completedAtTimestamp);
 
-      // Updating time slot and bay availability to available
-      await Promise.all([
-        updateTimeSlotStatus(branchId, bookingToComplete, 'available'),
-        updateBayStatus(branchId, bayNumber, 'available'),
-      ]);
+      // Time slot status is admin-managed only — not modified by bookings
 
       setSuccessMessage('Appointment completed successfully');
       setShowSuccessModal(true);
@@ -1294,13 +1454,14 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     if (!bookingToCancel || !selectedCancelReason || !branchId) return;
 
     try {
-      // Getting bay number before updating status
+      // Getting bay number before updating status (only exists if booking was already in ReservationsByBranch)
       const branchBookingRef = ref(
         db,
         `Reservations/ReservationsByBranch/${branchId}/${bookingToCancel.dateKey}/${bookingToCancel.key}`
       );
       const bookingSnapshot = await get(branchBookingRef);
       const bayNumber = bookingSnapshot.val()?.bayNumber;
+      const wasPending = !bookingSnapshot.exists();
 
       // Updating in ReservationsByBranch
       const cancelledAtTimestamp = toLocalISOString(new Date());
@@ -1310,61 +1471,54 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         cancelledAt: cancelledAtTimestamp,
       });
 
-      // Finding and updating corresponding booking in ReservationsByUser
-      // Iterating through all users to locate matching appointmentId
-      const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
-      const usersSnapshot = await get(reservationsByUserRef);
-      
-      const cancelUpdatePromises: Promise<void>[] = [];
-      
-      if (usersSnapshot.exists()) {
-        usersSnapshot.forEach((userSnap) => {
-          const userId = userSnap.key;
-          if (userId) {
-            userSnap.forEach((dateSnap) => {
-              const dateKey = dateSnap.key;
-              dateSnap.forEach((bookingSnap) => {
-                const bookingData = bookingSnap.val();
-                if (bookingData && bookingData.appointmentId === bookingToCancel.appointmentId) {
-                  // Found the user's booking, updating it
-                  const userBookingRef = ref(
-                    db,
-                    `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingSnap.key}`
-                  );
-                  cancelUpdatePromises.push(
-                    update(userBookingRef, {
-                      status: 'cancelled',
-                      cancelReason: selectedCancelReason,
-                      cancelledAt: cancelledAtTimestamp,
-                    }).then(() => {})
-                  );
-                  // Sending notification to customer
-                  push(ref(db, `users/${userId}/notifications`), {
-                    title: 'Booking Cancelled',
-                    body: `Your appointment (${bookingToCancel.appointmentId}) was cancelled. Reason: ${selectedCancelReason}.`,
-                    appointmentId: bookingToCancel.appointmentId,
-                    date: bookingToCancel.timeSlot.appointmentDate,
-                    type: 'cancelled',
-                    read: false,
-                    createdAt: cancelledAtTimestamp,
-                  });
-                }
-              });
-            });
-          }
+      // Updating ReservationsByUser directly using stored userId
+      const userId = bookingToCancel.userId || '';
+      if (userId) {
+        const userBookingRef = ref(
+          db,
+          `Reservations/ReservationsByUser/${userId}/${bookingToCancel.dateKey}/${bookingToCancel.key}`
+        );
+        const userBookingSnap = await get(userBookingRef);
+        const userBookingData = userBookingSnap.val();
+
+        await update(userBookingRef, {
+          status: 'cancelled',
+          cancelReason: selectedCancelReason,
+          cancelledAt: cancelledAtTimestamp,
+        });
+
+        // If booking was pending (not yet in ReservationsByBranch), write full cancelled record now
+        if (wasPending && userBookingData) {
+          await set(branchBookingRef, {
+            ...userBookingData,
+            status: 'cancelled',
+            cancelReason: selectedCancelReason,
+            cancelledAt: cancelledAtTimestamp,
+            userId,
+          });
+        }
+
+        // Sending notification to customer
+        push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+          title: 'Booking Cancelled',
+          body: `Your appointment (${bookingToCancel.appointmentId}) was cancelled. Reason: ${selectedCancelReason}.`,
+          appointmentId: bookingToCancel.appointmentId,
+          date: bookingToCancel.timeSlot.appointmentDate,
+          type: 'cancelled',
+          read: false,
+          createdAt: cancelledAtTimestamp,
         });
       }
-      
-      // Waiting for all user updates to complete
-      if (cancelUpdatePromises.length > 0) {
-        await Promise.all(cancelUpdatePromises);
+
+      // Remove from pending bookings notification queue if it was a pending booking
+      if (wasPending) {
+        await set(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${bookingToCancel.appointmentId}`), null);
       }
 
-      // Releasing bay if it was assigned (only if status was ongoing)
+      // Releasing bay occupancy without changing admin-set status
       if (bayNumber && bookingSnapshot.val()?.status === 'ongoing') {
         const bayRef = ref(db, `Branches/${branchId}/Bays/${bayNumber}`);
         await update(bayRef, {
-          status: 'available',
           currentAppointmentId: null,
           occupiedUntil: null,
           lastUpdated: toLocalISOString(new Date()),
@@ -1387,14 +1541,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       // Updating calendar entry
       await updateCalendarEntry(branchId, bookingToCancel, 'cancelled', bayNumber, cancelledAtTimestamp);
 
-      // Updating time slot and bay availability to available (only if bay was assigned)
-      const cancelAvailabilityPromises: Promise<void>[] = [
-        updateTimeSlotStatus(branchId, bookingToCancel, 'available'),
-      ];
-      if (bayNumber && bookingSnapshot.val()?.status === 'ongoing') {
-        cancelAvailabilityPromises.push(updateBayStatus(branchId, bayNumber, 'available'));
-      }
-      await Promise.all(cancelAvailabilityPromises);
+      // Time slot status is admin-managed only — not modified by bookings
 
       setSuccessMessage(`Appointment cancelled successfully. Reason: "${selectedCancelReason}"`);
       setShowSuccessModal(true);
@@ -1409,35 +1556,17 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     setSelectedBooking(booking);
     setShowDetailsModal(true);
     
-    // Fetching customer name from appointmentId
+    // Fetching customer name using stored userId
     try {
-      const reservationsByUserRef = ref(db, 'Reservations/ReservationsByUser');
-      const usersSnapshot = await get(reservationsByUserRef);
-      
-      if (usersSnapshot.exists()) {
-        for (const userId in usersSnapshot.val()) {
-          const userSnap = usersSnapshot.val()[userId];
-          if (userSnap) {
-            for (const dateKey in userSnap) {
-              const dateSnap = userSnap[dateKey];
-              if (dateSnap) {
-                for (const bookingKey in dateSnap) {
-                  const bookingData = dateSnap[bookingKey];
-                  if (bookingData && bookingData.appointmentId === booking.appointmentId) {
-                    // Found the user, fetching their name
-                    const userInfoSnapshot = await get(ref(db, `users/${userId}`));
-                    if (userInfoSnapshot.exists()) {
-                      const userInfo = userInfoSnapshot.val();
-                      const firstName = userInfo.firstName || '';
-                      const lastName = userInfo.lastName || '';
-                      setCustomerName(`${firstName} ${lastName}`.trim() || 'Customer');
-                      return;
-                    }
-                  }
-                }
-              }
-            }
-          }
+      const userId = booking.userId || '';
+      if (userId) {
+        const userInfoSnapshot = await get(ref(db, `users/${userId}`));
+        if (userInfoSnapshot.exists()) {
+          const userInfo = userInfoSnapshot.val();
+          const firstName = userInfo.firstName || '';
+          const lastName = userInfo.lastName || '';
+          setCustomerName(`${firstName} ${lastName}`.trim() || 'Customer');
+          return;
         }
       }
       setCustomerName('Customer');
@@ -1589,6 +1718,83 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         onClose={() => setShowSuccessModal(false)}
       />
       {AlertComponent}
+
+      {/* Time Slot Unavailable bottom sheet */}
+      <Modal
+        visible={showTimeSlotSheet}
+        transparent
+        animationType="none"
+        onRequestClose={closeTimeSlotSheet}
+      >
+        <View style={{ flex: 1 }}>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}
+            activeOpacity={1}
+            onPress={closeTimeSlotSheet}
+          />
+          <Animated.View
+            style={{
+              transform: [{ translateY: timeSlotSlideAnim }],
+              backgroundColor: '#FFFFFF',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingBottom: 36,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -3 },
+              shadowOpacity: 0.08,
+              shadowRadius: 16,
+              elevation: 24,
+            }}
+          >
+            {/* Handle */}
+            <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#E0E0E0' }} />
+            </View>
+
+            {/* Header row */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A1A' }}>
+                  Time Slot Unavailable
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={closeTimeSlotSheet}
+                style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={{ fontSize: 16, color: '#666', fontWeight: '600' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ height: 1, backgroundColor: '#F0F0F0', marginHorizontal: 20, marginBottom: 20 }} />
+
+            {/* Icon + message */}
+            <View style={{ paddingHorizontal: 20, alignItems: 'center' }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFF3F3', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 26 }}>🕐</Text>
+              </View>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A1A', textAlign: 'center', marginBottom: 8 }}>
+                {blockedTimeSlot} is currently unavailable
+              </Text>
+              <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', lineHeight: 20 }}>
+                This time slot has been disabled by the branch. Please inform the customer and reschedule.
+              </Text>
+            </View>
+
+            {/* Close button */}
+            <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
+              <TouchableOpacity
+                onPress={closeTimeSlotSheet}
+                style={{ backgroundColor: '#F9EF08', borderRadius: 16, paddingVertical: 15, alignItems: 'center' }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A00' }}>Got it</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
