@@ -17,20 +17,159 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import * as Google from "expo-auth-session/providers/google";
-// import * as Facebook from "expo-facebook";
+import * as Google from 'expo-auth-session/providers/google';
 
 import {
   GoogleAuthProvider,
   signInWithCredential,
-  signInWithEmailAndPassword
-} from "firebase/auth";
-import { auth, db } from "../firebase/firebase";
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
+import { auth, db } from '../firebase/firebase';
 
-import { get, ref, set, update } from "firebase/database";
+import { get, ref, set, update } from 'firebase/database';
 
 import OnboardingScreen from '../components/OnboardingScreen';
 import SplashScreen from '../components/SplashScreen';
+
+/** Flip to `true` when OAuth clients are configured in the same GCP project as Firebase. */
+const GOOGLE_SIGN_IN_ENABLED = false;
+
+function readGoogleOAuthEnv() {
+  const trim = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
+  return {
+    expoClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID),
+    iosClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
+    androidClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID),
+    webClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
+  };
+}
+
+function isGoogleAuthConfiguredForPlatform(): boolean {
+  const { expoClientId, iosClientId, androidClientId, webClientId } = readGoogleOAuthEnv();
+  if (Platform.OS === 'android') return Boolean(androidClientId);
+  if (Platform.OS === 'ios') return Boolean(iosClientId || expoClientId);
+  if (Platform.OS === 'web') return Boolean(webClientId || expoClientId);
+  return Boolean(expoClientId);
+}
+
+type AlertCompat = (titleOrMessage: string, messageOrButtons?: string) => void;
+
+function GoogleSignInDisabledRow({ alert }: { alert: AlertCompat }) {
+  return (
+    <TouchableOpacity
+      className="flex-row items-center justify-center bg-[#F5F5F5] border border-transparent rounded-lg py-4 px-4 mb-8 min-h-[52px] opacity-65"
+      onPress={() =>
+        alert(
+          'Google sign-in',
+          'Google sign-in is temporarily unavailable. Please use email and password.',
+        )
+      }
+      activeOpacity={0.85}
+    >
+      <Image
+        source={require('../assets/images/googlelogo.png')}
+        style={{ width: 18, height: 18, marginRight: 10, opacity: 0.55 }}
+        resizeMode="contain"
+      />
+      <Text className="text-[13px] text-[#9CA3AF] font-medium">Continue with Google</Text>
+    </TouchableOpacity>
+  );
+}
+
+function GoogleSignInConfigured({ alert }: { alert: AlertCompat }) {
+  const { expoClientId, iosClientId, androidClientId, webClientId } = readGoogleOAuthEnv();
+
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    expoClientId,
+    iosClientId,
+    androidClientId,
+    webClientId,
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type !== 'success') return;
+    const idToken = googleResponse.authentication?.idToken;
+    if (!idToken) return;
+    const credential = GoogleAuthProvider.credential(idToken);
+    signInWithCredential(auth, credential)
+      .then(async (res) => {
+        const uid = res.user.uid;
+        const userRef = ref(db, 'users/' + uid);
+        const snapshot = await get(userRef);
+
+        let role = 'default';
+        if (snapshot.exists()) {
+          role = snapshot.val().role || 'default';
+          await update(userRef, {
+            email: res.user.email,
+            firstName: res.user.displayName?.split(' ')[0] || '',
+            lastName: res.user.displayName?.split(' ')[1] || '',
+          });
+        } else {
+          await set(userRef, {
+            email: res.user.email,
+            firstName: res.user.displayName?.split(' ')[0] || '',
+            lastName: res.user.displayName?.split(' ')[1] || '',
+            role: 'default',
+          });
+        }
+
+        await AsyncStorage.setItem('role', role);
+        await AsyncStorage.setItem('uid', uid);
+
+        if (role === 'admin') {
+          router.replace('/admin/(tabs)/dashboard');
+        } else {
+          router.replace('/user/(tabs)/home');
+        }
+      })
+      .catch((err: Error) => alert('Google Login Error', err.message));
+  }, [googleResponse, alert]);
+
+  return (
+    <TouchableOpacity
+      className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-8 min-h-[52px]"
+      onPress={() => googlePromptAsync()}
+      disabled={!googleRequest}
+      activeOpacity={0.85}
+    >
+      <Image
+        source={require('../assets/images/googlelogo.png')}
+        style={{ width: 18, height: 18, marginRight: 10 }}
+        resizeMode="contain"
+      />
+      <Text className="text-[13px] text-[#1A1A1A] font-medium">Continue with Google</Text>
+    </TouchableOpacity>
+  );
+}
+
+function GoogleSignInSection({ alert }: { alert: AlertCompat }) {
+  if (!isGoogleAuthConfiguredForPlatform()) {
+    const hint =
+      Platform.OS === 'android'
+        ? 'Add EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID to your .env (and restart Expo).'
+        : Platform.OS === 'ios'
+          ? 'Add EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID or EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID to your .env (and restart Expo).'
+          : 'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID or EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID to your .env (and restart Expo).';
+
+    return (
+      <TouchableOpacity
+        className="flex-row items-center justify-center bg-[#F5F5F5] border border-transparent rounded-lg py-4 px-4 mb-8 min-h-[52px] opacity-70"
+        onPress={() => alert('Google sign-in unavailable', hint)}
+        activeOpacity={0.85}
+      >
+        <Image
+          source={require('../assets/images/googlelogo.png')}
+          style={{ width: 18, height: 18, marginRight: 10, opacity: 0.5 }}
+          resizeMode="contain"
+        />
+        <Text className="text-[13px] text-[#9CA3AF] font-medium">Continue with Google</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return <GoogleSignInConfigured alert={alert} />;
+}
 
 export default function LoginScreen() {
   const { alert, AlertComponent } = useAlert();
@@ -40,57 +179,6 @@ export default function LoginScreen() {
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
-
-  // ---------------- GOOGLE SIGN IN ----------------
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    expoClientId: "YOUR_EXPO_GOOGLE_ID",
-    iosClientId: "YOUR_IOS_ID",
-    androidClientId: "YOUR_ANDROID_ID",
-    webClientId: "YOUR_WEB_CLIENT_ID",
-  });
-
-  useEffect(() => {
-    if (googleResponse?.type === "success") {
-      const idToken = googleResponse.authentication?.idToken;
-      if (!idToken) return;
-      const credential = GoogleAuthProvider.credential(idToken);
-      signInWithCredential(auth, credential)
-        .then(async (res) => {
-          const uid = res.user.uid;
-          const userRef = ref(db, "users/" + uid);
-          const snapshot = await get(userRef);
-
-          let role = "default";
-          if (snapshot.exists()) {
-            // Existing user: only update non-role fields to preserve their role
-            role = snapshot.val().role || "default";
-            await update(userRef, {
-              email: res.user.email,
-              firstName: res.user.displayName?.split(' ')[0] || "",
-              lastName: res.user.displayName?.split(' ')[1] || "",
-            });
-          } else {
-            // New user: create with default role
-            await set(userRef, {
-              email: res.user.email,
-              firstName: res.user.displayName?.split(' ')[0] || "",
-              lastName: res.user.displayName?.split(' ')[1] || "",
-              role: "default",
-            });
-          }
-
-          await AsyncStorage.setItem("role", role);
-          await AsyncStorage.setItem("uid", uid);
-
-          if (role === "admin") {
-            router.replace("/admin/(tabs)/dashboard");
-          } else {
-            router.replace("/user/(tabs)/home");
-          }
-        })
-        .catch((err) => alert("Google Login Error", err.message));
-    }
-  }, [googleResponse]);
 
   // ---------------- ONBOARDING + SPLASH ----------------
   useEffect(() => {
@@ -149,38 +237,6 @@ export default function LoginScreen() {
       setIsSigningIn(false);
     }
   };
-
-  // ---------------- FACEBOOK SIGN IN ----------------
-  // const handleFacebookSignIn = async () => {
-  //   try {
-  //     await Facebook.initializeAsync({ appId: "YOUR_FACEBOOK_APPID" });
-
-  //     const result = await Facebook.logInWithReadPermissionsAsync({
-  //       permissions: ["public_profile", "email"],
-  //     });
-
-  //     if (result.type === "success") {
-  //       const credential = FacebookAuthProvider.credential(result.token);
-
-  //       const res = await signInWithCredential(auth, credential);
-  //       const uid = res.user.uid;
-
-  //       await set(ref(db, "users/" + uid), {
-  //         email: res.user.email,
-  //         firstName: res.user.displayName?.split(" ")[0] || "",
-  //         lastName: res.user.displayName?.split(" ")[1] || "",
-  //         role: "default",
-  //       });
-
-  //       await AsyncStorage.setItem("uid", uid);
-  //       await AsyncStorage.setItem("role", "default");
-
-  //       router.replace("/user/(tabs)/home");
-  //     }
-  //   } catch (e) {
-  //     Alert.alert("Facebook Login Failed", e.message);
-  //   }
-  // };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -269,23 +325,17 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
           <View className="flex-row items-center my-4">
             <View className="flex-1 h-px bg-[#F0F0F0]" />
             <Text className="mx-4 text-[11px] text-[#C4C4C4] uppercase tracking-widest">or</Text>
             <View className="flex-1 h-px bg-[#F0F0F0]" />
           </View>
 
-          {/* Google */}
-          <TouchableOpacity
-            className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-8 min-h-[52px]"
-            onPress={() => googlePromptAsync()}
-            activeOpacity={0.85}
-          >
-            <Image source={require('../assets/images/googlelogo.png')} style={{ width: 18, height: 18, marginRight: 10 }} resizeMode="contain" />
-            <Text className="text-[13px] text-[#1A1A1A] font-medium">Continue with Google</Text>
-          </TouchableOpacity>
-
+          {GOOGLE_SIGN_IN_ENABLED ? (
+            <GoogleSignInSection alert={alert} />
+          ) : (
+            <GoogleSignInDisabledRow alert={alert} />
+          )}
 
           {/* Footer */}
           <View className="items-center pb-8">

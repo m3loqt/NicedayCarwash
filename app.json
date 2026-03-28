@@ -9,15 +9,22 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nicedaycarwash.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F9EF08",
         "foregroundImage": "./assets/images/nd_appicon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.nicedaycarwash.app"
     },
     "web": {
       "output": "static",
@@ -41,6 +48,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow NicedayCarwash to use your location to show nearby branches."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow NicedayCarwash to access your photos to set your profile picture.",
+          "cameraPermission": "Allow NicedayCarwash to use the camera for your profile picture."
         }
       ]
     ],

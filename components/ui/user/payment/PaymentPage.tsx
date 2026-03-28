@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { logAppError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -25,6 +26,7 @@ interface BookingData {
   };
 }
 
+/** GCash not wired — `handlePayment` is dev/mock RTDB only until PSP + webhook (post-VAPT). */
 export default function PaymentPage() {
   const { alert, AlertComponent } = useAlert();
   const params = useLocalSearchParams();
@@ -121,7 +123,7 @@ export default function PaymentPage() {
       setBookingKey(foundBookingKey);
       setLoading(false);
     } catch (error) {
-      console.error('Error loading booking:', error);
+      logAppError('PaymentPage.loadBookingData', error);
       alert('Error', 'Failed to load booking details');
       router.back();
     }
@@ -178,7 +180,7 @@ export default function PaymentPage() {
       alert('Success', 'Payment successful! Your booking is now ongoing.');
       router.back();
     } catch (error) {
-      console.error('Error processing payment:', error);
+      logAppError('PaymentPage.handlePayment', error);
       alert('Error', 'Failed to process payment. Please try again.');
       setProcessing(false);
     }

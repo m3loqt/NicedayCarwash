@@ -19,13 +19,16 @@ import {
   Inter_900Black,
 } from '@expo-google-fonts/inter';
 
+import EnvConfigurationError from '@/components/EnvConfigurationError';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { validateFirebasePublicEnv } from '@/lib/env';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const envCheck = validateFirebasePublicEnv();
   const [loaded] = useFonts({
     Inter_100Thin,
     Inter_200ExtraLight,
@@ -46,6 +49,10 @@ export default function RootLayout() {
 
   if (!loaded) {
     return null;
+  }
+
+  if (!envCheck.ok) {
+    return <EnvConfigurationError result={envCheck} />;
   }
 
   return (

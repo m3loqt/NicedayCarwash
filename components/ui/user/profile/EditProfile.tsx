@@ -15,6 +15,9 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { logAppError } from '@/lib/logger';
+import { sanitizeNamePart } from '@/lib/sanitize';
+
 import SuccessModal from './SuccessModal';
 
 export default function EditProfile() {
@@ -45,7 +48,7 @@ export default function EditProfile() {
           alert('Error', 'User data not found');
         }
       } catch (err) {
-        console.error(err);
+        logAppError('EditProfile.fetchUserData', err);
         alert('Error', 'Failed to load user data');
       } finally {
         setLoading(false);
@@ -56,7 +59,9 @@ export default function EditProfile() {
   }, [userId]);
 
   const handleSaveChanges = async () => {
-    if (!firstName || !lastName) {
+    const fn = sanitizeNamePart(firstName);
+    const ln = sanitizeNamePart(lastName);
+    if (!fn || !ln) {
       alert('Validation', 'All fields must be filled');
       return;
     }
@@ -65,13 +70,13 @@ export default function EditProfile() {
 
     try {
       await update(ref(db, `users/${userId}`), {
-        firstName,
-        lastName,
+        firstName: fn,
+        lastName: ln,
         profileImage: profileImage || '',
       });
       setShowSuccess(true);
     } catch (err) {
-      console.error(err);
+      logAppError('EditProfile.handleSaveChanges', err);
       alert('Error', 'Failed to save changes');
     }
   };

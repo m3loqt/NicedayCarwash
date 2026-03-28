@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { sanitizeNamePart } from '@/lib/sanitize';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
@@ -27,13 +28,16 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
+    const fn = sanitizeNamePart(firstName);
+    const ln = sanitizeNamePart(lastName);
+    if (!fn || !ln || !email.trim() || !password) {
       alert('Error', 'Please fill out all fields.');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+    const emailNorm = email.trim().toLowerCase();
+    if (!emailRegex.test(emailNorm)) {
       alert('Error', 'Please enter a valid email address.');
       return;
     }
@@ -47,7 +51,7 @@ export default function RegisterScreen() {
     const auth = getAuth();
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const userCredential = await createUserWithEmailAndPassword(auth, emailNorm, password);
       const user = userCredential.user;
       if (user) {
         const userId = user.uid;
@@ -55,9 +59,9 @@ export default function RegisterScreen() {
         const userRef = ref(db, `users/${userId}`);
 
         const userMap = {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim().toLowerCase(),
+          firstName: fn,
+          lastName: ln,
+          email: emailNorm,
           role: 'default',
           profileImage: '',
         };

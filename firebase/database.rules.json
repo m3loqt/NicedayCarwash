@@ -1,0 +1,95 @@
+{
+  "rules": {
+    "auditLogs": {
+      ".read": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
+      ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'"
+    },
+    "Branches": {
+      ".read": "auth != null",
+      "$branchId": {
+        "profile": {
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+        },
+        "Services": {
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+        },
+        "AddOns": {
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+        },
+        "TimeSlots": {
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+        },
+        "Bays": {
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+        },
+        "BayOccupancy": {
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+        }
+      }
+    },
+    "Reservations": {
+      "ReservationsByBranch": {
+        ".read": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
+        "$branchId": {
+          ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+        }
+      },
+      "ReservationsByUser": {
+        ".read": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
+        "$userId": {
+          ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')",
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')"
+        }
+      }
+    },
+    "Notifications": {
+      "ByBranch": {
+        "$branchId": {
+          ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
+          ".write": "auth != null"
+        }
+      },
+      "ByUser": {
+        "$userId": {
+          ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)"
+        }
+      }
+    },
+    "Calendar": {
+      "$branchId": {
+        ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+      }
+    },
+    "services": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')"
+    },
+    "addOns": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')"
+    },
+    "advertisements": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')"
+    },
+    "Vehicle Information": {
+      "$userId": {
+        ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)"
+      }
+    },
+    "users": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+      "$userId": {
+        ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",
+        "role": {
+          ".validate": "root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (data.exists() ? data.val() === newData.val() : newData.val() === 'default')"
+        }
+      }
+    }
+  }
+}

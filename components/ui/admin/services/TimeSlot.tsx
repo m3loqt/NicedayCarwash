@@ -1,9 +1,9 @@
 import { auth, db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
-import { get, onValue, ref, set, update } from "firebase/database";
+import { get, onValue, ref, remove, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import SetAvailabilityModal from "./SetAvailabilityModal";
+import TimeSlotOptionsModal from "./TimeSlotOptionsModal";
 
 interface TimeSlot {
   id: number | string;
@@ -17,7 +17,7 @@ export default function TimeSlots() {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
-  const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
 
   // Parsing time slots data from database
@@ -130,9 +130,40 @@ export default function TimeSlots() {
     };
   }, []);
 
-  const handleSetAvailability = (slot: TimeSlot) => {
+  const handleOpenOptions = (slot: TimeSlot) => {
     setSelectedSlot(slot);
-    setAvailabilityModalVisible(true);
+    setOptionsModalVisible(true);
+  };
+
+  const handleDeleteSlot = async () => {
+    if (!branchId || !selectedSlot || !selectedSlot.originalKey) {
+      alert("Error", "Missing timeslot information.");
+      return;
+    }
+
+    try {
+      const timeSlotsRef = ref(db, `Branches/${branchId}/TimeSlots`);
+      const timeSlotsSnapshot = await get(timeSlotsRef);
+
+      if (timeSlotsSnapshot.exists()) {
+        const timeSlotsData = timeSlotsSnapshot.val();
+
+        if (Array.isArray(timeSlotsData)) {
+          // Remove the item and rewrite the array without nulls
+          const index = parseInt(selectedSlot.originalKey);
+          const updated = timeSlotsData.filter((_, i) => i !== index);
+          await set(timeSlotsRef, updated);
+        } else {
+          await remove(ref(db, `Branches/${branchId}/TimeSlots/${selectedSlot.originalKey}`));
+        }
+      }
+
+      setOptionsModalVisible(false);
+      setSelectedSlot(null);
+      alert("Deleted", `Time slot ${selectedSlot.time} has been removed.`);
+    } catch (error) {
+      alert("Error", "Failed to delete time slot.");
+    }
   };
 
   const handleSaveAvailability = async (newStatus: string) => {
@@ -170,8 +201,7 @@ export default function TimeSlots() {
         }
       }
 
-      // Real-time listener will update automatically
-      setAvailabilityModalVisible(false);
+      setOptionsModalVisible(false);
       setSelectedSlot(null);
       alert("Success", `Timeslot ${selectedSlot.time} availability has been updated.`);
     } catch (error) {
@@ -221,7 +251,7 @@ export default function TimeSlots() {
           <TouchableOpacity
             key={item.id}
             activeOpacity={0.8}
-            onPress={() => handleSetAvailability(item)}
+            onPress={() => handleOpenOptions(item)}
             style={{
               width: 56,
               height: 68,
@@ -251,15 +281,16 @@ export default function TimeSlots() {
       })}
     </ScrollView>
     {AlertComponent}
-    <SetAvailabilityModal
-      visible={availabilityModalVisible}
+    <TimeSlotOptionsModal
+      visible={optionsModalVisible}
+      slotTime={selectedSlot?.time || ""}
+      currentStatus={selectedSlot?.status || "available"}
       onClose={() => {
-        setAvailabilityModalVisible(false);
+        setOptionsModalVisible(false);
         setSelectedSlot(null);
       }}
-      onSave={handleSaveAvailability}
-      currentStatus={selectedSlot?.status || "available"}
-      bayName={selectedSlot?.time || ""}
+      onSaveAvailability={handleSaveAvailability}
+      onDelete={handleDeleteSlot}
     />
   </>
   );
