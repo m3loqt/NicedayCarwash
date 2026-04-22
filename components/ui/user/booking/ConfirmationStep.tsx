@@ -1,4 +1,7 @@
 import { useAlert } from '@/hooks/use-alert';
+import { consumeClientRateLimit } from '@/lib/clientRateLimit';
+import { logWarn } from '@/lib/logger';
+import { sanitizePlainText } from '@/lib/sanitize';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -160,6 +163,17 @@ export default function ConfirmationStep({
         setSubmitting(false);
         return;
       }
+      const bookingThrottle = consumeClientRateLimit(`booking-submit:${userId}`, {
+        windowMs: 15000,
+        maxAttempts: 1,
+      });
+      if (!bookingThrottle.allowed) {
+        setSubmitting(false);
+        const waitSeconds = Math.ceil(bookingThrottle.retryAfterMs / 1000);
+        logWarn('ConfirmationStep.handleConfirm', 'Client throttle blocked repeated booking submit', { userId, waitSeconds });
+        showAlert('Please wait', `Too many attempts. Try again in ${waitSeconds}s.`);
+        return;
+      }
       const db = getDatabase();
       const appointmentId = generateAppointmentId();
       const datePath = formatDateForPath(date);
@@ -172,7 +186,7 @@ export default function ConfirmationStep({
         status: 'pending',
         isPaid: false,
         createdAt: new Date().toISOString(),
-        note: note.trim() || '',
+        note: sanitizePlainText(note, 240),
         amountDue,
         timeSlot: {
           time: timeSlot.time,

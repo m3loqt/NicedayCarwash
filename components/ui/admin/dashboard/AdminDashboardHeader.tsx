@@ -1,4 +1,5 @@
 import { auth, db } from '@/firebase/firebase';
+import { logError } from '@/lib/logger';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Image, Text, View } from 'react-native';
@@ -28,7 +29,7 @@ export default function AdminDashboardHeader() {
           }
         }
       } catch (error) {
-        console.error('Error fetching admin branch:', error);
+        logError('AdminDashboardHeader.fetchAdminBranch', error, { context: 'Error fetching admin branch' });
       }
     };
 

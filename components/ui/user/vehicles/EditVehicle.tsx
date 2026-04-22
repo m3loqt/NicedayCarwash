@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { logError } from '@/lib/logger';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, update } from 'firebase/database';
@@ -58,7 +59,7 @@ export default function EditVehicle() {
           setSelectedType(v.vtype || null);
         }
       } catch (err) {
-        console.error('Error loading vehicle:', err);
+        logError('EditVehicle.fetchVehicle', err, { context: 'Error loading vehicle' });
       } finally {
         setLoading(false);
       }
@@ -89,7 +90,7 @@ export default function EditVehicle() {
 
       setShowSuccess(true);
     } catch (err) {
-      console.error('Failed to update:', err);
+      logError('EditVehicle.handleSave', err, { context: 'Failed to update vehicle' });
       alert('Failed to update vehicle.');
     }
   };

@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logAppError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -36,7 +37,6 @@ export default function PaymentPage() {
   const [processing, setProcessing] = useState(false);
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [branchId, setBranchId] = useState<string | null>(null);
   const [dateKey, setDateKey] = useState<string | null>(null);
   const [bookingKey, setBookingKey] = useState<string | null>(null);
 
@@ -68,7 +68,6 @@ export default function PaymentPage() {
       }
 
       let foundBooking: BookingData | null = null;
-      let foundBranchId: string | null = null;
       let foundDateKey: string | null = null;
       let foundBookingKey: string | null = null;
 
@@ -99,26 +98,7 @@ export default function PaymentPage() {
         return;
       }
 
-      // Finding branch ID from ReservationsByBranch
-      const branchBookingsRef = ref(db, 'Reservations/ReservationsByBranch');
-      const branchSnapshot = await get(branchBookingsRef);
-
-      if (branchSnapshot.exists()) {
-        branchSnapshot.forEach((branchSnap) => {
-          const branchIdValue = branchSnap.key || '';
-          branchSnap.forEach((dateSnap) => {
-            dateSnap.forEach((bookingSnap) => {
-              const data = bookingSnap.val();
-              if (data && data.appointmentId === appointmentId) {
-                foundBranchId = branchIdValue;
-              }
-            });
-          });
-        });
-      }
-
       setBooking(foundBooking);
-      setBranchId(foundBranchId);
       setDateKey(foundDateKey);
       setBookingKey(foundBookingKey);
       setLoading(false);
@@ -135,8 +115,8 @@ export default function PaymentPage() {
       return;
     }
 
-    if (!booking || booking.status !== 'accepted') {
-      alert('Error', 'This booking is not eligible for payment');
+    if (!booking || (booking.status !== 'pending' && booking.status !== 'accepted')) {
+      alert('Error', 'This booking is not eligible for payment at this stage');
       return;
     }
 
@@ -150,34 +130,37 @@ export default function PaymentPage() {
     try {
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
-      if (!userId || !branchId || !dateKey || !bookingKey) {
+      if (!userId || !dateKey || !bookingKey) {
         alert('Error', 'Missing required information');
         setProcessing(false);
         return;
       }
+      const writeGate = consumeClientRateLimit(`payment-method-write:${userId}:${bookingKey}`, {
+        windowMs: 10000,
+        maxAttempts: 1,
+      });
+      if (!writeGate.allowed) {
+        const waitSeconds = Math.ceil(writeGate.retryAfterMs / 1000);
+        alert('Please wait', `Too many attempts. Try again in ${waitSeconds}s.`);
+        setProcessing(false);
+        return;
+      }
 
-      // Updating ReservationsByUser
+      // Updating only the selected payment method in user's booking record.
+      // Status/isPaid are controlled by staff + server-side payment verification flow.
       const userBookingRef = ref(
         db,
         `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingKey}`
       );
       await update(userBookingRef, {
-        isPaid: true,
-        status: 'ongoing',
-      });
-
-      // Updating ReservationsByBranch
-      const branchBookingRef = ref(
-        db,
-        `Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingKey}`
-      );
-      await update(branchBookingRef, {
-        isPaid: true,
-        status: 'ongoing',
+        paymentMethod: selectedPaymentMethod,
       });
 
       setProcessing(false);
-      alert('Success', 'Payment successful! Your booking is now ongoing.');
+      alert(
+        'Payment submitted',
+        'Your payment method has been recorded. Booking status will only change after supervisor confirmation and payment verification.'
+      );
       router.back();
     } catch (error) {
       logAppError('PaymentPage.handlePayment', error);

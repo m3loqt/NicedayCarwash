@@ -2,8 +2,30 @@
   "rules": {
     "auditLogs": {
       ".read": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
-      ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'"
+      "$logId": {
+        ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
+        ".validate": "newData.hasChildren(['action', 'timestamp'])",
+        "action": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber()"
+        },
+        "actorUid": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+        },
+        "actorRole": {
+          ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'superadmin' || newData.val() === 'admin' || newData.val() === 'supervisor'))"
+        },
+        "targetId": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+        },
+        "$other": {
+          ".validate": true
+        }
+      }
     },
+
     "Branches": {
       ".read": "auth != null",
       "$branchId": {
@@ -27,69 +49,274 @@
         }
       }
     },
+
     "Reservations": {
       "ReservationsByBranch": {
         ".read": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
         "$branchId": {
           ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
-          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+          "$dateKey": {
+            "$reservationId": {
+              ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
+              "status": {
+                ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'pending' || newData.val() === 'accepted' || newData.val() === 'ongoing' || newData.val() === 'completed' || newData.val() === 'cancelled'))"
+              },
+              "isPaid": {
+                ".validate": "!newData.exists() || newData.isBoolean()"
+              },
+              "paidAt": {
+                ".validate": "!newData.exists() || newData.isNumber()"
+              },
+              "paymentMethod": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 50)"
+              },
+              "appointmentId": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^ND-[0-9]{6}$/))"
+              },
+              "createdAt": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/))"
+              },
+              "amountDue": {
+                ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000)"
+              },
+              "note": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 240)"
+              },
+              "userId": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+              },
+              "timeSlot": {
+                ".validate": "!newData.exists() || (newData.hasChildren(['time', 'appointmentDate']) && newData.child('time').isString() && newData.child('time').val().length > 0 && newData.child('time').val().length <= 30 && newData.child('appointmentDate').isString() && newData.child('appointmentDate').val().matches(/^[0-9]{2}-[0-9]{2}-[0-9]{4}$/))"
+              },
+              "$other": {
+                ".validate": true
+              }
+            }
+          }
         }
       },
+
       "ReservationsByUser": {
         ".read": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
         "$userId": {
           ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')",
-          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')"
+          "$dateKey": {
+            "$reservationId": {
+              ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor' || (auth.uid === $userId && !data.exists()))",
+              ".validate": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor' || (auth.uid === $userId && (( !data.exists() && newData.child('status').val() === 'pending' && (!newData.child('isPaid').exists() || newData.child('isPaid').val() === false) && !newData.child('paidAt').exists()) || (data.exists() && newData.child('status').val() === data.child('status').val() && newData.child('isPaid').val() === data.child('isPaid').val() && newData.child('paidAt').val() === data.child('paidAt').val() && newData.child('assignedBy').val() === data.child('assignedBy').val() && newData.child('bayNumber').val() === data.child('bayNumber').val()))))",
+
+              "status": {
+                ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor' || (auth.uid === $userId && !data.exists() && newData.val() === 'pending'))",
+                ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'pending' || newData.val() === 'accepted' || newData.val() === 'ongoing' || newData.val() === 'completed' || newData.val() === 'cancelled'))"
+              },
+
+              "isPaid": {
+                ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || (auth.uid === $userId && !data.exists() && newData.val() === false))",
+                ".validate": "!newData.exists() || newData.isBoolean()"
+              },
+              "paidAt": {
+                ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+                ".validate": "!newData.exists() || newData.isNumber()"
+              },
+              "paymentMethod": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 50)"
+              },
+              "appointmentId": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^ND-[0-9]{6}$/))"
+              },
+              "createdAt": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/))"
+              },
+              "amountDue": {
+                ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000)"
+              },
+              "note": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 240)"
+              },
+              "timeSlot": {
+                ".validate": "!newData.exists() || (newData.hasChildren(['time', 'appointmentDate']) && newData.child('time').isString() && newData.child('time').val().length > 0 && newData.child('time').val().length <= 30 && newData.child('appointmentDate').isString() && newData.child('appointmentDate').val().matches(/^[0-9]{2}-[0-9]{2}-[0-9]{4}$/))"
+              },
+              "cancelReason": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 80)"
+              },
+
+              "assignedBy": {
+                ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')",
+                ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+              },
+
+              "bayNumber": {
+                ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')",
+                ".validate": "!newData.exists() || newData.isNumber() || newData.isString()"
+              },
+
+              "$other": {
+                ".validate": true
+              }
+            }
+          }
         }
       }
     },
+
     "Notifications": {
       "ByBranch": {
         "$branchId": {
           ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
-          ".write": "auth != null"
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
+          "pendingBookings": {
+            "$appointmentId": {
+              ".write": "auth != null && ((root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId)) || (!data.exists() && newData.exists() && auth.uid === newData.child('userId').val()))",
+              "userId": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 128"
+              },
+              "dateKey": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 32"
+              },
+              "appointmentId": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 128"
+              },
+              "branchId": {
+                ".validate": "!newData.exists() || (newData.isString() && newData.val() === $branchId)"
+              },
+              "$other": {
+                ".validate": true
+              }
+            }
+          },
+          "userNotifications": {
+            "$userId": {
+              "$notificationId": {
+                ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
+                "title": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+                },
+                "body": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 240"
+                },
+                "appointmentId": {
+                  ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+                },
+                "type": {
+                  ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'accepted' || newData.val() === 'completed' || newData.val() === 'cancelled' || newData.val() === 'pending'))"
+                },
+                "read": {
+                  ".validate": "!newData.exists() || newData.isBoolean()"
+                },
+                "createdAt": {
+                  ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/))"
+                },
+                "$other": {
+                  ".validate": true
+                }
+              }
+            }
+          }
         }
       },
       "ByUser": {
         "$userId": {
           ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",
-          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)"
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor' || auth.uid === $userId)",
+          "$notificationId": {
+            "title": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+            },
+            "body": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 240"
+            },
+            "appointmentId": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+            },
+            "type": {
+              ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'accepted' || newData.val() === 'completed' || newData.val() === 'cancelled' || newData.val() === 'pending'))"
+            },
+            "read": {
+              ".validate": "!newData.exists() || newData.isBoolean()"
+            },
+            "createdAt": {
+              ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/))"
+            },
+            "$other": {
+              ".validate": true
+            }
+          }
         }
       }
     },
+
     "Calendar": {
       "$branchId": {
         ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
         ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
       }
     },
+
     "services": {
       ".read": "auth != null",
       ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')"
     },
+
     "addOns": {
       ".read": "auth != null",
       ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')"
     },
+
     "advertisements": {
       ".read": true,
       ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')"
     },
+
     "Vehicle Information": {
       "$userId": {
         ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",
         ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)"
       }
     },
+
     "users": {
       ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin')",
       "$userId": {
         ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId || root.child('users/' + auth.uid + '/role').val() === 'admin')",
         ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",
+        ".validate": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (auth.uid === $userId && ((!data.exists() && newData.child('role').val() === 'default') || (data.exists() && newData.child('role').val() === data.child('role').val())) && newData.child('branchId').val() === data.child('branchId').val() && newData.child('branch').val() === data.child('branch').val()))",
+
         "role": {
           ".validate": "root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (data.exists() ? data.val() === newData.val() : newData.val() === 'default')"
+        },
+
+        "branchId": {
+          ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+        },
+        "branch": {
+          ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
+        },
+
+        "name": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 100)"
+        },
+
+        "email": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/))"
+        },
+        "Vehicle Information": {
+          "$vehicleId": {
+            ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",
+            ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)"
+          }
+        },
+
+        "$other": {
+          ".validate": true
         }
       }
     }
   }
 }
+
+
+
+
+

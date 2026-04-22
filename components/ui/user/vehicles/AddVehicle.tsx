@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -74,7 +75,7 @@ export default function AddVehicle() {
 
       setShowSuccess(true);
     } catch (err) {
-      console.error('Failed to add vehicle:', err);
+      logError('AddVehicle.handleSave', err, { context: 'Failed to add vehicle' });
       Alert.alert('Error', 'Failed to add vehicle.');
     } finally {
       setLoading(false);

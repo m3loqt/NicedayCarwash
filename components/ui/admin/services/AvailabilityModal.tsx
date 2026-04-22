@@ -1,5 +1,6 @@
 import { db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
+import { logError } from "@/lib/logger";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { get, ref, set } from "firebase/database";
@@ -61,7 +62,7 @@ export default function AvailabilityModal({
         setSelected(true);
       }
     } catch (error) {
-      console.error("Error fetching availability:", error);
+      logError("AvailabilityModal.fetchCurrentAvailability", error, { context: "Error fetching availability" });
       setCurrentAvailability(true);
       setSelected(true);
     }
@@ -86,7 +87,7 @@ export default function AvailabilityModal({
       onFinish?.(selected);
       onClose();
     } catch (error) {
-      console.error("Error updating availability:", error);
+      logError("AvailabilityModal.handleSave", error, { context: "Error updating availability" });
       alert("Error", "Failed to update availability.");
     } finally {
       setLoading(false);

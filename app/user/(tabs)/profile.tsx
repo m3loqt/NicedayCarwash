@@ -1,6 +1,7 @@
 import { AccountSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import SignOutModal from '@/components/ui/SignOutModal';
 import { useAlert } from '@/hooks/use-alert';
+import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -50,7 +51,7 @@ export default function UserProfileScreen() {
           });
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        logError('UserProfile.fetchUserData', error, { context: 'Error fetching user data' });
       } finally {
         setLoading(false);
       }
