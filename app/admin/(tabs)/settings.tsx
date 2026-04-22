@@ -2,6 +2,7 @@ import { AccountSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
 import SignOutModal from '@/components/ui/SignOutModal';
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
+import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -43,7 +44,7 @@ export default function AdminSettingsScreen() {
           });
         }
       } catch (error) {
-        console.error('Error fetching admin data:', error);
+        logError('AdminSettings.fetchAdminData', error, { context: 'Error fetching admin data' });
       } finally {
         setLoading(false);
       }
@@ -66,7 +67,7 @@ export default function AdminSettingsScreen() {
       }
       router.replace('/');
     } catch (error) {
-      console.error('Error signing out:', error);
+      logError('AdminSettings.handleSignOutConfirm', error, { context: 'Error signing out' });
     } finally {
       setSigningOut(false);
       setSignOutModalVisible(false);

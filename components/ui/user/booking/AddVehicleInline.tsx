@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, set } from 'firebase/database';
@@ -105,7 +106,7 @@ export default function AddVehicleInline({
       onSaved(payload);
       onClose();
     } catch (err) {
-      console.error('Failed to add vehicle:', err);
+      logError('AddVehicleInline.handleSave', err, { context: 'Failed to add vehicle' });
       alert('Error', 'Failed to add vehicle.');
     } finally {
       setLoading(false);

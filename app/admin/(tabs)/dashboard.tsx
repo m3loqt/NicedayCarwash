@@ -9,6 +9,7 @@ import type { NextUpItem } from '@/components/ui/admin/dashboard/NextUpCard';
 import { DashboardSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
 import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
+import { logError } from '@/lib/logger';
 import { router } from 'expo-router';
 import { get, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
@@ -71,7 +72,7 @@ const parseAppointmentDateTime = (appointmentDate: string, time: string): Date =
     return new Date(year, month - 1, day, hours, minutes);
   } catch (error) {
     // Returning current date when parsing fails
-    console.error('Error parsing appointment date/time:', error);
+    logError('AdminDashboard.parseAppointmentDateTime', error, { context: 'Error parsing appointment date/time' });
     return new Date();
   }
 };
@@ -114,7 +115,7 @@ export default function AdminDashboardScreen() {
           setLoading(false);
         }
       } catch (error) {
-        console.error('Error fetching admin branch:', error);
+        logError('AdminDashboard.fetchAdminBranch', error, { context: 'Error fetching admin branch' });
         setLoading(false);
       }
     };

@@ -5,6 +5,7 @@ import {
   initializeAuth
 } from "firebase/auth";
 import { getDatabase } from "firebase/database";
+import { initializeFirebaseAppCheck } from "./appCheck";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -19,6 +20,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+void initializeFirebaseAppCheck(app);
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
 });

@@ -1,5 +1,6 @@
 import { auth, db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
+import { logError } from "@/lib/logger";
 import { get, onValue, ref, remove, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -129,11 +130,11 @@ export default function Bays() {
             setBays([]);
           }
         }, (error) => {
-          console.error("Error listening to bays:", error);
+          logError("Bays.listener", error, { context: "Error listening to bays" });
           setLoading(false);
         });
       } catch (error) {
-        console.error("Error fetching user branch ID:", error);
+        logError("Bays.getUserBranchId", error, { context: "Error fetching user branch ID" });
         setLoading(false);
       }
     };
@@ -187,7 +188,7 @@ export default function Bays() {
       setSelectedBay(null);
       alert("Success", `${selectedBay.name} availability has been updated.`);
     } catch (error) {
-      console.error("Error updating bay status:", error);
+      logError("Bays.handleSaveAvailability", error, { context: "Error updating bay status" });
       alert("Error", "Failed to update bay status.");
     }
   };
@@ -227,7 +228,7 @@ export default function Bays() {
               }
               alert("Success", `${bay.name} has been deleted successfully.`);
             } catch (error) {
-              console.error("Error deleting bay:", error);
+              logError("Bays.handleDeletePress", error, { context: "Error deleting bay" });
               alert("Error", "Failed to delete bay.");
             }
           },
