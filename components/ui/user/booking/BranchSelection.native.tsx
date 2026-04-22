@@ -1,4 +1,5 @@
 import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import { logError, logWarn } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
@@ -52,14 +53,14 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
     try {
       // Verify expo-location module is available
       if (!Location || !Location.requestForegroundPermissionsAsync) {
-        console.warn('expo-location module not available');
+        logWarn('BranchSelectionNative.getCurrentLocation', 'expo-location module not available');
         return null;
       }
 
       // Requesting foreground location permission from user
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.warn('Location permission not granted');
+        logWarn('BranchSelectionNative.getCurrentLocation', 'Location permission not granted');
         return null;
       }
 
@@ -69,7 +70,7 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
       });
 
       if (!location || !location.coords) {
-        console.warn('Location data invalid');
+        logWarn('BranchSelectionNative.getCurrentLocation', 'Location data invalid');
         return null;
       }
 
@@ -78,7 +79,7 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
         longitude: location.coords.longitude,
       };
     } catch (e) {
-      console.warn('Failed to get device location:', e);
+      logError('BranchSelectionNative.getCurrentLocation', e, { context: 'Failed to get device location' });
       return null;
     }
   };
@@ -163,7 +164,7 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
       
       return false;
     } catch (err) {
-      console.error(`Failed to check timeslots for branch ${branchId}:`, err);
+      logError('BranchSelectionNative.checkBranchHasTimeslots', err, { context: 'Failed to check timeslots for branch', branchId });
       return false; // Excluding branch on error to be safe
     }
   };
@@ -251,7 +252,7 @@ const handleSearch = (q: string) => {
 
           if (!isFinite(lat) || !isFinite(lng)) {
             // Skipping branches with invalid coordinates to prevent map rendering errors
-            console.warn(`Skipping branch ${branchId} due to invalid coordinates:`, profile.latitude, profile.longitude);
+            logWarn('BranchSelectionNative.branchesListener', 'Skipping branch due to invalid coordinates', { branchId });
             return;
           }
 
@@ -354,7 +355,7 @@ const handleSearch = (q: string) => {
           const lat = Number(branch.coordinates?.latitude);
           const lng = Number(branch.coordinates?.longitude);
           if (!isFinite(lat) || !isFinite(lng)) {
-            console.warn('Skipping render of Marker due to invalid coords for branch', branch.id, branch.coordinates);
+            logWarn('BranchSelectionNative.renderMarker', 'Skipping render of marker due to invalid coordinates', { branchId: branch.id });
             return null;
           }
 

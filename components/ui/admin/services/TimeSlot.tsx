@@ -1,5 +1,6 @@
 import { auth, db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
+import { logError } from "@/lib/logger";
 import { get, onValue, ref, remove, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -111,11 +112,11 @@ export default function TimeSlots() {
             setTimeSlots([]);
           }
         }, (error) => {
-          console.error("Error listening to time slots:", error);
+          logError("TimeSlot.listener", error, { context: "Error listening to time slots" });
           setLoading(false);
         });
       } catch (error) {
-        console.error("Error fetching user branch ID:", error);
+        logError("TimeSlot.getUserBranchId", error, { context: "Error fetching user branch ID" });
         setLoading(false);
       }
     };
@@ -205,7 +206,7 @@ export default function TimeSlots() {
       setSelectedSlot(null);
       alert("Success", `Timeslot ${selectedSlot.time} availability has been updated.`);
     } catch (error) {
-      console.error("Error updating timeslot status:", error);
+      logError("TimeSlot.handleSaveAvailability", error, { context: "Error updating timeslot status" });
       alert("Error", "Failed to update timeslot status.");
     }
   };

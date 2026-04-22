@@ -1,4 +1,5 @@
 import { useAlert } from "@/hooks/use-alert";
+import { logError } from "@/lib/logger";
 import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
@@ -116,7 +117,7 @@ export default function ServicesStep({
         return scheduleData;
       }
     } catch (err) {
-      console.error("Failed to load branch schedule:", err);
+      logError("ServicesStep.loadBranchSchedule", err, { context: "Failed to load branch schedule" });
       // Returning default schedule when loading fails
       const defaultSchedule = { openTime: "8:00 AM", closeTime: "6:00 PM" };
       setBranchSchedule(defaultSchedule);

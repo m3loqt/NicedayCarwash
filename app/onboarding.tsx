@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { logError } from '@/lib/logger';
 import OnboardingScreen from '../components/OnboardingScreen';
 
 export default function OnboardingScreenRoute() {
@@ -18,7 +19,7 @@ export default function OnboardingScreenRoute() {
           setIsChecking(false);
         }
       } catch (error) {
-        console.error('Error checking onboarding status:', error);
+        logError('Onboarding.checkOnboardingStatus', error, { context: 'Error checking onboarding status' });
         // Showing onboarding screen on error
         setIsChecking(false);
       }
@@ -31,7 +32,7 @@ export default function OnboardingScreenRoute() {
     try {
       await AsyncStorage.setItem('hasSeenOnboarding', 'true');
     } catch (error) {
-      console.error('Error saving onboarding status:', error);
+      logError('Onboarding.handleOnboardingComplete', error, { context: 'Error saving onboarding status' });
     }
     // Navigating back to login screen after onboarding completion
     router.replace('/');

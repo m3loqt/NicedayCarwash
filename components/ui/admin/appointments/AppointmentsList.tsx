@@ -3,6 +3,8 @@ import { SelectBayModal, type Bay } from '@/components/ui/admin/dashboard';
 import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
+import { consumeClientRateLimit } from '@/lib/clientRateLimit';
+import { logError } from '@/lib/logger';
 import { get, onValue, push, ref, set, update } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -222,7 +224,7 @@ const findUserIdForAppointment = async (appointmentId: string): Promise<string> 
     }
     return '';
   } catch (error) {
-    console.error('Error finding userId:', error);
+    logError('AppointmentsList.findUserIdByAppointmentId', error, { context: 'Error finding userId' });
     return '';
   }
 };
@@ -271,7 +273,7 @@ const updateCalendarEntry = async (
 
     await set(calendarRef, calendarData);
   } catch (error) {
-    console.error('Error updating calendar entry:', error);
+    logError('AppointmentsList.updateCalendarSlotOnAccept', error, { context: 'Error updating calendar entry' });
     // Logging error without throwing to prevent breaking main flow
   }
 };
@@ -311,7 +313,7 @@ const updateServicesAvailability = async (
       await update(servicesRef, updates);
     }
   } catch (error) {
-    console.error('Error updating services availability:', error);
+    logError('AppointmentsList.updateServiceAvailabilityOnAccept', error, { context: 'Error updating services availability' });
     // Logging error without throwing to prevent breaking main flow
   }
 };
@@ -351,7 +353,7 @@ const updateAddonsAvailability = async (
       await update(addonsRef, updates);
     }
   } catch (error) {
-    console.error('Error updating add-ons availability:', error);
+    logError('AppointmentsList.updateAddonsAvailabilityOnAccept', error, { context: 'Error updating add-ons availability' });
     // Logging error without throwing to prevent breaking main flow
   }
 };
@@ -397,7 +399,7 @@ const updateTimeSlotStatus = async (
       });
     }
   } catch (error) {
-    console.error('Error updating time slot status:', error);
+    logError('AppointmentsList.updateTimeSlotStatusOnAccept', error, { context: 'Error updating time slot status' });
     // Logging error without throwing to prevent breaking main flow
   }
 };
@@ -444,7 +446,7 @@ const updateBayStatus = async (
       }
     }
   } catch (error) {
-    console.error('Error updating bay status:', error);
+    logError('AppointmentsList.updateBayStatusOnAccept', error, { context: 'Error updating bay status' });
     // Logging error without throwing to prevent breaking main flow
   }
 };
@@ -481,6 +483,36 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const [showTimeSlotSheet, setShowTimeSlotSheet] = useState(false);
   const [blockedTimeSlot, setBlockedTimeSlot] = useState('');
   const timeSlotSlideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+  const canRunAdminMutation = (action: string, windowMs = 4000) => {
+    const gate = consumeClientRateLimit(`admin-write:${action}:${branchId ?? 'unknown'}`, {
+      windowMs,
+      maxAttempts: 1,
+    });
+    if (!gate.allowed) {
+      const waitSeconds = Math.ceil(gate.retryAfterMs / 1000);
+      alert('Please wait', `Action temporarily throttled. Try again in ${waitSeconds}s.`);
+      return false;
+    }
+    return true;
+  };
+
+  const sendUserNotification = async (
+    targetUserId: string,
+    payload: Record<string, unknown>,
+    actionKey: string
+  ) => {
+    if (!branchId) return;
+    const gate = consumeClientRateLimit(`notify:${actionKey}:${targetUserId}`, {
+      windowMs: 2500,
+      maxAttempts: 1,
+    });
+    if (!gate.allowed) return;
+    await Promise.all([
+      push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${targetUserId}`), payload),
+      push(ref(db, `Notifications/ByUser/${targetUserId}`), payload),
+    ]);
+  };
 
   const openTimeSlotSheet = (time: string) => {
     setBlockedTimeSlot(time);
@@ -529,7 +561,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           setLoading(false);
         }
       } catch (error) {
-        console.error('Error fetching admin branch:', error);
+        logError('AppointmentsList.fetchAdminBranch', error, { context: 'Error fetching admin branch' });
         setLoading(false);
       }
     };
@@ -708,7 +740,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             bookingsList.push(booking);
           }
         } catch (error) {
-          console.error('Error fetching pending booking:', error);
+          logError('AppointmentsList.fetchPendingBookingById', error, { context: 'Error fetching pending booking' });
         }
       }
 
@@ -817,7 +849,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       // Setting empty list if no bays exist in database
       setBays(bayList);
     } catch (error) {
-      console.error('Error fetching bay availability:', error);
+      logError('AppointmentsList.fetchBayAvailability', error, { context: 'Error fetching bay availability' });
       // Attempting to get list of bays from database without conflict checking
       try {
         const baysRef = ref(db, `Branches/${branchId}/Bays`);
@@ -856,7 +888,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         }
         setBays(bayList);
       } catch (fallbackError) {
-        console.error('Error in fallback bay fetch:', fallbackError);
+        logError('AppointmentsList.fetchBayAvailabilityFallback', fallbackError, { context: 'Error in fallback bay fetch' });
         // Setting empty list if fallback also fails
         setBays([]);
       }
@@ -979,7 +1011,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       await fetchBayAvailability(booking.timeSlot.appointmentDate, booking.timeSlot.time);
       setIsSelectBayModalVisible(true);
     } catch (error) {
-      console.error('Error validating booking availability:', error);
+      logError('AppointmentsList.validateBookingAvailability', error, { context: 'Error validating booking availability' });
       alert('Error', 'Failed to validate booking availability. Please try again.');
     }
   };
@@ -1028,7 +1060,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       });
     });
   } catch (error) {
-    console.error('Auto start booking check failed:', error);
+    logError('AppointmentsList.autoStartAcceptedBookings', error, { context: 'Auto start booking check failed' });
   }
 };
 
@@ -1086,21 +1118,22 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           });
         }
 
-        // Notify user (written to ByBranch since admin can't write to ByUser)
-        await push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+        // Notify user in both branch scoped and user scoped channels
+        const autoCancelledNotification = {
           title: 'Booking Automatically Cancelled',
           body: `Your appointment (${appointmentId}) was automatically cancelled. ${AUTO_CANCEL_REASON}`,
           appointmentId,
           type: 'cancelled',
           read: false,
           createdAt: cancelledAtTimestamp,
-        });
+        };
+        await sendUserNotification(userId, autoCancelledNotification, `auto-cancel:${appointmentId}`);
 
         // Remove from pending bookings
         await set(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${appointmentId}`), null);
       }
     } catch (error) {
-      console.error('Auto decline expired pending bookings failed:', error);
+      logError('AppointmentsList.autoDeclineExpiredPendingBookings', error, { context: 'Auto decline expired pending bookings failed' });
     }
   };
 
@@ -1110,6 +1143,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
   const handleFinishBaySelection = async () => {
     if (!selectedBay || !bookingToAccept || !branchId) return;
+    if (!canRunAdminMutation('accept-booking')) return;
 
     const adminUserId = auth.currentUser?.uid;
     if (!adminUserId) {
@@ -1169,7 +1203,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             customerName = `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Customer';
           }
         } catch (error) {
-          console.error('Error fetching customer name:', error);
+          logError('AppointmentsList.fetchCustomerName', error, { context: 'Error fetching customer name' });
         }
       }
 
@@ -1202,8 +1236,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           assignedBy: adminUserId,
         });
 
-        // Sending notification to customer
-        push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+        // Sending notification to customer in both branch and user channels
+        const acceptedNotification = {
           title: 'Booking Confirmed',
           body: `Your appointment (${bookingToAccept.appointmentId}) has been confirmed. Bay ${selectedBay} assigned.`,
           appointmentId: bookingToAccept.appointmentId,
@@ -1211,7 +1245,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           type: 'accepted',
           read: false,
           createdAt: acceptedAt,
-        });
+        };
+        await sendUserNotification(userId, acceptedNotification, `accepted:${bookingToAccept.appointmentId}`);
       }
 
       // Remove from pending bookings notification queue
@@ -1256,7 +1291,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       setShowSuccessModal(true);
       handleCloseBayModal();
     } catch (error) {
-      console.error('Error accepting appointment:', error);
+      logError('AppointmentsList.handleAcceptAppointment', error, { context: 'Error accepting appointment' });
       alert('Error', 'Failed to accept appointment. Please try again.');
     }
   };
@@ -1325,7 +1360,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
       return { hasConflict, reason: hasConflict ? 'Bay is already assigned to another appointment at this time' : undefined };
     } catch (error) {
-      console.error('Error checking bay conflict:', error);
+      logError('AppointmentsList.handleConfirmBaySelection', error, { context: 'Error checking bay conflict' });
       return { hasConflict: false };
     }
   };
@@ -1348,6 +1383,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
   const handleCompleteConfirm = async () => {
     if (!bookingToComplete || !branchId) return;
+    if (!canRunAdminMutation('complete-booking')) return;
 
     try {
       // Getting bay number before updating status
@@ -1389,8 +1425,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           completedAt: completedAtTimestamp,
         });
 
-        // Sending notification to customer
-        push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+        // Sending notification to customer in both branch and user channels
+        const completedNotification = {
           title: 'Car Wash Complete!',
           body: `Your vehicle is clean and ready. Appointment ${bookingToComplete.appointmentId} has been completed.`,
           appointmentId: bookingToComplete.appointmentId,
@@ -1398,7 +1434,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           type: 'completed',
           read: false,
           createdAt: completedAtTimestamp,
-        });
+        };
+        await sendUserNotification(userId, completedNotification, `completed:${bookingToComplete.appointmentId}`);
       }
 
       // Releasing bay occupancy without changing admin-set status
@@ -1433,7 +1470,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       setShowSuccessModal(true);
       handleCompleteModalClose();
     } catch (error) {
-      console.error('Error completing appointment:', error);
+      logError('AppointmentsList.handleCompleteAppointment', error, { context: 'Error completing appointment' });
       alert('Error', 'Failed to complete appointment');
     }
   };
@@ -1452,6 +1489,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
   const handleFinishCancel = async () => {
     if (!bookingToCancel || !selectedCancelReason || !branchId) return;
+    if (!canRunAdminMutation('cancel-booking')) return;
 
     try {
       // Getting bay number before updating status (only exists if booking was already in ReservationsByBranch)
@@ -1498,8 +1536,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           });
         }
 
-        // Sending notification to customer
-        push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`), {
+        // Sending notification to customer in both branch and user channels
+        const cancelledNotification = {
           title: 'Booking Cancelled',
           body: `Your appointment (${bookingToCancel.appointmentId}) was cancelled. Reason: ${selectedCancelReason}.`,
           appointmentId: bookingToCancel.appointmentId,
@@ -1507,7 +1545,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           type: 'cancelled',
           read: false,
           createdAt: cancelledAtTimestamp,
-        });
+        };
+        await sendUserNotification(userId, cancelledNotification, `cancelled:${bookingToCancel.appointmentId}`);
       }
 
       // Remove from pending bookings notification queue if it was a pending booking
@@ -1547,7 +1586,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       setShowSuccessModal(true);
       handleCancelModalClose();
     } catch (error) {
-      console.error('Error cancelling appointment:', error);
+      logError('AppointmentsList.handleConfirmCancelAppointment', error, { context: 'Error cancelling appointment' });
       alert('Error', 'Failed to cancel appointment');
     }
   };
@@ -1571,7 +1610,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       }
       setCustomerName('Customer');
     } catch (error) {
-      console.error('Error fetching customer name:', error);
+      logError('AppointmentsList.fetchCustomerNameByUserId', error, { context: 'Error fetching customer name' });
       setCustomerName('Customer');
     }
   };

@@ -1,4 +1,5 @@
 import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import { logError, logWarn } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
@@ -41,19 +42,19 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
   const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
     try {
       if (!Location || !Location.requestForegroundPermissionsAsync) {
-        console.warn('expo-location module not available');
+        logWarn('BranchSelectionWeb.getCurrentLocation', 'expo-location module not available');
         return null;
       }
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.warn('Location permission not granted');
+        logWarn('BranchSelectionWeb.getCurrentLocation', 'Location permission not granted');
         return null;
       }
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
       if (!location || !location.coords) {
-        console.warn('Location data invalid');
+        logWarn('BranchSelectionWeb.getCurrentLocation', 'Location data invalid');
         return null;
       }
       return {
@@ -61,7 +62,7 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
         longitude: location.coords.longitude,
       };
     } catch (e) {
-      console.warn('Failed to get device location:', e);
+      logError('BranchSelectionWeb.getCurrentLocation', e, { context: 'Failed to get device location' });
       return null;
     }
   };
@@ -117,7 +118,7 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
         onBranchSelect?.(branch);
       }
     } catch (err) {
-      console.error('Error handling branch press', err);
+      logError('BranchSelectionWeb.handleBranchPress', err, { context: 'Error handling branch press' });
     }
   };
 
