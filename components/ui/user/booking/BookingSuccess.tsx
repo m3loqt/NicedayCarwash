@@ -2,8 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text, TouchableOpacity, View } from 'react-native';
 
+const PAYMENT_NOTICES: Record<string, string> = {
+  paid: 'Your booking fee has been confirmed.',
+  unconfirmed: "We're still confirming your payment with Maya. This can take a moment - check back shortly.",
+  cancelled: "Payment wasn't completed. You can pay anytime from your booking details.",
+  error: "We couldn't start payment. You can pay from your booking details.",
+};
+
 export default function BookingSuccess() {
-  const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>();
+  const { appointmentId, paymentStatus } = useLocalSearchParams<{ appointmentId: string; paymentStatus?: string }>();
+  const paymentNotice = paymentStatus ? PAYMENT_NOTICES[paymentStatus] : undefined;
 
   return (
     <View className="flex-1 items-center justify-center bg-white px-8">
@@ -19,10 +27,18 @@ export default function BookingSuccess() {
       </Text>
 
       {/* Appointment ID */}
-      <Text className="text-[12px] text-[#999] text-center mb-8">
+      <Text className="text-[12px] text-[#999] text-center mb-2">
         Your appointment ID is{' '}
         <Text className="font-semibold text-[#1A1A1A]">{appointmentId || 'ND-000000'}</Text>
       </Text>
+
+      {/* Payment notice */}
+      {paymentNotice && (
+        <Text className="text-[12px] text-[#999] text-center mb-6 px-2">
+          {paymentNotice}
+        </Text>
+      )}
+      {!paymentNotice && <View className="mb-6" />}
 
       {/* My Bookings */}
       <TouchableOpacity

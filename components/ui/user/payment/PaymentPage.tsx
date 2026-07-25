@@ -1,10 +1,11 @@
 import { useAlert } from '@/hooks/use-alert';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logAppError } from '@/lib/logger';
+import { payBookingFeeWithMaya } from '@/lib/mayaPayment';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import { get, getDatabase, ref, update } from 'firebase/database';
+import { get, getDatabase, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +28,6 @@ interface BookingData {
   };
 }
 
-/** GCash not wired — `handlePayment` is dev/mock RTDB only until PSP + webhook (post-VAPT). */
 export default function PaymentPage() {
   const { alert, AlertComponent } = useAlert();
   const params = useLocalSearchParams();
@@ -110,7 +110,7 @@ export default function PaymentPage() {
   };
 
   const handlePayment = async () => {
-    if (!selectedPaymentMethod) {
+    if (selectedPaymentMethod !== 'maya') {
       alert('Error', 'Please select a payment method');
       return;
     }
@@ -135,7 +135,7 @@ export default function PaymentPage() {
         setProcessing(false);
         return;
       }
-      const writeGate = consumeClientRateLimit(`payment-method-write:${userId}:${bookingKey}`, {
+      const writeGate = consumeClientRateLimit(`payment-checkout:${userId}:${bookingKey}`, {
         windowMs: 10000,
         maxAttempts: 1,
       });
@@ -146,21 +146,18 @@ export default function PaymentPage() {
         return;
       }
 
-      // Updating only the selected payment method in user's booking record.
-      // Status/isPaid are controlled by staff + server-side payment verification flow.
-      const userBookingRef = ref(
-        db,
-        `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingKey}`
-      );
-      await update(userBookingRef, {
-        paymentMethod: selectedPaymentMethod,
-      });
+      const result = await payBookingFeeWithMaya(booking.appointmentId, dateKey, userId);
+
+      if (result === 'paid') {
+        alert('Payment received', 'Your booking fee has been confirmed.');
+      } else if (result === 'unconfirmed') {
+        alert(
+          'Still verifying',
+          'We are still confirming your payment with Maya. This can take a moment - check back shortly.'
+        );
+      }
 
       setProcessing(false);
-      alert(
-        'Payment submitted',
-        'Your payment method has been recorded. Booking status will only change after supervisor confirmation and payment verification.'
-      );
       router.back();
     } catch (error) {
       logAppError('PaymentPage.handlePayment', error);
@@ -260,15 +257,9 @@ export default function PaymentPage() {
             
             {[
               {
-                id: 'gcash',
-                title: 'GCash',
-                desc: 'Pay using your GCash account',
-                icon: '📱',
-              },
-              {
-                id: 'paymaya',
-                title: 'PayMaya',
-                desc: 'Pay using your PayMaya account',
+                id: 'maya',
+                title: 'Maya',
+                desc: 'Pay via Maya wallet, card, or QR Ph',
                 icon: '💳',
               },
             ].map((method) => (

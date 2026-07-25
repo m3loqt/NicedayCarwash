@@ -1,6 +1,6 @@
-import { useAlert } from '@/hooks/use-alert';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logWarn } from '@/lib/logger';
+import { payBookingFeeWithMaya } from '@/lib/mayaPayment';
 import { sanitizePlainText } from '@/lib/sanitize';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -119,7 +119,6 @@ export default function ConfirmationStep({
   onBack,
   onDone,
 }: ConfirmationStepProps) {
-  const { alert, AlertComponent } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState('');
   const [alertModal, setAlertModal] = useState<{
@@ -219,9 +218,18 @@ export default function ConfirmationStep({
         branchName: branch.name,
         createdAt: bookingData.createdAt,
       });
+
+      let paymentStatus: 'paid' | 'unconfirmed' | 'error' = 'unconfirmed';
+      try {
+        paymentStatus = await payBookingFeeWithMaya(appointmentId, datePath, userId);
+      } catch (paymentError) {
+        logWarn('ConfirmationStep.handleConfirm', 'Maya checkout failed after booking was created', { appointmentId, paymentError });
+        paymentStatus = 'error';
+      }
+
       setSubmitting(false);
       onDone?.();
-      router.replace({ pathname: '/user/booking-success', params: { appointmentId } } as any);
+      router.replace({ pathname: '/user/booking-success', params: { appointmentId, paymentStatus } } as any);
     } catch {
       showAlert('Something went wrong', 'Failed to save your booking. Please try again.');
       setSubmitting(false);

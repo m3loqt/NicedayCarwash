@@ -24,7 +24,17 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.nicedaycarwash.app"
+      "package": "com.nicedaycarwash.app",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAsxkshcOcNgaaPSUnZ69K3u2Z6KIgTKhY"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -61,6 +71,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "14f34364-ade5-4352-9db4-459da1a8fb85"
+      }
+    },
+    "owner": "meloqt01"
   }
 }
