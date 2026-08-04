@@ -43,7 +43,8 @@ app-example
 /ios
 /android
 
-# Firebase  
+# Firebase
 ndcw-12f99-default-rtdb-export
 ndcw-schema-v2.json
 ndcw-12f99-default-rtdb-export (1).json
+GoogleService-Info.plist
