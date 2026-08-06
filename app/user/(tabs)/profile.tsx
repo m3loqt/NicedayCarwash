@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../../../firebase/firebase';
 
@@ -20,8 +20,11 @@ type UserData = {
 };
 
 const menuItems = [
-  { label: 'Account details', icon: 'person-outline' as const, route: '/user/edit-profile' as const, comingSoon: false },
-  { label: 'Reset password', icon: 'lock-closed-outline' as const, route: '/forgot-password' as const, comingSoon: false },
+  { label: 'Your Profile', icon: 'person-outline' as const, route: '/user/edit-profile' as const },
+  { label: 'My Bookings', icon: 'calendar-outline' as const, route: '/user/(tabs)/history' as const },
+  { label: 'Settings', icon: 'settings-outline' as const, route: '/user/settings' as const },
+  { label: 'Help Center', icon: 'help-circle-outline' as const, route: '/user/help-center' as const },
+  { label: 'Privacy Policy', icon: 'shield-checkmark-outline' as const, route: '/user/privacy-policy' as const },
 ];
 
 export default function UserProfileScreen() {
@@ -90,8 +93,8 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-white">
-        <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <View className="flex-1 bg-[#FAFAFA]">
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
         <SafeAreaView className="flex-1" edges={['top']}>
           <View className="px-5 pt-4 pb-4">
             <Text className="text-3xl font-bold text-[#1A1A1A]">Account</Text>
@@ -103,83 +106,85 @@ export default function UserProfileScreen() {
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
+    <View className="flex-1 bg-[#FAFAFA]">
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
       <SafeAreaView className="flex-1" edges={['top']}>
         {/* Header */}
         <View className="px-5 pt-4 pb-4">
-          <Text className="text-3xl font-bold text-[#1A1A1A]">Account</Text>
+          <Text className="text-3xl font-inter-semibold tracking-tight text-[#1A1A1A]">Profile</Text>
         </View>
 
-        {/* Profile section */}
-        <View className="items-center pt-2 pb-6">
-          {/* Avatar */}
-          <View className="mb-3" style={{ width: 80, height: 80 }}>
-            <View className="w-20 h-20 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">
-              {user?.profileImage ? (
-                <Image
-                  source={{ uri: user.profileImage }}
-                  className="w-full h-full"
-                  resizeMode="cover"
-                />
-              ) : (
-                <View className="w-full h-full items-center justify-center">
-                  <Ionicons name="person" size={36} color="#BDBDBD" />
-                </View>
-              )}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          {/* Profile section */}
+          <View className="items-center pt-2 pb-6">
+            {/* Avatar */}
+            <View className="mb-3" style={{ width: 80, height: 80 }}>
+              <View className="w-20 h-20 rounded-full bg-white overflow-hidden border border-[#EEEEEE]">
+                {user?.profileImage ? (
+                  <Image
+                    source={{ uri: user.profileImage }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View className="w-full h-full items-center justify-center">
+                    <Ionicons name="person" size={36} color="#BDBDBD" />
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                className="absolute w-6 h-6 rounded-full bg-[#1A1A1A] items-center justify-center border-2 border-white"
+                style={{ bottom: '15%', right: '10%' }}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                onPress={() => router.push('/user/edit-profile')}
+              >
+                <Ionicons name="camera" size={11} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              className="absolute w-6 h-6 rounded-full bg-[#1A1A1A] items-center justify-center border-2 border-white"
-              style={{ bottom: '15%', right: '10%' }}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              onPress={() => router.push('/user/edit-profile')}
-            >
-              <Ionicons name="camera" size={11} color="#FFFFFF" />
-            </TouchableOpacity>
+
+            {/* Name */}
+            <Text className="text-xl font-inter-semibold tracking-tight text-[#1A1A1A]">
+              {user ? `${user.firstName} ${user.lastName}` : '...'}
+            </Text>
+            {/* Phone or email */}
+            <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] mt-0.5">
+              {user?.phone || user?.email || ''}
+            </Text>
           </View>
 
-          {/* Name */}
-          <Text className="text-xl font-bold text-[#1A1A1A]">
-            {user ? `${user.firstName} ${user.lastName}` : '...'}
-          </Text>
-          {/* Phone or email */}
-          <Text className="text-[13px] text-[#999] mt-0.5">
-            {user?.phone || user?.email || ''}
-          </Text>
-        </View>
+          {/* Menu items */}
+          <View className="mx-5 mt-2">
+            {menuItems.map((item, index) => (
+              <TouchableOpacity
+                key={item.label}
+                className={`bg-white rounded-2xl px-5 py-5 flex-row items-center justify-between ${
+                  index < menuItems.length - 1 ? 'mb-1.5' : ''
+                }`}
+                onPress={() => handleMenuPress(item.route)}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name={item.icon} size={18} color="#999" />
+                  <Text className="text-[15px] font-inter-medium tracking-tight text-[#1A1A1A] ml-3">{item.label}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+              </TouchableOpacity>
+            ))}
 
-        {/* Menu items */}
-        <View className="mx-5 mt-2">
-          {menuItems.map((item, index) => (
+            {/* Logout */}
             <TouchableOpacity
-              key={item.label}
-              className={`bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between ${
-                index < menuItems.length - 1 ? 'mb-1.5' : ''
-              }`}
-              onPress={() => handleMenuPress(item.route)}
+              className="bg-white rounded-2xl px-5 py-5 flex-row items-center justify-between mt-1.5"
+              onPress={handleSignOutPress}
               activeOpacity={0.7}
             >
               <View className="flex-row items-center">
-                <Ionicons name={item.icon} size={18} color="#999" />
-                <Text className="text-[15px] text-[#1A1A1A] ml-3">{item.label}</Text>
+                <Ionicons name="log-out-outline" size={18} color="#999" />
+                <Text className="text-[15px] font-inter-medium tracking-tight text-[#1A1A1A] ml-3">Logout</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
             </TouchableOpacity>
-          ))}
-
-          {/* Logout */}
-          <TouchableOpacity
-            className="bg-[#FAFAFA] rounded-2xl px-5 py-5 flex-row items-center justify-between mt-1.5"
-            onPress={handleSignOutPress}
-            activeOpacity={0.7}
-          >
-            <View className="flex-row items-center">
-              <Ionicons name="log-out-outline" size={18} color="#999" />
-              <Text className="text-[15px] text-[#1A1A1A] ml-3">Logout</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-          </TouchableOpacity>
-        </View>
+          </View>
+        </ScrollView>
 
         <SignOutModal
           visible={signOutModalVisible}

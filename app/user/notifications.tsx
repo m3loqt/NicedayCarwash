@@ -17,10 +17,11 @@ interface Notification {
   createdAt: string;
 }
 
-const TYPE_STYLE: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
-  accepted: { icon: 'checkmark-circle', color: '#16A34A', bg: '#DCFCE7' },
-  completed: { icon: 'sparkles', color: '#D97706', bg: '#FEF3C7' },
-  cancelled: { icon: 'close-circle', color: '#DC2626', bg: '#FEE2E2' },
+// Monochrome throughout - only the glyph changes by type, never the color.
+const TYPE_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  accepted: 'calendar-outline',
+  completed: 'sparkles-outline',
+  cancelled: 'close-circle-outline',
 };
 
 function formatDate(isoString: string): string {
@@ -29,9 +30,10 @@ function formatDate(isoString: string): string {
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`;
+  if (diffMins < 2880) return '1d';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function isToday(isoString: string): boolean {
@@ -67,11 +69,11 @@ export default function NotificationsScreen() {
     }
   };
 
-  const markAllRead = () => {
+  const markSectionRead = (items: Notification[]) => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
     const updates: Record<string, boolean> = {};
-    notifications.forEach((n) => { if (!n.read) updates[`Notifications/ByUser/${uid}/${n.id}/read`] = true; });
+    items.forEach((n) => { if (!n.read) updates[`Notifications/ByUser/${uid}/${n.id}/read`] = true; });
     if (Object.keys(updates).length > 0) update(ref(db), updates);
   };
 
@@ -80,13 +82,22 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F2F2F7' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAFA' }} edges={['top']}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={22} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 17, fontWeight: '700', color: '#1A1A1A', marginLeft: 12 }}>Notifications</Text>
+        <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#1A1A1A', marginRight: unreadCount > 0 ? 0 : 22 }}>
+          Notifications
+        </Text>
+        {unreadCount > 0 && (
+          <View style={{ backgroundColor: '#1A1A1A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#FFFFFF' }}>
+              {unreadCount} NEW
+            </Text>
+          </View>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -95,54 +106,78 @@ export default function NotificationsScreen() {
           <View style={{ alignItems: 'center', paddingTop: 100, paddingHorizontal: 40 }}>
             <View style={{
               width: 100, height: 100, borderRadius: 50,
-              backgroundColor: '#FFFDE7', alignItems: 'center', justifyContent: 'center', marginBottom: 24,
+              backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', marginBottom: 24,
             }}>
-              <Ionicons name="mail-outline" size={48} color="#D4C800" />
+              <Ionicons name="mail-outline" size={48} color="#BDBDBD" />
             </View>
             <Text style={{ fontSize: 20, fontWeight: '700', color: '#1A1A1A', marginBottom: 8 }}>
               No notifications yet
             </Text>
-            <Text style={{ fontSize: 14, color: '#8E8E93', textAlign: 'center', lineHeight: 20 }}>
-              Your notifications will appear here once you've received them.
+            <Text style={{ fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 20 }}>
+              Your notifications will appear here once you&apos;ve received them.
             </Text>
           </View>
         ) : (
           <>
             {todayItems.length > 0 && (
               <>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#8E8E93', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 }}>
-                  Today
-                </Text>
+                <SectionHeader
+                  label="Today"
+                  showMarkRead={todayItems.some((n) => !n.read)}
+                  onMarkRead={() => markSectionRead(todayItems)}
+                  topPadding={8}
+                />
                 {todayItems.map((notif) => <NotifCard key={notif.id} notif={notif} onPress={handlePress} />)}
               </>
             )}
             {earlierItems.length > 0 && (
               <>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#8E8E93', paddingHorizontal: 20, paddingTop: todayItems.length > 0 ? 16 : 8, paddingBottom: 6 }}>
-                  Previously
-                </Text>
+                <SectionHeader
+                  label="Earlier"
+                  showMarkRead={earlierItems.some((n) => !n.read)}
+                  onMarkRead={() => markSectionRead(earlierItems)}
+                  topPadding={todayItems.length > 0 ? 16 : 8}
+                />
                 {earlierItems.map((notif) => <NotifCard key={notif.id} notif={notif} onPress={handlePress} />)}
               </>
             )}
           </>
-        )}
-
-        {/* Footer */}
-        {unreadCount > 0 && (
-          <View style={{ alignItems: 'center', marginTop: 32 }}>
-            <Text style={{ fontSize: 13, color: '#8E8E93' }}>Missing notifications?</Text>
-            <TouchableOpacity onPress={markAllRead}>
-              <Text style={{ fontSize: 13, color: '#B8A800', marginTop: 2 }}>Mark all as read.</Text>
-            </TouchableOpacity>
-          </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function SectionHeader({
+  label,
+  showMarkRead,
+  onMarkRead,
+  topPadding,
+}: {
+  label: string;
+  showMarkRead: boolean;
+  onMarkRead: () => void;
+  topPadding: number;
+}) {
+  return (
+    <View style={{
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 20, paddingTop: topPadding, paddingBottom: 6,
+    }}>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        {label}
+      </Text>
+      {showMarkRead && (
+        <TouchableOpacity onPress={onMarkRead} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={{ fontSize: 12, color: '#999' }}>Mark all as read</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 function NotifCard({ notif, onPress }: { notif: Notification; onPress: (n: Notification) => void }) {
-  const style = TYPE_STYLE[notif.type] ?? TYPE_STYLE.accepted;
+  const icon = TYPE_ICON[notif.type] ?? TYPE_ICON.accepted;
 
   return (
     <TouchableOpacity
@@ -151,26 +186,21 @@ function NotifCard({ notif, onPress }: { notif: Notification; onPress: (n: Notif
       style={{
         flexDirection: 'row',
         alignItems: 'flex-start',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: notif.read ? 'transparent' : '#FFFFFF',
         marginHorizontal: 16,
-        marginVertical: 4,
+        marginVertical: 2,
         borderRadius: 14,
         padding: 14,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
       }}
     >
-      {/* Avatar */}
+      {/* Icon */}
       <View style={{
         width: 44, height: 44, borderRadius: 22,
-        backgroundColor: style.bg,
+        backgroundColor: '#F5F5F5',
         alignItems: 'center', justifyContent: 'center',
         marginRight: 12,
       }}>
-        <Ionicons name={style.icon} size={22} color={style.color} />
+        <Ionicons name={icon} size={20} color="#1A1A1A" />
       </View>
 
       {/* Content */}
@@ -182,19 +212,14 @@ function NotifCard({ notif, onPress }: { notif: Notification; onPress: (n: Notif
           >
             {notif.title}
           </Text>
-          <Text style={{ fontSize: 11, color: '#AEAEB2', marginLeft: 8 }}>
+          <Text style={{ fontSize: 11, color: '#BDBDBD', marginLeft: 8 }}>
             {formatDate(notif.createdAt)}
           </Text>
         </View>
-        <Text numberOfLines={2} style={{ fontSize: 13, color: '#636366', lineHeight: 18 }}>
+        <Text numberOfLines={2} style={{ fontSize: 13, color: '#999', lineHeight: 18 }}>
           {notif.body}
         </Text>
       </View>
-
-      {/* Unread dot */}
-      {!notif.read && (
-        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F9EF08', borderWidth: 1, borderColor: '#D4C800', marginLeft: 8, marginTop: 4 }} />
-      )}
     </TouchableOpacity>
   );
 }

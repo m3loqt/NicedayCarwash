@@ -1,7 +1,8 @@
 import { useAlert } from '@/hooks/use-alert';
+import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddVehicleInline from './AddVehicleInline';
@@ -23,6 +24,7 @@ interface Branch {
 export default function BookingFlow({ branch, onClose }: { branch: Branch | null; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const { alert, AlertComponent } = useAlert();
+  const { hideTabBar, showTabBar } = useTabBarVisibility();
   const [step, setStep] = useState(1);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
@@ -33,6 +35,13 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
   const [totalEstimatedTime, setTotalEstimatedTime] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
+
+  // Nav bar stays hidden for the whole booking flow (select vehicle -> plan -> review),
+  // and reappears once this overlay unmounts back to the branch list.
+  useEffect(() => {
+    hideTabBar();
+    return () => showTabBar();
+  }, [hideTabBar, showTabBar]);
 
   // Exit early if no branch is provided
   if (!branch) {

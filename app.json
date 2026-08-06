@@ -20,11 +20,12 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F9EF08",
-        "foregroundImage": "./assets/images/nd_appicon.png"
+        "foregroundImage": "./assets/images/nd_appicon_adaptive.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.nicedaycarwash.app",
+      "package": "com.app.nicedaycarwash",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -65,6 +66,12 @@
         {
           "photosPermission": "Allow NicedayCarwash to access your photos to set your profile picture.",
           "cameraPermission": "Allow NicedayCarwash to use the camera for your profile picture."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#F9EF08"
         }
       ]
     ],

@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions/v2";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import {
   activePublicKey,
   activeSecretKey,
@@ -8,15 +9,21 @@ import {
   fetchPaymentsByReferenceNumber,
   MAYA_SUCCESS_STATUS,
   MAYA_TERMINAL_FAILURE_STATUSES,
+  mayaEnvironment,
   mayaLivePublicKey,
   mayaLiveSecretKey,
   mayaSandboxPublicKey,
   mayaSandboxSecretKey,
 } from "./maya";
+import { performRefund } from "./refunds";
+import { checkBranchCapacity } from "./capacity";
+import { sendPushOnNewNotification } from "./pushNotifications";
+
+export { sendPushOnNewNotification };
 
 // Both key pairs must be declared here even though only one is read at runtime (per MAYA_ENVIRONMENT) -
 // Cloud Functions v2 needs every secret a function might touch listed at deploy time.
-const ALL_MAYA_SECRETS = [mayaLivePublicKey, mayaLiveSecretKey, mayaSandboxPublicKey, mayaSandboxSecretKey];
+const ALL_MAYA_SECRETS = [mayaLivePublicKey, mayaLiveSecretKey, mayaSandboxPublicKey, mayaSandboxSecretKey, mayaEnvironment];
 
 admin.initializeApp();
 
@@ -44,6 +51,7 @@ function escapeHtml(value: string): string {
 interface ReservationRecord {
   status?: string;
   isPaid?: boolean;
+  branchId?: string;
 }
 
 async function findReservation(
@@ -81,6 +89,10 @@ export const createCheckout = onCall({ secrets: ALL_MAYA_SECRETS }, async (reque
     throw new HttpsError("not-found", "Booking not found.");
   }
   const { dateKey, data: booking } = reservation;
+  // Read from the reservation record itself rather than requiring every client call site to pass
+  // it - older reservations created before branchId was stored on the record just won't have it,
+  // which only means a refund can't also update ReservationsByBranch (see performRefund).
+  const branchId = booking.branchId;
 
   if (booking.isPaid) {
     throw new HttpsError("failed-precondition", "This booking has already been paid.");
@@ -114,6 +126,7 @@ export const createCheckout = onCall({ secrets: ALL_MAYA_SECRETS }, async (reque
     userId: uid,
     dateKey,
     appointmentId,
+    branchId: branchId ?? null,
     amount: BOOKING_FEE,
     currency: "PHP",
     checkoutId: checkout.checkoutId,
@@ -121,8 +134,62 @@ export const createCheckout = onCall({ secrets: ALL_MAYA_SECRETS }, async (reque
     createdAt: admin.database.ServerValue.TIMESTAMP,
     updatedAt: admin.database.ServerValue.TIMESTAMP,
   });
+  // Reverse index so a refund lookup by appointmentId doesn't need to scan all payment records.
+  await db.ref(`Payments/ByAppointment/${appointmentId}`).set(requestReferenceNumber);
 
   return { redirectUrl: checkout.redirectUrl, requestReferenceNumber };
+});
+
+// Admin-triggered refund for a cancelled, refund-eligible booking. Re-checks eligibility itself
+// (performRefund never trusts the caller) - this is just an auth/role gate plus a thin wrapper.
+export const refundBookingFee = onCall({ secrets: ALL_MAYA_SECRETS }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  const roleSnap = await admin.database().ref(`users/${uid}/role`).get();
+  const role = roleSnap.val();
+  if (role !== "admin" && role !== "supervisor" && role !== "superadmin") {
+    throw new HttpsError("permission-denied", "Admin role required.");
+  }
+
+  const appointmentId = request.data?.appointmentId;
+  if (typeof appointmentId !== "string" || !appointmentId) {
+    throw new HttpsError("invalid-argument", "appointmentId is required.");
+  }
+
+  const result = await performRefund(appointmentId);
+  if (!result.refunded) {
+    throw new HttpsError("failed-precondition", result.reason ?? "Refund could not be completed.");
+  }
+  return result;
+});
+
+// Customer-facing pre-payment capacity check. Runs server-side because
+// Reservations/ReservationsByBranch is admin/supervisor-only under the RTDB rules - a customer's
+// client SDK call would get permission-denied reading it directly.
+export const checkCapacity = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+
+  const { branchId, datePath, time, estimatedMinutes } = request.data ?? {};
+  if (typeof branchId !== "string" || !branchId) {
+    throw new HttpsError("invalid-argument", "branchId is required.");
+  }
+  if (typeof datePath !== "string" || !datePath) {
+    throw new HttpsError("invalid-argument", "datePath is required.");
+  }
+  if (typeof time !== "string" || !time) {
+    throw new HttpsError("invalid-argument", "time is required.");
+  }
+  if (typeof estimatedMinutes !== "number" || estimatedMinutes < 0) {
+    throw new HttpsError("invalid-argument", "estimatedMinutes must be a non-negative number.");
+  }
+
+  return checkBranchCapacity(branchId, datePath, time, estimatedMinutes);
 });
 
 // HTTPS landing page Maya redirects to after checkout. Deliberately does NOT attempt to deep-link
@@ -209,3 +276,97 @@ export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, 
 
   res.status(200).send("ok");
 });
+
+const PENDING_EXPIRY_MS = 24 * 60 * 60 * 1000;
+const AUTO_CANCEL_REASON = "Branch might be too busy to accommodate your request at this time.";
+
+async function notifyUser(userId: string, branchId: string, payload: Record<string, unknown>): Promise<void> {
+  const db = admin.database();
+  await Promise.all([
+    db.ref(`Notifications/ByBranch/${branchId}/userNotifications/${userId}`).push(payload),
+    db.ref(`Notifications/ByUser/${userId}`).push(payload),
+  ]);
+}
+
+async function expireOnePendingBooking(
+  branchId: string,
+  userId: string,
+  dateKey: string,
+  appointmentId: string
+): Promise<void> {
+  const db = admin.database();
+  const cancelledAt = new Date().toISOString();
+
+  const userBookingRef = db.ref(`Reservations/ReservationsByUser/${userId}/${dateKey}/${appointmentId}`);
+  const bookingData = (await userBookingRef.get()).val();
+
+  await userBookingRef.update({
+    status: "cancelled",
+    cancelReason: AUTO_CANCEL_REASON,
+    cancelledAt,
+    cancelledBy: "system",
+    refundEligible: true,
+  });
+
+  if (bookingData) {
+    await db.ref(`Reservations/ReservationsByBranch/${branchId}/${dateKey}/${appointmentId}`).set({
+      ...bookingData,
+      status: "cancelled",
+      cancelReason: AUTO_CANCEL_REASON,
+      cancelledAt,
+      cancelledBy: "system",
+      refundEligible: true,
+    });
+  }
+
+  await notifyUser(userId, branchId, {
+    title: "Booking Automatically Cancelled",
+    body: `Your appointment (${appointmentId}) was automatically cancelled. ${AUTO_CANCEL_REASON}`,
+    appointmentId,
+    type: "cancelled",
+    read: false,
+    createdAt: cancelledAt,
+  });
+
+  await db.ref(`Notifications/ByBranch/${branchId}/pendingBookings/${appointmentId}`).remove();
+
+  if (bookingData?.isPaid) {
+    const result = await performRefund(appointmentId);
+    if (!result.refunded) {
+      logger.warn("Auto-expiry refund did not complete", { appointmentId, reason: result.reason });
+    }
+  }
+}
+
+// Replaces the old client-side auto-decline (which only ran if an admin happened to have the
+// Appointments screen open) - this now has real refund consequences, so it can't depend on that.
+export const expirePendingBookings = onSchedule(
+  { schedule: "every 15 minutes", secrets: ALL_MAYA_SECRETS },
+  async () => {
+    const db = admin.database();
+    const branchesSnap = await db.ref("Notifications/ByBranch").get();
+    if (!branchesSnap.exists()) return;
+
+    const now = Date.now();
+    const tasks: Promise<void>[] = [];
+
+    branchesSnap.forEach((branchSnap) => {
+      const branchId = branchSnap.key as string;
+      const pending = branchSnap.child("pendingBookings");
+      pending.forEach((entrySnap) => {
+        const data = entrySnap.val();
+        if (data?.createdAt && now - new Date(data.createdAt).getTime() > PENDING_EXPIRY_MS) {
+          tasks.push(
+            expireOnePendingBooking(branchId, data.userId, data.dateKey, data.appointmentId).catch((err) => {
+              logger.error("Failed to expire pending booking", { branchId, appointmentId: data.appointmentId, err });
+            })
+          );
+        }
+        return false;
+      });
+      return false;
+    });
+
+    await Promise.all(tasks);
+  }
+);

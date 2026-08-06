@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Text, TouchableOpacity, View } from 'react-native';
 
-export type CancelReason = 'Washer Unavailable' | 'Service Unavailable' | 'Power Interruption' | 'Late arrival';
+export type CancelReason = 'Washer Unavailable' | 'Service Unavailable' | 'Power Interruption' | 'No Capacity';
 
 interface CancelReasonModalProps {
   visible: boolean;
@@ -15,7 +15,7 @@ const REASONS: CancelReason[] = [
   'Washer Unavailable',
   'Service Unavailable',
   'Power Interruption',
-  'Late arrival',
+  'No Capacity',
 ];
 
 export default function CancelReasonModal({

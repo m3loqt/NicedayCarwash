@@ -2,10 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -21,6 +20,10 @@ interface BookingData {
   branchName: string;
   branchAddress: string;
   status: BookingStatus;
+  createdAt?: string;
+  acceptedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
   timeSlot: { time: string; appointmentDate: string; estCompletion?: string };
   vehicleDetails: { vehicleName: string; plateNumber: string; classification: string };
   amountDue: number;
@@ -30,13 +33,6 @@ interface BookingData {
   addOns?: any[];
 }
 
-const STEPS: { id: BookingStatus | 'accepted'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'pending', label: 'Pending', icon: 'time-outline' },
-  { id: 'accepted', label: 'Confirmed', icon: 'checkmark-circle-outline' },
-  { id: 'ongoing', label: 'In Progress', icon: 'car-sport-outline' },
-  { id: 'completed', label: 'Done', icon: 'sparkles-outline' },
-];
-
 const STATUS_ORDER: Record<string, number> = {
   pending: 0,
   accepted: 1,
@@ -45,28 +41,12 @@ const STATUS_ORDER: Record<string, number> = {
   cancelled: -1,
 };
 
-const STATUS_MESSAGE: Record<string, { title: string; subtitle: string }> = {
-  pending: {
-    title: 'Confirming your booking...',
-    subtitle: "We're waiting for the branch to confirm your appointment.",
-  },
-  accepted: {
-    title: 'Booking confirmed!',
-    subtitle: 'Your appointment has been accepted. See you soon!',
-  },
-  ongoing: {
-    title: 'Your car is being washed!',
-    subtitle: 'Sit back and relax. We\'re taking care of your vehicle.',
-  },
-  completed: {
-    title: 'Car wash complete!',
-    subtitle: 'Your vehicle is clean and ready. Hope to see you again!',
-  },
-  cancelled: {
-    title: 'Booking cancelled',
-    subtitle: 'This appointment has been cancelled.',
-  },
-};
+const STEPS: { id: BookingStatus; label: string; timestampKey: keyof BookingData }[] = [
+  { id: 'pending', label: 'Booking Confirmed', timestampKey: 'createdAt' },
+  { id: 'accepted', label: 'Accepted by Branch', timestampKey: 'acceptedAt' },
+  { id: 'ongoing', label: 'Wash In Progress', timestampKey: 'startedAt' },
+  { id: 'completed', label: 'Completed', timestampKey: 'completedAt' },
+];
 
 const formatDate = (dateString: string): string => {
   if (!dateString) return '';
@@ -79,24 +59,47 @@ const formatDate = (dateString: string): string => {
   return `${months[month - 1]} ${day}, ${year}`;
 };
 
+const formatDateTime = (isoLike?: string): string => {
+  if (!isoLike) return '';
+  const d = new Date(isoLike);
+  if (isNaN(d.getTime())) return '';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}, ${hours}:${minutes} ${ampm}`;
+};
+
+const parseAppointmentDateTime = (appointmentDate: string, time: string): Date => {
+  const [month, day, year] = (appointmentDate || '').split('-').map(Number);
+  const match = (time || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  let hours = 0;
+  let minutes = 0;
+  if (match) {
+    hours = parseInt(match[1], 10);
+    minutes = parseInt(match[2], 10);
+    const meridiem = match[3].toUpperCase();
+    if (meridiem === 'PM' && hours !== 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+  }
+  return new Date(year || 1970, (month || 1) - 1, day || 1, hours, minutes);
+};
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row justify-between items-start py-2">
+      <Text className="text-[13px] text-[#999] mr-3">{label}</Text>
+      <Text className="text-[13px] font-semibold text-[#1A1A1A] flex-1 text-right">{value}</Text>
+    </View>
+  );
+}
+
 export default function BookingProgressScreen() {
   const { appointmentId, date } = useLocalSearchParams<{ appointmentId: string; date: string }>();
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.15, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, []);
 
   useEffect(() => {
     if (!appointmentId || !date) return;
@@ -130,10 +133,6 @@ export default function BookingProgressScreen() {
     return () => unsubscribe();
   }, [appointmentId, date]);
 
-  const currentStepIndex = booking ? STATUS_ORDER[booking.status] ?? 0 : 0;
-  const message = booking ? STATUS_MESSAGE[booking.status] : STATUS_MESSAGE.pending;
-  const isPulsing = booking?.status === 'pending';
-
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center" edges={['top']}>
@@ -157,213 +156,157 @@ export default function BookingProgressScreen() {
     );
   }
 
+  const currentStepIndex = STATUS_ORDER[booking.status] ?? 0;
+
+  // Only estimated for the one step that hasn't happened yet - matches how far we can honestly
+  // predict (branch acceptance timing isn't something we model, so no estimate for that step).
+  const estMinutes = parseFloat(String(booking.timeSlot?.estCompletion || '0').replace(/[^\d.]/g, '')) || 0;
+  const expectedCompletion = booking.startedAt
+    ? new Date(new Date(booking.startedAt).getTime() + estMinutes * 60000)
+    : new Date(parseAppointmentDateTime(booking.timeSlot?.appointmentDate, booking.timeSlot?.time).getTime() + estMinutes * 60000);
+
+  const orderRows = [
+    ...(booking.services?.map((s: any) => ({ label: s?.name ?? 'Service', price: s?.price ?? 0 })) ?? []),
+    ...(booking.addOns?.map((a: any) => ({ label: a?.name ?? 'Add-on', price: a?.price ?? 0 })) ?? []),
+    { label: 'Booking Fee', price: 25 },
+  ];
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center px-5 pt-2 pb-4">
+      <View className="flex-row items-center px-5 pt-2 pb-5">
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className="w-9 h-9 rounded-full border border-[#EEEEEE] items-center justify-center"
         >
-          <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+          <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text className="text-[17px] font-bold text-[#1A1A1A] ml-2">Booking Status</Text>
+        <Text className="flex-1 text-center text-[17px] font-bold text-[#1A1A1A] mr-9">
+          Booking Status
+        </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Status Hero */}
-        <View className="items-center pt-6 pb-8 px-6">
-          {/* Animated icon */}
-          <Animated.View
-            style={{
-              transform: [{ scale: isPulsing ? pulseAnim : 1 }],
-              marginBottom: 20,
-            }}
-          >
-            <View
-              className="w-20 h-20 rounded-full items-center justify-center"
-              style={{
-                backgroundColor:
-                  booking.status === 'cancelled'
-                    ? '#F5F5F5'
-                    : booking.status === 'completed'
-                    ? '#F9EF08'
-                    : '#FFFDE7',
-              }}
-            >
-              <Ionicons
-                name={
-                  booking.status === 'pending'
-                    ? 'time-outline'
-                    : booking.status === 'accepted'
-                    ? 'checkmark-circle-outline'
-                    : booking.status === 'ongoing'
-                    ? 'car-sport-outline'
-                    : booking.status === 'completed'
-                    ? 'sparkles-outline'
-                    : 'close-circle-outline'
-                }
-                size={36}
-                color={
-                  booking.status === 'cancelled'
-                    ? '#BDBDBD'
-                    : booking.status === 'completed'
-                    ? '#1A1A00'
-                    : '#F9A825'
-                }
-              />
+        <View className="px-6">
+          <Text className="text-[16px] font-bold text-[#1A1A1A] mb-6">
+            Appointment #{booking.appointmentId}
+          </Text>
+
+          {booking.status === 'cancelled' ? (
+            <View className="items-center py-10">
+              <Ionicons name="close-circle-outline" size={40} color="#BDBDBD" />
+              <Text className="text-[16px] font-bold text-[#1A1A1A] mt-3">Booking Cancelled</Text>
+              <Text className="text-[13px] text-[#999] mt-1 text-center">
+                This appointment has been cancelled.
+              </Text>
             </View>
-          </Animated.View>
-
-          <Text className="text-[20px] font-bold text-[#1A1A1A] text-center mb-1">
-            {message.title}
-          </Text>
-          <Text className="text-[13px] text-[#999] text-center leading-[19px]">
-            {message.subtitle}
-          </Text>
-        </View>
-
-        {/* Progress Steps */}
-        {booking.status !== 'cancelled' && (
-          <View className="mx-5 mb-6">
-            {/* Circles + connectors row */}
-            <View className="flex-row items-center">
+          ) : (
+            /* Vertical timeline */
+            <View>
               {STEPS.map((step, index) => {
-                const stepIndex = STATUS_ORDER[step.id] ?? index;
-                const isCompleted = currentStepIndex > stepIndex;
-                const isCurrent = currentStepIndex === stepIndex;
+                const stepIndex = STATUS_ORDER[step.id];
+                const reached = currentStepIndex >= stepIndex;
+                const isLast = index === STEPS.length - 1;
+                const timestamp = booking[step.timestampKey] as string | undefined;
+
+                let subtitle = '';
+                if (reached && timestamp) {
+                  subtitle = formatDateTime(timestamp);
+                } else if (!reached && step.id === 'completed') {
+                  subtitle = `Expected ${formatDateTime(expectedCompletion.toISOString())}`;
+                }
 
                 return (
-                  <View key={step.id} className="flex-1 flex-row items-center">
-                    {/* Connector before (skip first) */}
-                    {index > 0 && (
+                  <View key={step.id} className="flex-row">
+                    {/* Circle + connecting line */}
+                    <View className="items-center mr-4" style={{ width: 28 }}>
                       <View
-                        className="flex-1 h-[2px]"
-                        style={{ backgroundColor: isCompleted || isCurrent ? '#F9EF08' : '#E5E5E5' }}
-                      />
-                    )}
-                    <View
-                      className="w-9 h-9 rounded-full items-center justify-center"
-                      style={{ backgroundColor: isCurrent || isCompleted ? '#F9EF08' : '#F5F5F5' }}
-                    >
-                      {isCompleted ? (
-                        <Ionicons name="checkmark" size={16} color="#1A1A00" />
-                      ) : (
-                        <Ionicons name={step.icon} size={16} color={isCurrent ? '#1A1A00' : '#BDBDBD'} />
+                        className="w-7 h-7 rounded-full items-center justify-center"
+                        style={{ backgroundColor: reached ? '#1A1A1A' : '#EFEFEF' }}
+                      >
+                        <Ionicons name="checkmark" size={14} color={reached ? '#FFFFFF' : '#BDBDBD'} />
+                      </View>
+                      {!isLast && (
+                        <View
+                          style={{
+                            width: 2,
+                            flex: 1,
+                            minHeight: 40,
+                            backgroundColor: currentStepIndex > stepIndex ? '#1A1A1A' : '#EFEFEF',
+                          }}
+                        />
                       )}
                     </View>
-                    {/* Connector after (skip last) */}
-                    {index < STEPS.length - 1 && (
-                      <View
-                        className="flex-1 h-[2px]"
-                        style={{ backgroundColor: currentStepIndex > stepIndex ? '#F9EF08' : '#E5E5E5' }}
-                      />
-                    )}
+
+                    {/* Label + timestamp */}
+                    <View className="flex-1 pb-7">
+                      <Text
+                        className="text-[14.5px] font-bold"
+                        style={{ color: reached ? '#1A1A1A' : '#BDBDBD' }}
+                      >
+                        {step.label}
+                      </Text>
+                      {!!subtitle && (
+                        <Text className="text-[12px] text-[#999] mt-0.5">{subtitle}</Text>
+                      )}
+                    </View>
                   </View>
                 );
               })}
             </View>
-            {/* Labels row */}
-            <View className="flex-row mt-1.5">
-              {STEPS.map((step, index) => {
-                const stepIndex = STATUS_ORDER[step.id] ?? index;
-                const isCurrent = currentStepIndex === stepIndex;
-                const isFuture = currentStepIndex < stepIndex;
-                return (
-                  <Text
-                    key={step.id}
-                    className="flex-1 text-[10px] text-center"
-                    style={{
-                      fontWeight: isCurrent ? '700' : '400',
-                      color: isFuture ? '#BDBDBD' : '#1A1A1A',
-                    }}
-                  >
-                    {step.label}
-                  </Text>
-                );
-              })}
-            </View>
-          </View>
-        )}
+          )}
 
-        {/* Booking Details Card */}
-        <View className="mx-5 bg-[#FAFAFA] rounded-2xl overflow-hidden">
-          {/* Branch */}
-          <View className="px-4 py-4 flex-row items-center">
-            <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
-              <Ionicons name="location-outline" size={18} color="#9CA3AF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-[14px] font-bold text-[#1A1A1A]">{booking.branchName}</Text>
-              <Text className="text-[12px] text-[#999] mt-0.5" numberOfLines={1}>
-                {booking.branchAddress || 'No address'}
-              </Text>
-            </View>
-          </View>
+          <View className="h-[0.5px] bg-[#EEEEEE] my-2" />
 
-          <View className="h-[0.5px] bg-[#EEEEEE] mx-4" />
+          {/* Branch / vehicle / date summary */}
+          <Row label="Branch" value={booking.branchName} />
+          <Row
+            label="Vehicle"
+            value={`${booking.vehicleDetails?.vehicleName || ''} · ${booking.vehicleDetails?.plateNumber || ''}`}
+          />
+          <Row
+            label="Date & Time"
+            value={`${formatDate(booking.timeSlot?.appointmentDate)} · ${booking.timeSlot?.time || ''}`}
+          />
 
-          {/* Vehicle */}
-          <View className="px-4 py-4 flex-row items-center">
-            <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
-              <Ionicons name="car-outline" size={18} color="#9CA3AF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-[13px] font-semibold text-[#1A1A1A]">
-                {booking.vehicleDetails?.vehicleName}
-              </Text>
-              <Text className="text-[12px] text-[#999] mt-0.5">
-                {booking.vehicleDetails?.plateNumber}  ·  {booking.vehicleDetails?.classification}
-              </Text>
-            </View>
-          </View>
+          <View className="h-[0.5px] bg-[#EEEEEE] my-3" />
 
-          <View className="h-[0.5px] bg-[#EEEEEE] mx-4" />
-
-          {/* Date & Time */}
-          <View className="px-4 py-4 flex-row items-center">
-            <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
-              <Ionicons name="calendar-outline" size={18} color="#9CA3AF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-[13px] font-semibold text-[#1A1A1A]">
-                {formatDate(booking.timeSlot?.appointmentDate)}
-              </Text>
-              <Text className="text-[12px] text-[#999] mt-0.5">{booking.timeSlot?.time}</Text>
-            </View>
-          </View>
-
-          <View className="h-[0.5px] bg-[#EEEEEE] mx-4" />
-
-          {/* Amount */}
-          <View className="px-4 py-4 flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
-                <Ionicons name="wallet-outline" size={18} color="#9CA3AF" />
-              </View>
-              <Text className="text-[13px] font-semibold text-[#1A1A1A]">Amount Due</Text>
-            </View>
-            <Text className="text-[15px] font-bold text-[#1A1A1A]">
-              ₱{Number(booking.amountDue).toFixed(2)}
-            </Text>
-          </View>
+          {/* Order details */}
+          <Text className="text-[15px] font-bold text-[#1A1A1A] mb-1">Order Details</Text>
+          {orderRows.map((item, idx) => (
+            <Row key={idx} label={item.label} value={`₱${Number(item.price).toFixed(2)}`} />
+          ))}
+          <View className="h-[0.5px] bg-[#EEEEEE] my-2" />
+          <Row label="Total" value={`₱${Number(booking.amountDue).toFixed(2)}`} />
         </View>
 
-        {/* View Full Details */}
-        <View className="mx-5 mt-4">
+        {/* Actions */}
+        <View className="px-6 mt-6">
           <TouchableOpacity
-            className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+            className="bg-[#1A1A1A] rounded-full py-4 items-center"
             onPress={() => setShowDetails(true)}
             activeOpacity={0.85}
           >
-            <Text className="text-[14px] font-bold text-[#1A1A00]">View Full Details</Text>
+            <Text className="text-[14px] font-bold text-white">View Full Details</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Appointment ID */}
-        <Text className="text-[11px] text-[#C4C4C4] text-center mt-4">
-          {booking.appointmentId}
-        </Text>
+          {booking.status === 'completed' && (
+            <TouchableOpacity
+              className="bg-white border border-[#EEEEEE] rounded-full py-4 items-center flex-row justify-center mt-3"
+              onPress={() =>
+                router.push({
+                  pathname: '/user/e-receipt' as any,
+                  params: { appointmentId: booking.appointmentId, date: booking.timeSlot?.appointmentDate },
+                })
+              }
+              activeOpacity={0.85}
+            >
+              <Ionicons name="receipt-outline" size={16} color="#1A1A1A" style={{ marginRight: 6 }} />
+              <Text className="text-[14px] font-bold text-[#1A1A1A]">View E-Receipt</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
 
       {/* Details Modal */}
@@ -377,11 +320,7 @@ export default function BookingProgressScreen() {
         classification={booking.vehicleDetails?.classification}
         date={booking.timeSlot?.appointmentDate}
         time={booking.timeSlot?.time}
-        orderSummary={[
-          ...(booking.services?.map((s: any) => ({ label: s?.name ?? 'Service', price: `₱${s?.price ?? 0}` })) ?? []),
-          ...(booking.addOns?.map((a: any) => ({ label: a?.name ?? 'Add-on', price: `₱${a?.price ?? 0}` })) ?? []),
-          { label: 'Booking Fee', price: '₱25' },
-        ]}
+        orderSummary={orderRows.map((item) => ({ label: item.label, price: `₱${item.price}` }))}
         amountDue={String(booking.amountDue)}
         paymentMethod={booking.paymentMethod}
         estimatedCompletion={booking.timeSlot?.estCompletion}

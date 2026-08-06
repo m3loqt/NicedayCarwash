@@ -6,12 +6,23 @@ import { useAlert } from '@/hooks/use-alert';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logError } from '@/lib/logger';
 import { get, onValue, push, ref, set, update } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import AppointmentCard from './AppointmentCard';
 import CancelReasonModal, { CancelReason } from './CancelReasonModal';
 import CompleteConfirmationModal from './CompleteConfirmationModal';
 import SuccessModal from './SuccessModal';
+
+// Every reason reachable through CancelReasonModal is branch-caused, so refund-eligible by
+// construction. No-shows/late arrivals are handled separately via the "Mark No-Show" action,
+// which never grants a refund.
+const REFUND_ELIGIBLE_REASONS = new Set<CancelReason>([
+  'Washer Unavailable',
+  'Service Unavailable',
+  'Power Interruption',
+  'No Capacity',
+]);
 
 interface Booking {
   appointmentId: string;
@@ -497,23 +508,6 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     return true;
   };
 
-  const sendUserNotification = async (
-    targetUserId: string,
-    payload: Record<string, unknown>,
-    actionKey: string
-  ) => {
-    if (!branchId) return;
-    const gate = consumeClientRateLimit(`notify:${actionKey}:${targetUserId}`, {
-      windowMs: 2500,
-      maxAttempts: 1,
-    });
-    if (!gate.allowed) return;
-    await Promise.all([
-      push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${targetUserId}`), payload),
-      push(ref(db, `Notifications/ByUser/${targetUserId}`), payload),
-    ]);
-  };
-
   const openTimeSlotSheet = (time: string) => {
     setBlockedTimeSlot(time);
     timeSlotSlideAnim.setValue(Dimensions.get('window').height);
@@ -553,7 +547,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             setBranchId(adminBranchId);
 
             await autoStartTodayBookings(adminBranchId);
-            await autoDeclineExpiredPendingBookings(adminBranchId);
+            // 24h pending-expiry auto-decline now runs server-side (functions/src/index.ts,
+            // expirePendingBookings) since it carries real refund consequences and can't depend
+            // on an admin having this screen open.
           } else {
             setLoading(false);
           }
@@ -780,9 +776,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               data.timeSlot?.appointmentDate || '',
               data.timeSlot?.time || ''
             );
-            // Converting estCompletion hours to milliseconds for time calculation
-            const estCompletionHours = parseFloat(String(data.timeSlot?.estCompletion || '0').replace(/[^\d.]/g, '')) || 0;
-            const existingEndTime = new Date(existingDateTime.getTime() + estCompletionHours * 60 * 60 * 1000);
+            // Converting estCompletion minutes to milliseconds for time calculation
+            const estCompletionMinutes = parseFloat(String(data.timeSlot?.estCompletion || '0').replace(/[^\d.]/g, '')) || 0;
+            const existingEndTime = new Date(existingDateTime.getTime() + estCompletionMinutes * 60 * 1000);
 
             // Marking bay as unavailable if appointments overlap
             if (
@@ -1064,79 +1060,6 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   }
 };
 
-  const autoDeclineExpiredPendingBookings = async (branchId: string) => {
-    try {
-      const pendingRef = ref(db, `Notifications/ByBranch/${branchId}/pendingBookings`);
-      const snapshot = await get(pendingRef);
-      if (!snapshot.exists()) return;
-
-      const now = new Date();
-      const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
-      const AUTO_CANCEL_REASON = 'Branch might be too busy to accommodate your request at this time.';
-      const cancelledAtTimestamp = toLocalISOString(now);
-
-      const expiredEntries: Array<{ userId: string; dateKey: string; appointmentId: string }> = [];
-
-      snapshot.forEach((snap) => {
-        const data = snap.val();
-        if (!data || !data.createdAt) return;
-        const createdAt = new Date(data.createdAt);
-        if (now.getTime() - createdAt.getTime() > TWENTY_FOUR_HOURS_MS) {
-          expiredEntries.push({
-            userId: data.userId,
-            dateKey: data.dateKey,
-            appointmentId: data.appointmentId,
-          });
-        }
-      });
-
-      for (const expired of expiredEntries) {
-        const { userId, dateKey, appointmentId } = expired;
-
-        // Get full booking from ReservationsByUser
-        const userBookingRef = ref(db, `Reservations/ReservationsByUser/${userId}/${dateKey}/${appointmentId}`);
-        const bookingSnap = await get(userBookingRef);
-        const bookingData = bookingSnap.val();
-
-        // Update user booking to cancelled
-        await update(userBookingRef, {
-          status: 'cancelled',
-          cancelReason: AUTO_CANCEL_REASON,
-          cancelledAt: cancelledAtTimestamp,
-          cancelledBy: 'system',
-        });
-
-        // Write cancelled booking to ReservationsByBranch so it shows in cancelled tab
-        if (bookingData) {
-          const branchBookingRef = ref(db, `Reservations/ReservationsByBranch/${branchId}/${dateKey}/${appointmentId}`);
-          await set(branchBookingRef, {
-            ...bookingData,
-            status: 'cancelled',
-            cancelReason: AUTO_CANCEL_REASON,
-            cancelledAt: cancelledAtTimestamp,
-            cancelledBy: 'system',
-          });
-        }
-
-        // Notify user in both branch scoped and user scoped channels
-        const autoCancelledNotification = {
-          title: 'Booking Automatically Cancelled',
-          body: `Your appointment (${appointmentId}) was automatically cancelled. ${AUTO_CANCEL_REASON}`,
-          appointmentId,
-          type: 'cancelled',
-          read: false,
-          createdAt: cancelledAtTimestamp,
-        };
-        await sendUserNotification(userId, autoCancelledNotification, `auto-cancel:${appointmentId}`);
-
-        // Remove from pending bookings
-        await set(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${appointmentId}`), null);
-      }
-    } catch (error) {
-      logError('AppointmentsList.autoDeclineExpiredPendingBookings', error, { context: 'Auto decline expired pending bookings failed' });
-    }
-  };
-
   const handleBaySelect = (bayNumber: number) => {
     setSelectedBay(bayNumber);
   };
@@ -1168,19 +1091,19 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       }
 
       const acceptedAt = toLocalISOString(new Date());
-      // Parsing estCompletion: value represents hours (converted from totalEstimatedTime in booking flow)
+      // Parsing estCompletion: value represents minutes (converted from totalEstimatedTime in booking flow)
       const estCompletionStr = (bookingToAccept.timeSlot as any)?.estCompletion || '0';
-      const estCompletionHours = typeof estCompletionStr === 'number' 
-        ? estCompletionStr 
+      const estCompletionMinutes = typeof estCompletionStr === 'number'
+        ? estCompletionStr
         : parseFloat(String(estCompletionStr).replace(/[^\d.]/g, '')) || 0;
-      
+
       const appointmentDateTime = parseAppointmentDateTime(
         bookingToAccept.timeSlot.appointmentDate,
         bookingToAccept.timeSlot.time
       );
-      
-      // Calculating end time by adding estimated completion hours (converting hours to milliseconds)
-      const estimatedEndTime = new Date(appointmentDateTime.getTime() + estCompletionHours * 60 * 60 * 1000);
+
+      // Calculating end time by adding estimated completion minutes (converting minutes to milliseconds)
+      const estimatedEndTime = new Date(appointmentDateTime.getTime() + estCompletionMinutes * 60 * 1000);
 
       // Fetching full booking from ReservationsByUser to write to ReservationsByBranch
       const userId = bookingToAccept.userId || '';
@@ -1207,36 +1130,48 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         }
       }
 
-      // Writing full accepted booking to ReservationsByBranch (includes all booking details + userId)
-      const branchBookingRef = ref(
-        db,
-        `Reservations/ReservationsByBranch/${branchId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`
-      );
-      await set(branchBookingRef, {
-        ...(fullBookingData || {}),
-        status: 'accepted',
-        isPaid: false,
-        bayNumber: selectedBay,
-        acceptedAt: acceptedAt,
-        assignedBy: adminUserId,
-        userId,
-      });
+      const startTimeValue = toLocalISOString(appointmentDateTime);
+      const estimatedEndTimeValue = toLocalISOString(estimatedEndTime);
+      const bayLastUpdated = toLocalISOString(new Date());
 
-      // Updating user booking status directly
-      if (userId) {
-        const userBookingRef = ref(
-          db,
-          `Reservations/ReservationsByUser/${userId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`
-        );
-        await update(userBookingRef, {
+      // Single multi-path update so a dropped connection can't leave ReservationsByBranch,
+      // ReservationsByUser, Bays, and BayOccupancy disagreeing with each other.
+      const updates: Record<string, any> = {
+        [`Reservations/ReservationsByBranch/${branchId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`]: {
+          ...(fullBookingData || {}),
           status: 'accepted',
           isPaid: false,
           bayNumber: selectedBay,
-          acceptedAt: acceptedAt,
+          acceptedAt,
           assignedBy: adminUserId,
-        });
+          userId,
+        },
+        [`Notifications/ByBranch/${branchId}/pendingBookings/${bookingToAccept.appointmentId}`]: null,
+        [`Branches/${branchId}/Bays/${selectedBay}/currentAppointmentId`]: bookingToAccept.appointmentId,
+        [`Branches/${branchId}/Bays/${selectedBay}/occupiedUntil`]: estimatedEndTimeValue,
+        [`Branches/${branchId}/Bays/${selectedBay}/lastUpdated`]: bayLastUpdated,
+        [`Branches/${branchId}/BayOccupancy/${bookingToAccept.dateKey}/${bookingToAccept.appointmentId}`]: {
+          bayNumber: selectedBay,
+          appointmentId: bookingToAccept.appointmentId,
+          // Appointment times stored as local time values (no UTC conversion)
+          startTime: startTimeValue,
+          estimatedEndTime: estimatedEndTimeValue,
+          status: 'ongoing',
+          assignedBy: adminUserId,
+          acceptedAt,
+        },
+      };
 
-        // Sending notification to customer in both branch and user channels
+      if (userId) {
+        const userBookingPath = `Reservations/ReservationsByUser/${userId}/${bookingToAccept.dateKey}/${bookingToAccept.key}`;
+        updates[`${userBookingPath}/status`] = 'accepted';
+        updates[`${userBookingPath}/isPaid`] = false;
+        updates[`${userBookingPath}/bayNumber`] = selectedBay;
+        updates[`${userBookingPath}/acceptedAt`] = acceptedAt;
+        updates[`${userBookingPath}/assignedBy`] = adminUserId;
+
+        // Sending notification to customer in both branch and user channels, folded into
+        // this same multi-path update for atomicity
         const acceptedNotification = {
           title: 'Booking Confirmed',
           body: `Your appointment (${bookingToAccept.appointmentId}) has been confirmed. Bay ${selectedBay} assigned.`,
@@ -1246,37 +1181,13 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           read: false,
           createdAt: acceptedAt,
         };
-        await sendUserNotification(userId, acceptedNotification, `accepted:${bookingToAccept.appointmentId}`);
+        const branchNotifKey = push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`)).key;
+        const userNotifKey = push(ref(db, `Notifications/ByUser/${userId}`)).key;
+        updates[`Notifications/ByBranch/${branchId}/userNotifications/${userId}/${branchNotifKey}`] = acceptedNotification;
+        updates[`Notifications/ByUser/${userId}/${userNotifKey}`] = acceptedNotification;
       }
 
-      // Remove from pending bookings notification queue
-      await set(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${bookingToAccept.appointmentId}`), null);
-
-      // Mark bay as occupied without changing admin-set status
-      const bayRef = ref(db, `Branches/${branchId}/Bays/${selectedBay}`);
-      await update(bayRef, {
-        currentAppointmentId: bookingToAccept.appointmentId,
-        occupiedUntil: toLocalISOString(estimatedEndTime),
-        lastUpdated: toLocalISOString(new Date()),
-      });
-
-      // Creating bay occupancy record
-      const bayOccupancyRef = ref(
-        db,
-        `Branches/${branchId}/BayOccupancy/${bookingToAccept.dateKey}/${bookingToAccept.appointmentId}`
-      );
-      const startTimeValue = toLocalISOString(appointmentDateTime);
-      const estimatedEndTimeValue = toLocalISOString(estimatedEndTime);
-      await set(bayOccupancyRef, {
-        bayNumber: selectedBay,
-        appointmentId: bookingToAccept.appointmentId,
-        // Appointment times stored as local time values (no UTC conversion)
-        startTime: startTimeValue,
-        estimatedEndTime: estimatedEndTimeValue,
-        status: 'ongoing',
-        assignedBy: adminUserId,
-        acceptedAt: acceptedAt,
-      });
+      await update(ref(db), updates);
 
       // Time slot status is admin-managed only — not modified by bookings
 
@@ -1320,9 +1231,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         booking.timeSlot.appointmentDate,
         booking.timeSlot.time
       );
-      // Converting estCompletion from hours to milliseconds
-      const estCompletionHours = parseFloat(String((booking.timeSlot as any)?.estCompletion || '0').replace(/[^\d.]/g, '')) || 0;
-      const appointmentEndTime = new Date(appointmentDateTime.getTime() + estCompletionHours * 60 * 60 * 1000);
+      // Converting estCompletion from minutes to milliseconds
+      const estCompletionMinutes = parseFloat(String((booking.timeSlot as any)?.estCompletion || '0').replace(/[^\d.]/g, '')) || 0;
+      const appointmentEndTime = new Date(appointmentDateTime.getTime() + estCompletionMinutes * 60 * 1000);
 
       const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
       const snapshot = await get(bookingsRef);
@@ -1406,26 +1317,30 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         }
       }
 
-      // Updating in ReservationsByBranch
       const completedAtTimestamp = toLocalISOString(new Date());
-      await update(branchBookingRef, { 
-        status: 'completed',
-        completedAt: completedAtTimestamp,
-      });
+      // E-receipt reference number, generated once at completion time (this is the only point
+      // a booking transitions to 'completed', so no risk of regenerating it on a later edit).
+      const transactionId = `TR${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, '0')}`;
 
-      // Updating ReservationsByUser directly using stored userId
+      // Single multi-path update so a dropped connection can't leave ReservationsByBranch,
+      // ReservationsByUser, Bays, and BayOccupancy disagreeing with each other.
+      const updates: Record<string, any> = {
+        [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/status`]: 'completed',
+        [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/completedAt`]: completedAtTimestamp,
+        [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/transactionId`]: transactionId,
+      };
+
       const userId = bookingToComplete.userId || '';
       if (userId) {
-        const userBookingRef = ref(
-          db,
-          `Reservations/ReservationsByUser/${userId}/${bookingToComplete.dateKey}/${bookingToComplete.key}`
-        );
-        await update(userBookingRef, {
-          status: 'completed',
-          completedAt: completedAtTimestamp,
-        });
+        const userBookingPath = `Reservations/ReservationsByUser/${userId}/${bookingToComplete.dateKey}/${bookingToComplete.key}`;
+        updates[`${userBookingPath}/status`] = 'completed';
+        updates[`${userBookingPath}/completedAt`] = completedAtTimestamp;
+        updates[`${userBookingPath}/transactionId`] = transactionId;
 
-        // Sending notification to customer in both branch and user channels
+        // Sending notification to customer in both branch and user channels, folded into
+        // this same multi-path update for atomicity
         const completedNotification = {
           title: 'Car Wash Complete!',
           body: `Your vehicle is clean and ready. Appointment ${bookingToComplete.appointmentId} has been completed.`,
@@ -1435,33 +1350,32 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           read: false,
           createdAt: completedAtTimestamp,
         };
-        await sendUserNotification(userId, completedNotification, `completed:${bookingToComplete.appointmentId}`);
+        const branchNotifKey = push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`)).key;
+        const userNotifKey = push(ref(db, `Notifications/ByUser/${userId}`)).key;
+        updates[`Notifications/ByBranch/${branchId}/userNotifications/${userId}/${branchNotifKey}`] = completedNotification;
+        updates[`Notifications/ByUser/${userId}/${userNotifKey}`] = completedNotification;
       }
 
-      // Releasing bay occupancy without changing admin-set status
       if (bayNumber) {
-        const bayRef = ref(db, `Branches/${branchId}/Bays/${bayNumber}`);
-        await update(bayRef, {
-          currentAppointmentId: null,
-          occupiedUntil: null,
-          lastUpdated: toLocalISOString(new Date()),
-        });
+        updates[`Branches/${branchId}/Bays/${bayNumber}/currentAppointmentId`] = null;
+        updates[`Branches/${branchId}/Bays/${bayNumber}/occupiedUntil`] = null;
+        updates[`Branches/${branchId}/Bays/${bayNumber}/lastUpdated`] = completedAtTimestamp;
 
-        // Updating bay occupancy record
         const bayOccupancyRef = ref(
           db,
           `Branches/${branchId}/BayOccupancy/${bookingToComplete.dateKey}/${bookingToComplete.appointmentId}`
         );
         const occupancySnapshot = await get(bayOccupancyRef);
         if (occupancySnapshot.exists()) {
-          await update(bayOccupancyRef, {
-            status: 'completed',
-            completedAt: toLocalISOString(new Date()),
-          });
+          updates[`Branches/${branchId}/BayOccupancy/${bookingToComplete.dateKey}/${bookingToComplete.appointmentId}/status`] = 'completed';
+          updates[`Branches/${branchId}/BayOccupancy/${bookingToComplete.dateKey}/${bookingToComplete.appointmentId}/completedAt`] = completedAtTimestamp;
         }
       }
 
-      // Updating calendar entry
+      await update(ref(db), updates);
+
+      // Calendar is a reporting mirror, not transactionally critical — kept as a secondary,
+      // best-effort write after the atomic update above.
       await updateCalendarEntry(branchId, bookingToComplete, 'completed', bayNumber, completedAtTimestamp);
 
       // Time slot status is admin-managed only — not modified by bookings
@@ -1498,45 +1412,66 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         `Reservations/ReservationsByBranch/${branchId}/${bookingToCancel.dateKey}/${bookingToCancel.key}`
       );
       const bookingSnapshot = await get(branchBookingRef);
-      const bayNumber = bookingSnapshot.val()?.bayNumber;
+      const branchBookingData = bookingSnapshot.val();
+      const bayNumber = branchBookingData?.bayNumber;
       const wasPending = !bookingSnapshot.exists();
+      const wasOngoing = branchBookingData?.status === 'ongoing';
 
-      // Updating in ReservationsByBranch
       const cancelledAtTimestamp = toLocalISOString(new Date());
-      await update(branchBookingRef, {
-        status: 'cancelled',
-        cancelReason: selectedCancelReason,
-        cancelledAt: cancelledAtTimestamp,
-      });
+      const refundEligible = REFUND_ELIGIBLE_REASONS.has(selectedCancelReason);
 
-      // Updating ReservationsByUser directly using stored userId
       const userId = bookingToCancel.userId || '';
+      let userBookingData: any = null;
       if (userId) {
-        const userBookingRef = ref(
-          db,
-          `Reservations/ReservationsByUser/${userId}/${bookingToCancel.dateKey}/${bookingToCancel.key}`
+        const userBookingSnap = await get(
+          ref(db, `Reservations/ReservationsByUser/${userId}/${bookingToCancel.dateKey}/${bookingToCancel.key}`)
         );
-        const userBookingSnap = await get(userBookingRef);
-        const userBookingData = userBookingSnap.val();
+        userBookingData = userBookingSnap.val();
+      }
 
-        await update(userBookingRef, {
+      let bayOccupancyExists = false;
+      if (bayNumber && wasOngoing) {
+        const occupancySnapshot = await get(
+          ref(db, `Branches/${branchId}/BayOccupancy/${bookingToCancel.dateKey}/${bookingToCancel.appointmentId}`)
+        );
+        bayOccupancyExists = occupancySnapshot.exists();
+      }
+
+      // Single multi-path update so a dropped connection can't leave ReservationsByBranch,
+      // ReservationsByUser, Bays, and BayOccupancy disagreeing with each other.
+      const updates: Record<string, any> = {};
+      const branchBookingPath = `Reservations/ReservationsByBranch/${branchId}/${bookingToCancel.dateKey}/${bookingToCancel.key}`;
+
+      if (wasPending && userBookingData) {
+        // Booking was never accepted, so ReservationsByBranch has no record yet — write the full
+        // cancelled record now (mirrors the previous set() behavior for this case).
+        updates[branchBookingPath] = {
+          ...userBookingData,
           status: 'cancelled',
           cancelReason: selectedCancelReason,
           cancelledAt: cancelledAtTimestamp,
-        });
+          cancelledBy: 'admin',
+          refundEligible,
+          userId,
+        };
+      } else {
+        updates[`${branchBookingPath}/status`] = 'cancelled';
+        updates[`${branchBookingPath}/cancelReason`] = selectedCancelReason;
+        updates[`${branchBookingPath}/cancelledAt`] = cancelledAtTimestamp;
+        updates[`${branchBookingPath}/cancelledBy`] = 'admin';
+        updates[`${branchBookingPath}/refundEligible`] = refundEligible;
+      }
 
-        // If booking was pending (not yet in ReservationsByBranch), write full cancelled record now
-        if (wasPending && userBookingData) {
-          await set(branchBookingRef, {
-            ...userBookingData,
-            status: 'cancelled',
-            cancelReason: selectedCancelReason,
-            cancelledAt: cancelledAtTimestamp,
-            userId,
-          });
-        }
+      if (userId) {
+        const userBookingPath = `Reservations/ReservationsByUser/${userId}/${bookingToCancel.dateKey}/${bookingToCancel.key}`;
+        updates[`${userBookingPath}/status`] = 'cancelled';
+        updates[`${userBookingPath}/cancelReason`] = selectedCancelReason;
+        updates[`${userBookingPath}/cancelledAt`] = cancelledAtTimestamp;
+        updates[`${userBookingPath}/cancelledBy`] = 'admin';
+        updates[`${userBookingPath}/refundEligible`] = refundEligible;
 
-        // Sending notification to customer in both branch and user channels
+        // Sending notification to customer in both branch and user channels, folded into
+        // this same multi-path update for atomicity
         const cancelledNotification = {
           title: 'Booking Cancelled',
           body: `Your appointment (${bookingToCancel.appointmentId}) was cancelled. Reason: ${selectedCancelReason}.`,
@@ -1546,48 +1481,158 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           read: false,
           createdAt: cancelledAtTimestamp,
         };
-        await sendUserNotification(userId, cancelledNotification, `cancelled:${bookingToCancel.appointmentId}`);
+        const branchNotifKey = push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`)).key;
+        const userNotifKey = push(ref(db, `Notifications/ByUser/${userId}`)).key;
+        updates[`Notifications/ByBranch/${branchId}/userNotifications/${userId}/${branchNotifKey}`] = cancelledNotification;
+        updates[`Notifications/ByUser/${userId}/${userNotifKey}`] = cancelledNotification;
       }
 
       // Remove from pending bookings notification queue if it was a pending booking
       if (wasPending) {
-        await set(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${bookingToCancel.appointmentId}`), null);
+        updates[`Notifications/ByBranch/${branchId}/pendingBookings/${bookingToCancel.appointmentId}`] = null;
       }
 
       // Releasing bay occupancy without changing admin-set status
-      if (bayNumber && bookingSnapshot.val()?.status === 'ongoing') {
-        const bayRef = ref(db, `Branches/${branchId}/Bays/${bayNumber}`);
-        await update(bayRef, {
-          currentAppointmentId: null,
-          occupiedUntil: null,
-          lastUpdated: toLocalISOString(new Date()),
-        });
+      if (bayNumber && wasOngoing) {
+        updates[`Branches/${branchId}/Bays/${bayNumber}/currentAppointmentId`] = null;
+        updates[`Branches/${branchId}/Bays/${bayNumber}/occupiedUntil`] = null;
+        updates[`Branches/${branchId}/Bays/${bayNumber}/lastUpdated`] = cancelledAtTimestamp;
 
-        // Updating bay occupancy record
-        const bayOccupancyRef = ref(
-          db,
-          `Branches/${branchId}/BayOccupancy/${bookingToCancel.dateKey}/${bookingToCancel.appointmentId}`
-        );
-        const occupancySnapshot = await get(bayOccupancyRef);
-        if (occupancySnapshot.exists()) {
-          await update(bayOccupancyRef, {
-            status: 'cancelled',
-            cancelledAt: toLocalISOString(new Date()),
-          });
+        if (bayOccupancyExists) {
+          updates[`Branches/${branchId}/BayOccupancy/${bookingToCancel.dateKey}/${bookingToCancel.appointmentId}/status`] = 'cancelled';
+          updates[`Branches/${branchId}/BayOccupancy/${bookingToCancel.dateKey}/${bookingToCancel.appointmentId}/cancelledAt`] = cancelledAtTimestamp;
         }
       }
 
-      // Updating calendar entry
+      await update(ref(db), updates);
+
+      // Calendar is a reporting mirror, not transactionally critical — kept as a secondary,
+      // best-effort write after the atomic update above.
       await updateCalendarEntry(branchId, bookingToCancel, 'cancelled', bayNumber, cancelledAtTimestamp);
 
       // Time slot status is admin-managed only — not modified by bookings
 
-      setSuccessMessage(`Appointment cancelled successfully. Reason: "${selectedCancelReason}"`);
+      // Cancellation is already committed above regardless of what happens below - a refund
+      // failure must never roll back the cancellation itself.
+      const wasPaid = userBookingData?.isPaid ?? branchBookingData?.isPaid;
+      let successMessage = `Appointment cancelled successfully. Reason: "${selectedCancelReason}"`;
+      if (refundEligible && wasPaid) {
+        try {
+          await httpsCallable(getFunctions(), 'refundBookingFee')({
+            appointmentId: bookingToCancel.appointmentId,
+          });
+          successMessage += ' The booking fee has been refunded.';
+        } catch (refundError) {
+          logError('AppointmentsList.handleFinishCancel', refundError, { context: 'Refund failed' });
+          successMessage +=
+            ' The automatic refund could not be completed - please process it manually in the Maya merchant dashboard.';
+        }
+      }
+
+      setSuccessMessage(successMessage);
       setShowSuccessModal(true);
       handleCancelModalClose();
     } catch (error) {
       logError('AppointmentsList.handleConfirmCancelAppointment', error, { context: 'Error cancelling appointment' });
       alert('Error', 'Failed to cancel appointment');
+    }
+  };
+
+  // Marks an ongoing booking as a no-show/late arrival. Unlike handleFinishCancel, this never
+  // triggers a refund — per policy, the ₱25 fee is only forfeited for customer-caused misses.
+  const handleMarkNoShow = (booking: Booking) => {
+    alert(
+      'Mark as No-Show?',
+      `This marks appointment ${booking.appointmentId} as a no-show/late arrival. The ₱25 booking fee will NOT be refunded, per policy.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Confirm No-Show', style: 'destructive', onPress: () => finishMarkNoShow(booking) },
+      ]
+    );
+  };
+
+  const finishMarkNoShow = async (booking: Booking) => {
+    if (!branchId) return;
+    if (!canRunAdminMutation('no-show-booking')) return;
+
+    try {
+      const noShowAtTimestamp = toLocalISOString(new Date());
+
+      const branchBookingRef = ref(
+        db,
+        `Reservations/ReservationsByBranch/${branchId}/${booking.dateKey}/${booking.key}`
+      );
+      const bookingSnapshot = await get(branchBookingRef);
+      const bayNumber = bookingSnapshot.val()?.bayNumber;
+
+      let bayOccupancyExists = false;
+      if (bayNumber) {
+        const occupancySnapshot = await get(
+          ref(db, `Branches/${branchId}/BayOccupancy/${booking.dateKey}/${booking.appointmentId}`)
+        );
+        bayOccupancyExists = occupancySnapshot.exists();
+      }
+
+      // Single multi-path update so a dropped connection can't leave ReservationsByBranch,
+      // ReservationsByUser, Bays, and BayOccupancy disagreeing with each other.
+      const branchBookingPath = `Reservations/ReservationsByBranch/${branchId}/${booking.dateKey}/${booking.key}`;
+      const updates: Record<string, any> = {
+        [`${branchBookingPath}/status`]: 'cancelled',
+        [`${branchBookingPath}/cancelReason`]: 'No-Show',
+        [`${branchBookingPath}/cancelledAt`]: noShowAtTimestamp,
+        [`${branchBookingPath}/cancelledBy`]: 'admin',
+        [`${branchBookingPath}/refundEligible`]: false,
+        [`${branchBookingPath}/isNoShow`]: true,
+      };
+
+      const userId = booking.userId || '';
+      if (userId) {
+        const userBookingPath = `Reservations/ReservationsByUser/${userId}/${booking.dateKey}/${booking.key}`;
+        updates[`${userBookingPath}/status`] = 'cancelled';
+        updates[`${userBookingPath}/cancelReason`] = 'No-Show';
+        updates[`${userBookingPath}/cancelledAt`] = noShowAtTimestamp;
+        updates[`${userBookingPath}/cancelledBy`] = 'admin';
+        updates[`${userBookingPath}/refundEligible`] = false;
+        updates[`${userBookingPath}/isNoShow`] = true;
+
+        const noShowNotification = {
+          title: 'Booking Cancelled',
+          body: `Your appointment (${booking.appointmentId}) was marked as a no-show and cancelled. The booking fee is non-refundable per policy.`,
+          appointmentId: booking.appointmentId,
+          date: booking.timeSlot.appointmentDate,
+          type: 'cancelled',
+          read: false,
+          createdAt: noShowAtTimestamp,
+        };
+        const branchNotifKey = push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`)).key;
+        const userNotifKey = push(ref(db, `Notifications/ByUser/${userId}`)).key;
+        updates[`Notifications/ByBranch/${branchId}/userNotifications/${userId}/${branchNotifKey}`] = noShowNotification;
+        updates[`Notifications/ByUser/${userId}/${userNotifKey}`] = noShowNotification;
+      }
+
+      // Releasing bay occupancy without changing admin-set status
+      if (bayNumber) {
+        updates[`Branches/${branchId}/Bays/${bayNumber}/currentAppointmentId`] = null;
+        updates[`Branches/${branchId}/Bays/${bayNumber}/occupiedUntil`] = null;
+        updates[`Branches/${branchId}/Bays/${bayNumber}/lastUpdated`] = noShowAtTimestamp;
+
+        if (bayOccupancyExists) {
+          updates[`Branches/${branchId}/BayOccupancy/${booking.dateKey}/${booking.appointmentId}/status`] = 'cancelled';
+          updates[`Branches/${branchId}/BayOccupancy/${booking.dateKey}/${booking.appointmentId}/cancelledAt`] = noShowAtTimestamp;
+        }
+      }
+
+      await update(ref(db), updates);
+
+      // Calendar is a reporting mirror, not transactionally critical — kept as a secondary,
+      // best-effort write after the atomic update above.
+      await updateCalendarEntry(branchId, booking, 'cancelled', bayNumber, noShowAtTimestamp);
+
+      setSuccessMessage(`Appointment ${booking.appointmentId} marked as no-show. Booking fee not refunded.`);
+      setShowSuccessModal(true);
+    } catch (error) {
+      logError('AppointmentsList.finishMarkNoShow', error, { context: 'Error marking no-show' });
+      alert('Error', 'Failed to mark as no-show');
     }
   };
 
@@ -1654,6 +1699,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               onAccept={() => handleAccept(booking)}
               onCancel={() => handleCancel(booking)}
               onComplete={() => handleComplete(booking)}
+              onNoShow={() => handleMarkNoShow(booking)}
               onViewMore={() => handleViewMore(booking)}
             />
           ))
@@ -1746,6 +1792,10 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           onComplete={() => {
             handleCloseDetailsModal();
             handleComplete(selectedBooking);
+          }}
+          onNoShow={() => {
+            handleCloseDetailsModal();
+            handleMarkNoShow(selectedBooking);
           }}
         />
       )}

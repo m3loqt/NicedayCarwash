@@ -8,12 +8,19 @@ export const mayaLiveSecretKey = defineSecret("MAYA_SECRET_KEY");
 export const mayaSandboxPublicKey = defineSecret("MAYA_SANDBOX_PUBLIC_KEY");
 export const mayaSandboxSecretKey = defineSecret("MAYA_SANDBOX_SECRET_KEY");
 
+// Modeled as a secret even though the value isn't sensitive: both a bare .env.<project> file and
+// an explicit defineString() param under the name MAYA_ENVIRONMENT ended up attached to the
+// createCheckout Cloud Run service as a plain (non-secret) env var - Cloud Run then rejected a
+// later deploy that tried to declare a *secret* of the same name ("Secret environment variable
+// overlaps non secret environment variable: MAYA_ENVIRONMENT"). Using a distinct name sidesteps
+// that collision instead of trying to purge the stale plain var first.
+export const mayaEnvironment = defineSecret("MAYA_ENV_MODE");
+
 const SANDBOX_BASE = "https://pg-sandbox.paymaya.com";
 const PRODUCTION_BASE = "https://pg.maya.ph";
 
-// Set via a Cloud Functions secret/env (MAYA_ENVIRONMENT=production) once ready to go live - defaults to sandbox.
 function isProduction(): boolean {
-  return process.env.MAYA_ENVIRONMENT === "production";
+  return mayaEnvironment.value() === "production";
 }
 
 function baseUrl(): string {
@@ -105,6 +112,39 @@ export async function fetchPaymentsByReferenceNumber(
   }
   const body = await response.json().catch(() => []);
   return Array.isArray(body) ? body : [];
+}
+
+export interface RefundResult {
+  refundId?: string;
+  rawStatus?: string;
+}
+
+// TODO(VERIFY): endpoint/schema unconfirmed against Maya's authenticated reference docs (public
+// docs only confirm "refund functionality is available via Manager or API" - see
+// developers.maya.ph/reference/voids-and-refunds). This also requires Maya to enable refunds on
+// the merchant account (contact Relationship Manager) before this will succeed in sandbox or prod.
+export async function refundMayaPayment(
+  secretKey: string,
+  paymentId: string,
+  amount: number,
+  reason: string
+): Promise<RefundResult> {
+  const response = await fetch(`${baseUrl()}/payments/v1/payments/${encodeURIComponent(paymentId)}/refunds`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: basicAuthHeader(secretKey),
+    },
+    body: JSON.stringify({
+      totalAmount: { value: amount, currency: "PHP" },
+      reason,
+    }),
+  });
+  const body: any = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(`Maya refund failed (${response.status}): ${JSON.stringify(body)}`);
+  }
+  return { refundId: body?.id, rawStatus: body?.status };
 }
 
 export const MAYA_SUCCESS_STATUS = "PAYMENT_SUCCESS";

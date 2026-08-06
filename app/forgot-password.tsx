@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
@@ -32,7 +33,7 @@ export default function ForgotPasswordScreen() {
       await sendPasswordResetEmail(getAuth(), trimmedEmail);
       setShowSuccessScreen(true);
     } catch (error: any) {
-      alert('Failed', error.message || 'Failed to send reset email.');
+      alert('Couldn\'t send reset email', getFriendlyAuthErrorMessage(error, "We couldn't send the reset email. Please try again."));
     }
   };
 

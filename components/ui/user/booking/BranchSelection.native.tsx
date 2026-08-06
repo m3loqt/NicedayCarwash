@@ -1,6 +1,7 @@
 import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { logError, logWarn } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { get, getDatabase, onValue, ref } from 'firebase/database';
@@ -316,9 +317,9 @@ const handleSearch = (q: string) => {
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-[#FAFAFA]">
       {/* Header + segmented progress line */}
-      <View className="bg-white pt-4 pb-0">
+      <View className="bg-[#FAFAFA] pt-4 pb-0">
         {/* Title row */}
         <View className="px-5 flex-row items-center mb-3">
           <TouchableOpacity
@@ -412,39 +413,48 @@ const handleSearch = (q: string) => {
                 Available branches near you
               </Text>
             </View>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 24 }}
-            >
-              {filteredBranches.map((branch) => (
-                <TouchableOpacity
-                  key={branch.id}
-                  className="bg-[#FAFAFA] rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
-                  activeOpacity={0.8}
-                  onPress={() => handleListPress(branch)}
-                >
-                  <View className="w-[60px] h-[60px] rounded-xl overflow-hidden bg-white mr-4">
-                    <Image
-                      source={require('../../../../assets/images/branch1.jpg')}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
-                      {branch.name}
-                    </Text>
-                    <Text className="text-[13px] text-[#999] mt-0.5" numberOfLines={1}>
-                      {branch.address}
-                    </Text>
-                    <Text className="text-[12px] text-[#BDBDBD] mt-0.5">
-                      {branch.distance}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View className="flex-1">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 120 }}
+              >
+                {filteredBranches.map((branch) => (
+                  <TouchableOpacity
+                    key={branch.id}
+                    className="bg-white rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
+                    activeOpacity={0.8}
+                    onPress={() => handleListPress(branch)}
+                  >
+                    <View className="w-[60px] h-[60px] rounded-xl overflow-hidden bg-white mr-4">
+                      <Image
+                        source={require('../../../../assets/images/branch1.jpg')}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
+                        {branch.name}
+                      </Text>
+                      <Text className="text-[13px] text-[#999] mt-0.5" numberOfLines={1}>
+                        {branch.address}
+                      </Text>
+                      <Text className="text-[12px] text-[#BDBDBD] mt-0.5">
+                        {branch.distance}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              {/* Fades list content into the floating tab bar instead of cutting it off abruptly */}
+              <LinearGradient
+                colors={['rgba(250,250,250,0)', 'rgba(250,250,250,0.85)', '#FAFAFA']}
+                locations={[0, 0.5, 1]}
+                pointerEvents="none"
+                style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 }}
+              />
+            </View>
           </>
         )}
       </View>

@@ -27,12 +27,12 @@ export default function VehicleSuccessPanel({
     }
     
     return (
-      <Ionicons name="checkmark" size={90} color="white" />
+      <Ionicons name="checkmark" size={90} color="#1A1A1A" />
     );
   };
 
   const getBackgroundColor = () => {
-    return iconType === 'delete' ? 'bg-red-500' : 'bg-[#F9EF08]';
+    return iconType === 'delete' ? 'bg-red-500' : 'bg-[#F5F5F5]';
   };
 
   return (

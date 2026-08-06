@@ -62,6 +62,7 @@ interface AppointmentCardProps {
   onCancel?: () => void;
   onStartWash?: () => void;
   onComplete?: () => void;
+  onNoShow?: () => void;
   onViewMore?: () => void;
 }
 
@@ -80,6 +81,7 @@ export default function AppointmentCard({
   onCancel,
   onStartWash,
   onComplete,
+  onNoShow,
   onViewMore,
 }: AppointmentCardProps) {
   const formattedDate = formatDate(date);
@@ -133,20 +135,27 @@ export default function AppointmentCard({
           </TouchableOpacity>
         </View>
       ) : status === 'ongoing' ? (
-        <View className="flex-row gap-3">
+        <View className="flex-row gap-2">
           <TouchableOpacity
             className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
             onPress={onComplete}
             activeOpacity={0.85}
           >
-            <Text className="text-[13px] font-bold text-[#1A1A00]">Complete</Text>
+            <Text className="text-[12px] font-bold text-[#1A1A00]">Complete</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
+            onPress={onNoShow}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[12px] font-semibold text-[#1A1A1A]">No-Show</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
             onPress={onCancel}
             activeOpacity={0.85}
           >
-            <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancel</Text>
+            <Text className="text-[12px] font-semibold text-[#1A1A1A]">Cancel</Text>
           </TouchableOpacity>
         </View>
       ) : null}

@@ -29,7 +29,7 @@ export default function VehicleCard({
 
   return (
     <TouchableOpacity
-      className="bg-[#FAFAFA] rounded-2xl mx-5 mb-1.5 px-5 py-5 items-center"
+      className="bg-white rounded-2xl mx-5 mb-1.5 px-5 py-5 items-center"
       onPress={onEdit}
       activeOpacity={0.7}
     >

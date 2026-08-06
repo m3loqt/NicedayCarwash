@@ -5,9 +5,9 @@ import VehiclesList from '../../../components/ui/user/vehicles/VehiclesList';
 
 export default function VehiclesScreen() {
   return (
-    <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <View className="flex-1 bg-[#FAFAFA]">
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+      <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={['top']}>
         <VehiclesHeader />
         <VehiclesList />
       </SafeAreaView>

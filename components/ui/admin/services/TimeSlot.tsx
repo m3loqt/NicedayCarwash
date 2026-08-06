@@ -4,6 +4,7 @@ import { logError } from "@/lib/logger";
 import { get, onValue, ref, remove, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import EditTimeSlotModal from "./EditTimeSlotModal";
 import TimeSlotOptionsModal from "./TimeSlotOptionsModal";
 
 interface TimeSlot {
@@ -19,6 +20,7 @@ export default function TimeSlots() {
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
 
   // Parsing time slots data from database
@@ -134,6 +136,63 @@ export default function TimeSlots() {
   const handleOpenOptions = (slot: TimeSlot) => {
     setSelectedSlot(slot);
     setOptionsModalVisible(true);
+  };
+
+  const handleEditPress = () => {
+    if (!selectedSlot) return;
+    setOptionsModalVisible(false);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async (newTime: string) => {
+    if (!branchId || !selectedSlot || !selectedSlot.originalKey) {
+      alert("Error", "Missing timeslot information.");
+      return;
+    }
+
+    if (newTime === selectedSlot.time) {
+      setEditModalVisible(false);
+      setSelectedSlot(null);
+      return;
+    }
+
+    try {
+      const timeSlotsRef = ref(db, `Branches/${branchId}/TimeSlots`);
+      const timeSlotsSnapshot = await get(timeSlotsRef);
+      if (!timeSlotsSnapshot.exists()) {
+        alert("Error", "Time slot data not found.");
+        return;
+      }
+      const timeSlotsData = timeSlotsSnapshot.val();
+
+      const isDuplicate = Array.isArray(timeSlotsData)
+        ? timeSlotsData.some((s: any, i: number) => s && s.time === newTime && String(i) !== selectedSlot.originalKey)
+        : Object.entries(timeSlotsData).some(
+            ([key, s]: [string, any]) => s && s.time === newTime && key !== selectedSlot.originalKey
+          );
+
+      if (isDuplicate) {
+        alert("Error", `Time slot ${newTime} already exists.`);
+        return;
+      }
+
+      if (Array.isArray(timeSlotsData)) {
+        const index = parseInt(selectedSlot.originalKey);
+        const updates: any = {};
+        updates[`${index}/time`] = newTime;
+        await update(timeSlotsRef, updates);
+      } else {
+        const slotRef = ref(db, `Branches/${branchId}/TimeSlots/${selectedSlot.originalKey}`);
+        await update(slotRef, { time: newTime });
+      }
+
+      setEditModalVisible(false);
+      setSelectedSlot(null);
+      alert("Success", `Time slot updated to ${newTime}.`);
+    } catch (error) {
+      logError("TimeSlot.handleSaveEdit", error, { context: "Error updating timeslot time" });
+      alert("Error", "Failed to update time slot.");
+    }
   };
 
   const handleDeleteSlot = async () => {
@@ -292,6 +351,16 @@ export default function TimeSlots() {
       }}
       onSaveAvailability={handleSaveAvailability}
       onDelete={handleDeleteSlot}
+      onEdit={handleEditPress}
+    />
+    <EditTimeSlotModal
+      visible={editModalVisible}
+      initialTime={selectedSlot?.time ?? ""}
+      onClose={() => {
+        setEditModalVisible(false);
+        setSelectedSlot(null);
+      }}
+      onSave={handleSaveEdit}
     />
   </>
   );

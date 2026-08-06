@@ -4,16 +4,26 @@ import { onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { db } from '../../../../firebase/firebase';
+import { formatDistance, getCurrentLocation, haversineMeters } from '../../../../lib/location';
 
 interface Branch {
   id: string;
   name: string;
   address: string;
   status: 'Open' | 'Closed';
+  latitude?: number;
+  longitude?: number;
 }
+
+const BRANCH_IMAGES = [
+  require('../../../../assets/images/branch1.jpg'),
+  require('../../../../assets/images/branch2.jpg'),
+  require('../../../../assets/images/branch3.jpg'),
+];
 
 export default function BranchesSlider() {
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     const branchesRef = ref(db, 'Branches');
@@ -22,11 +32,15 @@ export default function BranchesSlider() {
       snapshot.forEach((child) => {
         const profile = child.child('profile').val();
         if (profile && profile.name) {
+          const lat = Number(profile.latitude);
+          const lng = Number(profile.longitude);
           list.push({
             id: child.key!,
             name: profile.name,
             address: profile.address || '',
             status: profile.status ?? 'Open',
+            latitude: isFinite(lat) ? lat : undefined,
+            longitude: isFinite(lng) ? lng : undefined,
           });
         }
       });
@@ -35,10 +49,17 @@ export default function BranchesSlider() {
     return () => unsubscribe();
   }, []);
 
+  // Location is requested here (Home), not at app launch - asking in context, only when
+  // it's actually needed for something visible (distance to nearby branches), matches
+  // platform guidance and the existing pattern already used in the booking flow.
+  useEffect(() => {
+    getCurrentLocation().then(setUserLocation);
+  }, []);
+
   if (branches.length === 0) return null;
 
   return (
-    <View className="mt-6">
+    <View className="mt-10">
       {/* Section header */}
       <View className="flex-row justify-between items-center px-5 mb-2">
         <Text className="text-lg font-bold text-[#1A1A1A]">Branches near you</Text>
@@ -59,47 +80,45 @@ export default function BranchesSlider() {
         contentContainerStyle={{ paddingHorizontal: 20 }}
       >
         {branches.map((branch, index) => {
-          const isOpen = branch.status === 'Open';
+          const hasCoords = branch.latitude !== undefined && branch.longitude !== undefined;
+          const distanceText =
+            userLocation && hasCoords
+              ? formatDistance(
+                  haversineMeters(userLocation.latitude, userLocation.longitude, branch.latitude!, branch.longitude!)
+                )
+              : null;
+
           return (
             <TouchableOpacity
               key={branch.id}
-              className={`bg-[#FAFAFA] rounded-2xl border border-[#EEEEEE] ${index < branches.length - 1 ? 'mr-4' : ''}`}
+              className={index < branches.length - 1 ? 'mr-4' : ''}
               style={{ width: 220 }}
               onPress={() => router.push('/user/(tabs)/book')}
               activeOpacity={0.82}
             >
-              {/* Image with inner padding */}
-              <View className="p-2.5 pb-0">
-                <View className="rounded-xl overflow-hidden">
-                  <Image
-                    source={require('../../../../assets/images/branch1.jpg')}
-                    className="w-full"
-                    style={{ height: 115 }}
-                    resizeMode="cover"
-                  />
-                  {/* Status badge on image */}
-                  <View
-                    className="absolute top-2 left-2 flex-row items-center rounded-full px-2.5 py-1"
-                    style={{ backgroundColor: isOpen ? '#F9EF08' : '#EF4444' }}
-                  >
-                    <View
-                      className="w-1.5 h-1.5 rounded-full mr-1.5"
-                      style={{ backgroundColor: isOpen ? '#1A1A00' : '#FFFFFF' }}
-                    />
-                    <Text
-                      className="text-[10px] font-bold"
-                      style={{ color: isOpen ? '#1A1A00' : '#FFFFFF' }}
-                    >
-                      {branch.status}
-                    </Text>
-                  </View>
-                </View>
+              {/* Image */}
+              <View className="rounded-lg overflow-hidden">
+                <Image
+                  source={BRANCH_IMAGES[index % BRANCH_IMAGES.length]}
+                  className="w-full"
+                  style={{ height: 115 }}
+                  resizeMode="cover"
+                />
               </View>
 
               {/* Content */}
-              <View className="px-3.5 pt-3 pb-3.5">
-                <Text className="text-[14px] font-bold text-[#1A1A1A] mb-0.5">{branch.name}</Text>
-                <Text className="text-[11px] text-[#999] leading-[15px]" numberOfLines={2}>
+              <View className="pt-2.5">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-[14px] font-bold text-[#1A1A1A] mb-0.5 flex-1 mr-2" numberOfLines={1}>
+                    {branch.name}
+                  </Text>
+                  {distanceText ? (
+                    <Text className="text-[10px] font-bold text-[#999]" numberOfLines={1}>
+                      {distanceText} away
+                    </Text>
+                  ) : null}
+                </View>
+                <Text className="text-[11px] text-[#999] leading-[15px]" numberOfLines={1}>
                   {branch.address}
                 </Text>
               </View>

@@ -39,7 +39,7 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-[#F8F8F8]">
+      <View className="flex-1 justify-center items-center bg-[#FAFAFA]">
         <ActivityIndicator size="large" />
       </View>
     );
@@ -47,8 +47,8 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
 
   if (vehicles.length === 0) {
     return (
-      <View className="flex-1 bg-white items-center justify-center px-8">
-        <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-4">
+      <View className="flex-1 bg-[#FAFAFA] items-center justify-center px-8">
+        <View className="w-16 h-16 rounded-2xl bg-white border border-[#EEEEEE] items-center justify-center mb-4">
           <Ionicons name="car-outline" size={28} color="#BDBDBD" />
         </View>
         <Text className="text-[16px] font-bold text-[#1A1A1A] text-center mb-1">No vehicles yet</Text>
@@ -67,7 +67,7 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
   }
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-[#FAFAFA]">
       <ScrollView
         contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
         className="flex-1"

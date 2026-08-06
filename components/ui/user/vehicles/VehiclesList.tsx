@@ -119,14 +119,14 @@ export default function VehiclesList() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-white">
+      <View className="flex-1 bg-[#FAFAFA]">
         <ListSkeleton rowCount={4} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-[#FAFAFA]">
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={false}

@@ -1,3 +1,4 @@
+import { checkBranchCapacity } from '@/lib/capacityCheck';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logWarn } from '@/lib/logger';
 import { payBookingFeeWithMaya } from '@/lib/mayaPayment';
@@ -176,9 +177,26 @@ export default function ConfirmationStep({
       const db = getDatabase();
       const appointmentId = generateAppointmentId();
       const datePath = formatDateForPath(date);
+
+      // Soft, conservative pre-payment check to reject obvious overbooking — bay assignment
+      // itself stays a manual admin decision, since actual wash duration varies by vehicle
+      // condition and can't be fully predicted here. Fails open on infrastructure errors (e.g.
+      // a Cloud Function hiccup) rather than blocking every booking over a transient issue.
+      try {
+        const capacity = await checkBranchCapacity(branch.id, datePath, timeSlot.time, totalEstimatedTime);
+        if (!capacity.ok) {
+          showAlert('Branch fully booked', capacity.reason || 'Please choose another time slot.');
+          setSubmitting(false);
+          return;
+        }
+      } catch (capacityError) {
+        logWarn('ConfirmationStep.handleConfirm', 'Capacity check failed, proceeding with booking', { capacityError });
+      }
+
       const classification = vehicle.classification || getClassificationName(vehicle.vtype) || '';
       const bookingData = {
         appointmentId,
+        branchId: branch.id,
         branchName: branch.name,
         branchAddress: branch.address || '',
         paymentMethod: paymentMethod || '',
@@ -237,10 +255,10 @@ export default function ConfirmationStep({
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-[#FAFAFA]">
       <ScrollView contentContainerStyle={{ paddingBottom: 110, paddingTop: 16 }}>
 
-        <View className="mx-4 mb-4 bg-[#FAFAFA] rounded-2xl px-4 pt-5 pb-4">
+        <View className="mx-4 mb-4 bg-white rounded-2xl px-4 pt-5 pb-4">
 
           {/* Branch */}
           <SectionLabel>Branch</SectionLabel>
@@ -297,7 +315,7 @@ export default function ConfirmationStep({
           {/* Note */}
           <SectionLabel>Note to Branch</SectionLabel>
           <TextInput
-            className="bg-white border border-[#EEEEEE] rounded-xl px-3 py-3 text-[#1A1A1A] mb-4"
+            className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-xl px-3 py-3 text-[#1A1A1A] mb-4"
             placeholder="e.g. I'd like to request a specific washer"
             placeholderTextColor="#C4C4C4"
             multiline

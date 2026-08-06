@@ -413,7 +413,7 @@ export default function ServicesStep({
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-[#FAFAFA]">
       <ScrollView contentContainerStyle={{ paddingBottom: 0 }}>
         {/* ------------------- SERVICES ------------------- */}
         <Text className="text-xl font-semibold mt-4 px-4">
@@ -439,8 +439,8 @@ export default function ServicesStep({
                 onPress={() => toggleService(s)}
                 className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-64 ${
                   selected
-                    ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
-                    : 'bg-[#FAFAFA] border border-transparent'
+                    ? 'bg-white border border-[#D4D4D4]'
+                    : 'bg-white border border-transparent'
                 }`}
                 activeOpacity={0.8}
               >
@@ -449,7 +449,7 @@ export default function ServicesStep({
                   <Text className="text-[15px] font-bold text-[#1A1A1A] flex-1 pr-2">
                     {s.name}
                   </Text>
-                  <View className="flex-row items-center bg-white border border-[#EEEEEE] rounded-full px-3 py-1">
+                  <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-full px-3 py-1">
                     <Ionicons name="time-outline" size={13} color="#9CA3AF" />
                     <Text className="text-[12px] text-[#9CA3AF] ml-1">
                       {s.estimatedTime} mins
@@ -497,8 +497,8 @@ export default function ServicesStep({
                 onPress={() => toggleAddon(a)}
                 className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-56 ${
                   selected
-                    ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
-                    : 'bg-[#FAFAFA] border border-transparent'
+                    ? 'bg-white border border-[#D4D4D4]'
+                    : 'bg-white border border-transparent'
                 }`}
                 activeOpacity={0.8}
               >
@@ -577,7 +577,7 @@ export default function ServicesStep({
                 className={`mr-2 items-center justify-center rounded-2xl px-3 py-3 w-16 border ${
                   isSelected
                     ? 'bg-[#F9EF08] border-[#F9EF08]'
-                    : 'bg-[#FAFAFA] border-transparent'
+                    : 'bg-white border-transparent'
                 }`}
                 activeOpacity={0.8}
               >
@@ -634,7 +634,7 @@ export default function ServicesStep({
               className={`mr-2 px-4 py-2.5 rounded-xl border ${
                 selectedTimeSlot?.time === t.time
                   ? 'bg-[#F9EF08] border-[#F9EF08]'
-                  : 'bg-[#FAFAFA] border-transparent'
+                  : 'bg-white border-transparent'
               }`}
               activeOpacity={0.8}
             >
@@ -651,8 +651,8 @@ export default function ServicesStep({
         <Text className="text-xl font-semibold mt-6 mb-3 px-4">Payment Option</Text>
         <View className="px-4">
             {/* COD – disabled / coming soon */}
-          <View className="flex-row items-center px-4 py-3 rounded-2xl mb-3 bg-[#FAFAFA] border border-transparent opacity-50">
-            <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
+          <View className="flex-row items-center px-4 py-3 rounded-2xl mb-3 bg-white border border-transparent opacity-50">
+            <View className="w-9 h-9 rounded-xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mr-3">
               <Ionicons name="cash-outline" size={20} color="#BDBDBD" />
             </View>
             <View className="flex-1">
@@ -671,12 +671,12 @@ export default function ServicesStep({
             onPress={() => setPaymentMethod('E-Wallet')}
             className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 ${
               paymentMethod === 'E-Wallet'
-                ? 'bg-[#FAFAFA] border border-[#D4D4D4]'
-                : 'bg-[#FAFAFA] border border-transparent'
+                ? 'bg-white border border-[#D4D4D4]'
+                : 'bg-white border border-transparent'
             }`}
             activeOpacity={0.8}
           >
-            <View className="w-9 h-9 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
+            <View className="w-9 h-9 rounded-xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mr-3">
               <Ionicons name="wallet-outline" size={20} color="#1A1A1A" />
             </View>
             <View className="flex-1">

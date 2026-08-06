@@ -54,6 +54,22 @@ export default function UserLayout() {
         name="notifications"
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="settings"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="help-center"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="privacy-policy"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="e-receipt"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

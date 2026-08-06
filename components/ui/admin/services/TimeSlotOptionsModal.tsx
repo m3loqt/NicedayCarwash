@@ -8,6 +8,7 @@ interface TimeSlotOptionsModalProps {
   onClose: () => void;
   onSaveAvailability: (status: string) => void;
   onDelete: () => void;
+  onEdit: () => void;
 }
 
 export default function TimeSlotOptionsModal({
@@ -17,6 +18,7 @@ export default function TimeSlotOptionsModal({
   onClose,
   onSaveAvailability,
   onDelete,
+  onEdit,
 }: TimeSlotOptionsModalProps) {
   const isAvailable = currentStatus === "available";
   const confirmText = isAvailable ? "Set unavailable" : "Set available";
@@ -51,6 +53,14 @@ export default function TimeSlotOptionsModal({
               ? `${slotTime} will be hidden from the schedule.`
               : `${slotTime} will be available for bookings.`}
           </Text>
+          <TouchableOpacity
+            className="bg-[#FAFAFA] rounded-lg py-3 items-center mb-3"
+            onPress={onEdit}
+          >
+            <Text className="text-[#1A1A1A] font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
+              Edit time
+            </Text>
+          </TouchableOpacity>
           <View className="flex-row gap-3">
             <TouchableOpacity
               className="flex-1 bg-[#FAFAFA] rounded-lg py-3 items-center"

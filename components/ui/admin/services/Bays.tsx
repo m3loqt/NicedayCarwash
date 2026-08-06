@@ -5,6 +5,7 @@ import { get, onValue, ref, remove, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import BayOptionsModal from "./BayOptionsModal";
+import EditBayModal from "./EditBayModal";
 
 interface Bay {
   id: string | number;
@@ -20,6 +21,7 @@ export default function Bays() {
   const [branchId, setBranchId] = useState<string | null>(null);
   const [baysDataType, setBaysDataType] = useState<'array' | 'object'>('array');
   const [bayModalVisible, setBayModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedBay, setSelectedBay] = useState<Bay | null>(null);
 
   // Parsing bays data from database
@@ -152,6 +154,94 @@ export default function Bays() {
   const handleOpenBayOptions = (bay: Bay) => {
     setSelectedBay(bay);
     setBayModalVisible(true);
+  };
+
+  const handleEditPress = () => {
+    if (!selectedBay) return;
+    setBayModalVisible(false);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async (newIdRaw: string | number) => {
+    if (!branchId || !selectedBay || selectedBay.originalKey === undefined) {
+      alert("Error", "Missing bay information.");
+      return;
+    }
+
+    const newId = typeof newIdRaw === "string" ? parseInt(newIdRaw.replace(/[^\d]/g, ""), 10) : newIdRaw;
+    if (isNaN(newId) || newId <= 0) {
+      alert("Error", "Enter a valid bay number.");
+      return;
+    }
+
+    const oldKey = selectedBay.originalKey;
+    const newKeyString = String(newId);
+
+    if (newKeyString === oldKey) {
+      setEditModalVisible(false);
+      setSelectedBay(null);
+      return;
+    }
+
+    try {
+      const baysRef = ref(db, `Branches/${branchId}/Bays`);
+      const baysSnapshot = await get(baysRef);
+      if (!baysSnapshot.exists()) {
+        alert("Error", "Bay data not found.");
+        return;
+      }
+      const baysData = baysSnapshot.val();
+
+      if (baysDataType === "array") {
+        const oldIndex = parseInt(oldKey, 10);
+        const currentBayValue = Array.isArray(baysData) ? baysData[oldIndex] : null;
+        if (!currentBayValue) {
+          alert("Error", "Bay not found.");
+          return;
+        }
+        if (currentBayValue.currentAppointmentId) {
+          alert("Error", "This bay has an active appointment. Complete or cancel it before renumbering.");
+          return;
+        }
+        if (newId < baysData.length && baysData[newId] !== null && baysData[newId] !== undefined) {
+          alert("Error", `Bay ${newId} already exists.`);
+          return;
+        }
+        const updated = [...baysData];
+        updated[oldIndex] = null;
+        while (updated.length <= newId) updated.push(null);
+        updated[newId] = currentBayValue;
+        await set(baysRef, updated);
+      } else {
+        const currentBayValue = baysData[oldKey];
+        if (!currentBayValue) {
+          alert("Error", "Bay not found.");
+          return;
+        }
+        if (typeof currentBayValue === "object" && currentBayValue.currentAppointmentId) {
+          alert("Error", "This bay has an active appointment. Complete or cancel it before renumbering.");
+          return;
+        }
+        const bayExists = Object.keys(baysData).some(
+          (key) => key !== oldKey && (key === newKeyString || Number(key) === newId)
+        );
+        if (bayExists) {
+          alert("Error", `Bay ${newId} already exists.`);
+          return;
+        }
+        const updates: any = {};
+        updates[oldKey] = null;
+        updates[newKeyString] = currentBayValue;
+        await update(baysRef, updates);
+      }
+
+      setEditModalVisible(false);
+      setSelectedBay(null);
+      alert("Success", `Bay renamed to Bay ${newId}.`);
+    } catch (error) {
+      logError("Bays.handleSaveEdit", error, { context: "Error renaming bay" });
+      alert("Error", "Failed to rename bay.");
+    }
   };
 
   const handleSaveAvailability = async (newStatus: string) => {
@@ -299,6 +389,16 @@ export default function Bays() {
       }}
       onSaveAvailability={handleSaveAvailability}
       onDelete={handleDeletePress}
+      onEdit={handleEditPress}
+    />
+    <EditBayModal
+      visible={editModalVisible}
+      initialBay={selectedBay ? { id: selectedBay.id, name: selectedBay.name } : null}
+      onClose={() => {
+        setEditModalVisible(false);
+        setSelectedBay(null);
+      }}
+      onSave={(bayId) => handleSaveEdit(bayId)}
     />
   </>
   );

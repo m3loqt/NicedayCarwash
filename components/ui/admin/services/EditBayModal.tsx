@@ -12,7 +12,7 @@ import {
 interface EditBayModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (bayId: string | number, newName: string) => void;
+  onSave: (bayId: string | number) => void;
   initialBay: { id: string | number; name: string } | null;
 }
 
@@ -22,25 +22,21 @@ export default function EditBayModal({
   onSave,
   initialBay,
 }: EditBayModalProps) {
-  const [bayName, setBayName] = useState("");
   const [bayId, setBayId] = useState<string>("");
 
   useEffect(() => {
     if (initialBay) {
-      setBayName(initialBay.name);
       setBayId(String(initialBay.id));
     }
   }, [initialBay, visible]);
 
   const handleSave = () => {
-    if (!bayName.trim()) {
+    const numericId = parseInt(bayId.replace(/[^\d]/g, ""), 10);
+    if (isNaN(numericId) || numericId <= 0) {
       return;
     }
 
-    // Extracting numeric ID if the name contains a number, otherwise using the entered ID
-    const numericId = bayId ? (isNaN(Number(bayId)) ? parseInt(bayId.replace(/[^\d]/g, '')) || bayId : Number(bayId)) : (parseInt(bayName.replace(/[^\d]/g, '')) || 1);
-    
-    onSave(numericId, bayName.trim());
+    onSave(numericId);
   };
 
   return (
@@ -69,24 +65,14 @@ export default function EditBayModal({
             </TouchableOpacity>
           </View>
 
-          <View className="mb-4">
-            <Text className="text-gray-700 font-medium mb-2">Bay ID</Text>
-            <TextInput
-              className="bg-[#FAFAFA] rounded-lg px-4 py-3 text-gray-800"
-              placeholder="Enter bay ID (number)"
-              value={bayId}
-              onChangeText={setBayId}
-              keyboardType="numeric"
-            />
-          </View>
-
           <View className="mb-6">
-            <Text className="text-gray-700 font-medium mb-2">Bay Name</Text>
+            <Text className="text-gray-700 font-medium mb-2">Bay number</Text>
             <TextInput
               className="bg-[#FAFAFA] rounded-lg px-4 py-3 text-gray-800"
-              placeholder="Enter bay name"
-              value={bayName}
-              onChangeText={setBayName}
+              placeholder="Enter bay number"
+              value={bayId}
+              onChangeText={(text) => setBayId(text.replace(/[^0-9]/g, ""))}
+              keyboardType="numeric"
             />
           </View>
 

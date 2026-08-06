@@ -26,6 +26,7 @@ interface AppointmentDetailsModalProps {
   // onStartWash?: () => void;
   onCancel?: () => void;
   onComplete?: () => void;
+  onNoShow?: () => void;
 }
 
 const formatDate = (dateString?: string): string => {
@@ -104,6 +105,7 @@ export default function AppointmentDetailsModal({
   onCancel,
   // onStartWash,
   onComplete,
+  onNoShow,
 }: AppointmentDetailsModalProps) {
   const estHours = estimatedCompletion
     ? parseInt(String(estimatedCompletion).replace(/\D/g, ''), 10) || 0
@@ -291,8 +293,17 @@ export default function AppointmentDetailsModal({
                       onPress={onComplete}
                       activeOpacity={0.85}
                     >
-                      <Text className="text-[13px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
+                      <Text className="text-[12px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
                         Complete
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
+                      onPress={onNoShow}
+                      activeOpacity={0.85}
+                    >
+                      <Text className="text-[12px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                        No-Show
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -300,7 +311,7 @@ export default function AppointmentDetailsModal({
                       onPress={onCancel}
                       activeOpacity={0.85}
                     >
-                      <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                      <Text className="text-[12px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
                         Cancel
                       </Text>
                     </TouchableOpacity>

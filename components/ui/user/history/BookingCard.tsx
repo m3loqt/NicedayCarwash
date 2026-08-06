@@ -45,7 +45,7 @@ export default function BookingCard({
 }: BookingCardProps) {
   return (
     <TouchableOpacity
-      className="bg-[#FAFAFA] rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
+      className="bg-white rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
       onPress={onPress}
       activeOpacity={0.7}
     >

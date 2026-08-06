@@ -1,11 +1,13 @@
+import GoogleAuthButton from '@/components/ui/auth/GoogleAuthButton';
 import { useAlert } from '@/hooks/use-alert';
+import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
+import { registerForPushNotificationsAsync } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,159 +19,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import * as Google from 'expo-auth-session/providers/google';
-
-import {
-  GoogleAuthProvider,
-  signInWithCredential,
-  signInWithEmailAndPassword,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../firebase/firebase';
 
-import { get, ref, set, update } from 'firebase/database';
+import { get, ref } from 'firebase/database';
 
 import OnboardingScreen from '../components/OnboardingScreen';
 import SplashScreen from '../components/SplashScreen';
-
-/** Flip to `true` when OAuth clients are configured in the same GCP project as Firebase. */
-const GOOGLE_SIGN_IN_ENABLED = false;
-
-function readGoogleOAuthEnv() {
-  const trim = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
-  return {
-    expoClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID),
-    iosClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
-    androidClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID),
-    webClientId: trim(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
-  };
-}
-
-function isGoogleAuthConfiguredForPlatform(): boolean {
-  const { expoClientId, iosClientId, androidClientId, webClientId } = readGoogleOAuthEnv();
-  if (Platform.OS === 'android') return Boolean(androidClientId);
-  if (Platform.OS === 'ios') return Boolean(iosClientId || expoClientId);
-  if (Platform.OS === 'web') return Boolean(webClientId || expoClientId);
-  return Boolean(expoClientId);
-}
-
-type AlertCompat = (titleOrMessage: string, messageOrButtons?: string) => void;
-
-function GoogleSignInDisabledRow({ alert }: { alert: AlertCompat }) {
-  return (
-    <TouchableOpacity
-      className="flex-row items-center justify-center bg-[#F5F5F5] border border-transparent rounded-lg py-4 px-4 mb-8 min-h-[52px] opacity-65"
-      onPress={() =>
-        alert(
-          'Google sign-in',
-          'Google sign-in is temporarily unavailable. Please use email and password.',
-        )
-      }
-      activeOpacity={0.85}
-    >
-      <Image
-        source={require('../assets/images/googlelogo.png')}
-        style={{ width: 18, height: 18, marginRight: 10, opacity: 0.55 }}
-        resizeMode="contain"
-      />
-      <Text className="text-[13px] text-[#9CA3AF] font-medium">Continue with Google</Text>
-    </TouchableOpacity>
-  );
-}
-
-function GoogleSignInConfigured({ alert }: { alert: AlertCompat }) {
-  const { expoClientId, iosClientId, androidClientId, webClientId } = readGoogleOAuthEnv();
-
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    expoClientId,
-    iosClientId,
-    androidClientId,
-    webClientId,
-  });
-
-  useEffect(() => {
-    if (googleResponse?.type !== 'success') return;
-    const idToken = googleResponse.authentication?.idToken;
-    if (!idToken) return;
-    const credential = GoogleAuthProvider.credential(idToken);
-    signInWithCredential(auth, credential)
-      .then(async (res) => {
-        const uid = res.user.uid;
-        const userRef = ref(db, 'users/' + uid);
-        const snapshot = await get(userRef);
-
-        let role = 'default';
-        if (snapshot.exists()) {
-          role = snapshot.val().role || 'default';
-          await update(userRef, {
-            email: res.user.email,
-            firstName: res.user.displayName?.split(' ')[0] || '',
-            lastName: res.user.displayName?.split(' ')[1] || '',
-          });
-        } else {
-          await set(userRef, {
-            email: res.user.email,
-            firstName: res.user.displayName?.split(' ')[0] || '',
-            lastName: res.user.displayName?.split(' ')[1] || '',
-            role: 'default',
-          });
-        }
-
-        await AsyncStorage.setItem('role', role);
-        await AsyncStorage.setItem('uid', uid);
-
-        if (role === 'admin') {
-          router.replace('/admin/(tabs)/dashboard');
-        } else {
-          router.replace('/user/(tabs)/home');
-        }
-      })
-      .catch((err: Error) => alert('Google Login Error', err.message));
-  }, [googleResponse, alert]);
-
-  return (
-    <TouchableOpacity
-      className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-4 px-4 mb-8 min-h-[52px]"
-      onPress={() => googlePromptAsync()}
-      disabled={!googleRequest}
-      activeOpacity={0.85}
-    >
-      <Image
-        source={require('../assets/images/googlelogo.png')}
-        style={{ width: 18, height: 18, marginRight: 10 }}
-        resizeMode="contain"
-      />
-      <Text className="text-[13px] text-[#1A1A1A] font-medium">Continue with Google</Text>
-    </TouchableOpacity>
-  );
-}
-
-function GoogleSignInSection({ alert }: { alert: AlertCompat }) {
-  if (!isGoogleAuthConfiguredForPlatform()) {
-    const hint =
-      Platform.OS === 'android'
-        ? 'Add EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID to your .env (and restart Expo).'
-        : Platform.OS === 'ios'
-          ? 'Add EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID or EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID to your .env (and restart Expo).'
-          : 'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID or EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID to your .env (and restart Expo).';
-
-    return (
-      <TouchableOpacity
-        className="flex-row items-center justify-center bg-[#F5F5F5] border border-transparent rounded-lg py-4 px-4 mb-8 min-h-[52px] opacity-70"
-        onPress={() => alert('Google sign-in unavailable', hint)}
-        activeOpacity={0.85}
-      >
-        <Image
-          source={require('../assets/images/googlelogo.png')}
-          style={{ width: 18, height: 18, marginRight: 10, opacity: 0.5 }}
-          resizeMode="contain"
-        />
-        <Text className="text-[13px] text-[#9CA3AF] font-medium">Continue with Google</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  return <GoogleSignInConfigured alert={alert} />;
-}
 
 export default function LoginScreen() {
   const { alert, AlertComponent } = useAlert();
@@ -179,6 +35,8 @@ export default function LoginScreen() {
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   // ---------------- ONBOARDING + SPLASH ----------------
   useEffect(() => {
@@ -204,9 +62,18 @@ export default function LoginScreen() {
   const handleSignIn = async () => {
     if (isSigningIn) return;
 
-    if (!email || !password) {
-      return alert("Missing Info", "Please enter email and password");
+    setEmailError('');
+    setPasswordError('');
+    let hasError = false;
+    if (!email) {
+      setEmailError('Please enter your email');
+      hasError = true;
     }
+    if (!password) {
+      setPasswordError('Please enter your password');
+      hasError = true;
+    }
+    if (hasError) return;
 
     setIsSigningIn(true);
     try {
@@ -220,19 +87,34 @@ export default function LoginScreen() {
         return;
       }
 
-      const role = snapshot.val().role || "default";
+      const userData = snapshot.val();
+      const role = userData.role || "default";
 
       await AsyncStorage.setItem("uid", uid);
       await AsyncStorage.setItem("role", role);
 
-      if (role === "admin") {
+      // Fire-and-forget: keeps a previously-granted push token fresh on this device without
+      // ever re-prompting a user who already denied (registerForPushNotificationsAsync only
+      // prompts if permission has never been decided).
+      registerForPushNotificationsAsync();
+
+      const isStaff = role === "admin" || role === "supervisor" || role === "superadmin";
+
+      // Only brand-new signups have this field at all (see app/register.tsx) - existing
+      // accounts predate it and must never be retroactively forced through onboarding.
+      if (!isStaff && userData.onboardingCompleted === false) {
+        router.replace("/complete-profile");
+        return;
+      }
+
+      if (isStaff) {
         router.replace("/admin/(tabs)/dashboard");
       } else {
         router.replace("/user/(tabs)/home");
       }
 
     } catch (e: any) {
-      alert("Login Failed", e.message);
+      alert("Couldn't sign you in", getFriendlyAuthErrorMessage(e, "We couldn't sign you in. Please try again."));
     } finally {
       setIsSigningIn(false);
     }
@@ -246,56 +128,54 @@ export default function LoginScreen() {
         className="flex-1"
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
           className="px-6"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo */}
-          <View className="items-center pt-12 -mb-2">
-            <Image
-              source={require('../assets/images/ndcwlogo.png')}
-              style={{ width: 200, height: 100 }}
-              resizeMode="contain"
-            />
-          </View>
-
           {/* Heading */}
-          <View className="mb-7 items-center">
-            <Text className="text-[22px] font-bold text-[#1A1A1A] mb-1 text-center">
+          <View className="mb-14 items-center">
+            <Text className="text-[30px] font-inter-semibold tracking-tight text-[#1A1A1A] mb-1.5 text-center">
               Welcome back
             </Text>
-            <Text className="text-[13px] text-[#999] text-center">
+            <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center">
               Sign in to continue
             </Text>
           </View>
 
           {/* Fields */}
-          <View className="mb-4">
-            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">
-              Email Address
+          <View className="mb-7">
+            <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">
+              Email
             </Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
+              className={`bg-[#FAFAFA] border rounded-2xl px-4 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A] min-h-[52px] ${
+                emailError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
+              }`}
               placeholder="sample@gmail.com"
               placeholderTextColor="#C4C4C4"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(''); }}
               autoCapitalize="none"
               keyboardType="email-address"
             />
+            {!!emailError && (
+              <Text className="text-[12px] font-inter-regular tracking-tight text-[#DC2626] mt-1.5">{emailError}</Text>
+            )}
           </View>
 
           <View className="mb-2">
-            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">
+            <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">
               Password
             </Text>
-            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 min-h-[52px]">
+            <View className={`flex-row items-center bg-[#FAFAFA] border rounded-2xl px-4 min-h-[52px] ${
+              passwordError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
+            }`}>
               <TextInput
-                className="flex-1 py-4 text-[13px] text-[#1A1A1A]"
+                className="flex-1 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A]"
                 placeholder="Enter your password"
                 placeholderTextColor="#C4C4C4"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(''); }}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
@@ -303,17 +183,20 @@ export default function LoginScreen() {
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
+            {!!passwordError && (
+              <Text className="text-[12px] font-inter-regular tracking-tight text-[#DC2626] mt-1.5">{passwordError}</Text>
+            )}
           </View>
 
-          <View className="flex-row justify-end mb-6">
+          <View className="flex-row justify-end mb-7">
             <TouchableOpacity onPress={() => router.push("/forgot-password")}>
-              <Text className="text-[12px] text-[#999]">Forgot password?</Text>
+              <Text className="text-[13px] font-inter-medium tracking-tight text-[#666] underline">Forgot password?</Text>
             </TouchableOpacity>
           </View>
 
           {/* Sign in button */}
           <TouchableOpacity
-            className={`bg-[#F9EF08] rounded-lg py-4 items-center mb-4 min-h-[52px] justify-center ${isSigningIn ? 'opacity-60' : ''}`}
+            className={`bg-[#F9EF08] rounded-full py-4 items-center mb-5 min-h-[52px] justify-center ${isSigningIn ? 'opacity-60' : ''}`}
             onPress={handleSignIn}
             disabled={isSigningIn}
             activeOpacity={0.85}
@@ -321,27 +204,25 @@ export default function LoginScreen() {
             {isSigningIn ? (
               <ActivityIndicator size="small" color="#1A1A00" />
             ) : (
-              <Text className="text-[14px] font-bold text-[#1A1A00]">Sign In</Text>
+              <Text className="text-[15px] font-inter-bold tracking-tight text-[#1A1A00]">Sign In</Text>
             )}
           </TouchableOpacity>
 
-          <View className="flex-row items-center my-4">
+          <View className="flex-row items-center mb-6">
             <View className="flex-1 h-px bg-[#F0F0F0]" />
-            <Text className="mx-4 text-[11px] text-[#C4C4C4] uppercase tracking-widest">or</Text>
+            <Text className="mx-4 text-[12px] font-inter-regular tracking-tight text-[#999]">Or sign in with</Text>
             <View className="flex-1 h-px bg-[#F0F0F0]" />
           </View>
 
-          {GOOGLE_SIGN_IN_ENABLED ? (
-            <GoogleSignInSection alert={alert} />
-          ) : (
-            <GoogleSignInDisabledRow alert={alert} />
-          )}
+          <View className="mb-8">
+            <GoogleAuthButton alert={alert} />
+          </View>
 
           {/* Footer */}
           <View className="items-center pb-8">
-            <Text className="text-[12px] text-[#999] text-center">
+            <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center">
               Don't have an account?{' '}
-              <Text className="text-[#1A1A1A] font-bold" onPress={() => router.push("/register")}>
+              <Text className="text-[#1A1A1A] font-inter-bold underline" onPress={() => router.push("/register")}>
                 Sign Up
               </Text>
             </Text>

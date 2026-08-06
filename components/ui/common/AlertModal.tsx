@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import React from 'react';
 import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type AlertType = 'success' | 'error' | 'warning' | 'info';
 
@@ -28,7 +28,7 @@ interface AlertModalProps {
 const formatMessageWithBold = (message: string): React.ReactNode => {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
-  
+
   // Regex patterns matching plate numbers, dates, times, bay numbers, and quoted text
   const patterns = [
     /\(([A-Z0-9]+)\)/g, // Matches plate numbers in parentheses
@@ -37,9 +37,9 @@ const formatMessageWithBold = (message: string): React.ReactNode => {
     /Bay\s+\d+/gi, // Matches bay number references
     /"([^"]+)"/g, // Matches quoted text
   ];
-  
+
   const matches: Array<{ start: number; end: number; text: string }> = [];
-  
+
   patterns.forEach(pattern => {
     let match;
     while ((match = pattern.exec(message)) !== null) {
@@ -50,10 +50,10 @@ const formatMessageWithBold = (message: string): React.ReactNode => {
       });
     }
   });
-  
+
   // Sorting matches by their start position in the message
   matches.sort((a, b) => a.start - b.start);
-  
+
   // Filtering out overlapping matches, keeping the first occurrence
   const filteredMatches: Array<{ start: number; end: number; text: string }> = [];
   matches.forEach(match => {
@@ -64,37 +64,37 @@ const formatMessageWithBold = (message: string): React.ReactNode => {
       filteredMatches.push(match);
     }
   });
-  
+
   // Building formatted message with bold styling for matched patterns
   filteredMatches.forEach((match, index) => {
     // Adding text segment before the current match
     if (match.start > lastIndex) {
       parts.push(message.substring(lastIndex, match.start));
     }
-    
+
     // Adding matched text with semi-bold styling
     parts.push(
-      <Text key={`bold-${index}`} className="font-semibold">
+      <Text key={`bold-${index}`} className="font-inter-semibold">
         {match.text}
       </Text>
     );
-    
+
     lastIndex = match.end;
   });
-  
+
   // Adding remaining text after all matches
   if (lastIndex < message.length) {
     parts.push(message.substring(lastIndex));
   }
-  
+
   return parts.length > 0 ? <Text>{parts}</Text> : message;
 };
 
 /**
  * Modular Alert Modal Component
- * Displays alerts with NicedayCarwash branding matching SuccessModal UI
- * Supports different types: success, error, warning, info
- * Supports confirmation dialogs with custom buttons
+ * Bottom-sheet style alert/confirmation matching the app's drawer pattern
+ * (see CancelReasonModal). Supports success, error, warning, info, and
+ * multi-button confirmation dialogs.
  */
 export default function AlertModal({
   visible,
@@ -108,30 +108,14 @@ export default function AlertModal({
   const getIconConfig = () => {
     switch (type) {
       case 'success':
-        return {
-          name: 'checkmark' as const,
-          color: '#F9EF08',
-          bgColor: '#F9EF08',
-        };
+        return { name: 'checkmark' as const, color: '#1A1A1A' };
       case 'error':
-        return {
-          name: 'close-circle' as const,
-          color: '#EF4444',
-          bgColor: '#EF4444',
-        };
+        return { name: 'close-circle' as const, color: '#DC2626' };
       case 'warning':
-        return {
-          name: 'warning' as const,
-          color: '#F59E0B',
-          bgColor: '#F59E0B',
-        };
+        return { name: 'warning' as const, color: '#D97706' };
       case 'info':
       default:
-        return {
-          name: 'information-circle' as const,
-          color: '#F9EF08',
-          bgColor: '#F9EF08',
-        };
+        return { name: 'information-circle' as const, color: '#1A1A1A' };
     }
   };
 
@@ -154,6 +138,7 @@ export default function AlertModal({
   const displayTitle = getDefaultTitle();
   const hasButtons = buttons && buttons.length > 0;
   const isConfirmation = hasButtons && buttons.length > 1;
+  const stackButtons = hasButtons && buttons.length > 2;
 
   const handleBackdropPress = () => {
     if (dismissOnBackdrop && !isConfirmation) {
@@ -172,91 +157,78 @@ export default function AlertModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <BlurView intensity={80} tint="light" className="flex-1 justify-center items-center">
+      <View className="flex-1 bg-black/35 justify-end">
         {/* Backdrop pressable area that closes modal for non-confirmation dialogs */}
-        <Pressable 
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} 
-          onPress={handleBackdropPress} 
-        />
+        <Pressable className="flex-1" onPress={handleBackdropPress} />
 
-        {/* Modal content container */}
-        <View 
-          className="bg-gray-50 rounded-3xl px-6 py-6 mx-6 w-[80%] max-w-sm relative z-10 border border-gray-200"
-          style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 4,
-          }}
-        >
+        <SafeAreaView edges={['bottom']} className="bg-white rounded-t-3xl">
+          {/* Drag handle */}
+          <View className="items-center pt-3 pb-1">
+            <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
+          </View>
+
           {/* Close button shown only for non-confirmation dialogs */}
           {!isConfirmation && (
             <TouchableOpacity
-              className="absolute top-4 right-4 z-10"
+              className="absolute top-4 right-5 z-10"
               onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={22} color="#999" />
             </TouchableOpacity>
           )}
 
-          {/* Icon display */}
-          <View className="items-center mb-6 mt-2">
-            <View 
-              className="w-24 h-24 rounded-full items-center justify-center mb-4 shadow-lg"
-              style={{ backgroundColor: iconConfig.bgColor }}
-            >
-              <Ionicons name={iconConfig.name} size={48} color="white" />
-            </View>
+          <View className="px-6 pt-3 pb-8">
+            {/* Icon display */}
+            <View className="items-center mb-1">
+              <View className="w-12 h-12 rounded-full bg-[#F5F5F5] items-center justify-center mb-3">
+                <Ionicons name={iconConfig.name} size={24} color={iconConfig.color} />
+              </View>
 
-            {/* Title text */}
-            <Text className="text-3xl font-bold text-[#1E1E1E] text-center mb-2">
-              {displayTitle}
-            </Text>
-            
-            {/* Message text with formatted bold sections */}
-            <View className="items-center">
-              <Text className="text-base text-gray-600 font-normal text-center">
+              {/* Title text */}
+              <Text className="text-[18px] font-inter-semibold tracking-tight text-[#1A1A1A] text-center mb-1.5">
+                {displayTitle}
+              </Text>
+
+              {/* Message text with formatted bold sections */}
+              <Text className="text-[13px] font-inter-regular tracking-tight text-[#666] text-center leading-5">
                 {formatMessageWithBold(message)}
               </Text>
             </View>
-          </View>
 
-          {/* Action buttons container */}
-          {hasButtons && (
-            <View className="flex-row gap-3 justify-center mt-4">
-              {buttons.map((button, index) => {
-                const isDestructive = button.style === 'destructive';
-                const isCancel = button.style === 'cancel';
-                
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => handleButtonPress(button)}
-                    className={`px-6 py-3 rounded-xl ${
-                      isDestructive
-                        ? 'bg-[#F9EF08]'
-                        : isCancel
-                        ? 'bg-gray-300'
-                        : 'bg-[#F9EF08]'
-                    }`}
-                  >
-                    <Text
-                      className="text-center font-semibold text-white"
-                      style={{ fontSize: 16 }}
+            {/* Action buttons */}
+            {hasButtons && (
+              <View className={`mt-6 gap-3 ${stackButtons ? '' : 'flex-row'}`}>
+                {buttons.map((button, index) => {
+                  const isCancel = button.style === 'cancel';
+
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleButtonPress(button)}
+                      activeOpacity={0.85}
+                      className={`flex-1 py-3.5 rounded-full items-center justify-center ${
+                        isCancel ? 'bg-[#F5F5F5]' : 'bg-[#F9EF08]'
+                      }`}
                     >
-                      {button.text}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-        </View>
-      </BlurView>
+                      <Text
+                        className={`text-[14px] font-inter-bold tracking-tight ${
+                          isCancel ? 'text-[#1A1A1A]' : 'text-[#1A1A00]'
+                        }`}
+                      >
+                        {button.text}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </View>
     </Modal>
   );
 }

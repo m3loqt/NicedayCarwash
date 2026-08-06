@@ -11,21 +11,21 @@ export default function UserHistoryScreen() {
   const [activeTab, setActiveTab] = useState('pending');
 
   return (
-    <View className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <View className="flex-1 bg-[#FAFAFA]">
+      <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
+      <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={['top']}>
         <HistoryHeader />
         <HistoryTabs activeTab={activeTab} onTabChange={setActiveTab} />
         <HistoryList activeTab={activeTab} />
 
         {/* Cancelled bookings — only visible on Completed tab */}
         {activeTab === 'completed' && <TouchableOpacity
-          className="flex-row items-center justify-between mx-4 mb-3 px-4 py-3.5 rounded-2xl bg-[#FAFAFA] border border-[#F0F0F0]"
+          className="flex-row items-center justify-between mx-4 mb-3 px-4 py-3.5 rounded-2xl bg-white border border-[#F0F0F0]"
           onPress={() => router.push('/user/cancelled-bookings' as any)}
           activeOpacity={0.7}
         >
           <View className="flex-row items-center">
-            <View className="w-8 h-8 rounded-xl bg-white border border-[#EEEEEE] items-center justify-center mr-3">
+            <View className="w-8 h-8 rounded-xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mr-3">
               <Ionicons name="close-circle-outline" size={17} color="#BDBDBD" />
             </View>
             <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancelled Bookings</Text>

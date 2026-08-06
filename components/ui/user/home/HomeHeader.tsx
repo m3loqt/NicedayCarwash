@@ -1,51 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { get, onValue, ref } from 'firebase/database';
+import { onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../../../firebase/firebase';
-import PromotionalBanner from './PromotionalBanner';
+import PromotionalBanner, { BANNER_HEIGHT } from './PromotionalBanner';
 
-type UserData = {
-  firstName: string;
-  lastName: string;
-};
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
+// Gap of visible yellow between the search bar and the banner's top edge, before the
+// overlap (banner still covers half its own height in yellow, just not flush against the search bar).
+const SEARCH_BAR_GAP = 22;
+const BANNER_OVERLAP = BANNER_HEIGHT / 2;
 
 export default function HomeHeader() {
   const insets = useSafeAreaInsets();
   const [showFilter, setShowFilter] = useState(false);
-  const [user, setUser] = useState<UserData | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    const fetchUserName = async () => {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return;
-
-      try {
-        const snapshot = await get(ref(db, `users/${uid}`));
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          setUser({
-            firstName: data.firstName,
-            lastName: data.lastName,
-          });
-        }
-      } catch (error) {
-        // ignore
-      }
-    };
-
-    fetchUserName();
-  }, []);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -71,46 +41,36 @@ export default function HomeHeader() {
   return (
     <View className="mb-2">
       {/* Header */}
-      <View className="bg-[#F9EF08] px-5 pt-4 pb-14 rounded-b-3xl">
-        {/* Top row: greeting + logo + notification */}
-        <View className="flex-row justify-between items-start mb-5">
-          <View className="flex-1 mr-3">
-            <Text className="text-[#5C5C00] text-sm font-medium tracking-wide">
-              {getGreeting()},
-            </Text>
-            <Text
-              className="text-[#1A1A00] text-2xl font-bold mt-0.5"
-              numberOfLines={1}
-            >
-              {user ? user.firstName : '...'}
-            </Text>
-          </View>
-          <View className="flex-row items-center">
-            <Image
-              source={require('../../../../assets/images/ndcwlogo.png')}
-              className="w-20 h-10"
-              resizeMode="contain"
-            />
-            <TouchableOpacity
-              className="ml-3 w-10 h-10 rounded-full bg-[#1A1A00]/10 items-center justify-center"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => router.push('/user/notifications')}
-            >
-              <Ionicons name="notifications-outline" size={20} color="#1A1A00" />
-              {unreadCount > 0 && (
-                <View className="absolute top-1.5 right-1.5 min-w-[10px] h-[10px] rounded-full bg-red-500 border-2 border-[#F9EF08] items-center justify-center px-[1px]">
-                  {unreadCount > 9 ? (
-                    <Text style={{ fontSize: 6, color: '#fff', fontWeight: '700', lineHeight: 8 }}>9+</Text>
-                  ) : null}
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+      <View
+        className="bg-[#F9EF08] px-5 pt-4 rounded-b-2xl"
+        style={{ paddingBottom: SEARCH_BAR_GAP + BANNER_OVERLAP }}
+      >
+        {/* Top row: logo + notification */}
+        <View className="flex-row justify-between items-center mb-5">
+          <Image
+            source={require('../../../../assets/images/ndcwlogo.png')}
+            className="w-28 h-14"
+            resizeMode="contain"
+          />
+          <TouchableOpacity
+            className="w-10 h-10 rounded-full bg-[#1A1A00]/10 items-center justify-center"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => router.push('/user/notifications')}
+          >
+            <Ionicons name="notifications-outline" size={20} color="#1A1A00" />
+            {unreadCount > 0 && (
+              <View className="absolute top-1.5 right-1.5 min-w-[10px] h-[10px] rounded-full bg-red-500 border-2 border-[#F9EF08] items-center justify-center px-[1px]">
+                {unreadCount > 9 ? (
+                  <Text style={{ fontSize: 6, color: '#fff', fontWeight: '700', lineHeight: 8 }}>9+</Text>
+                ) : null}
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Search bar */}
         <View
-          className="bg-[#FAFAFA] rounded-2xl px-4 py-3 flex-row items-center border border-[#EEEEEE]"
+          className="bg-[#FAFAFA] rounded-2xl px-4 py-2 flex-row items-center border border-[#EEEEEE]"
         >
           <Ionicons name="search" size={20} color="#9CA3AF" />
           <TextInput
@@ -153,8 +113,8 @@ export default function HomeHeader() {
         </View>
       )}
 
-      {/* Promotional banner — overlaps the header bottom */}
-      <View className="-mt-6 px-5 z-30">
+      {/* Promotional banner — overlaps the header bottom by half its own height */}
+      <View className="px-5 z-30" style={{ marginTop: -BANNER_OVERLAP }}>
         <PromotionalBanner />
       </View>
     </View>

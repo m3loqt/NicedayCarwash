@@ -8,6 +8,7 @@ interface BayOptionsModalProps {
   onClose: () => void;
   onSaveAvailability: (status: string) => void;
   onDelete: () => void;
+  onEdit: () => void;
 }
 
 export default function BayOptionsModal({
@@ -17,6 +18,7 @@ export default function BayOptionsModal({
   onClose,
   onSaveAvailability,
   onDelete,
+  onEdit,
 }: BayOptionsModalProps) {
   const isAvailable = currentStatus === "available";
   const targetUnavailable = isAvailable;
@@ -54,6 +56,14 @@ export default function BayOptionsModal({
           <Text className="text-[#666] text-sm mb-6" style={{ fontFamily: "Inter_400Regular" }}>
             {message}
           </Text>
+          <TouchableOpacity
+            className="bg-[#FAFAFA] rounded-lg py-3 items-center mb-3"
+            onPress={onEdit}
+          >
+            <Text className="text-[#1A1A1A] font-semibold" style={{ fontFamily: "Inter_600SemiBold" }}>
+              Edit bay
+            </Text>
+          </TouchableOpacity>
           <View className="flex-row gap-3">
             <TouchableOpacity
               className="flex-1 bg-[#FAFAFA] rounded-lg py-3 items-center"

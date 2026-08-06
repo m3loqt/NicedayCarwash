@@ -1,4 +1,6 @@
+import GoogleAuthButton from '@/components/ui/auth/GoogleAuthButton';
 import { useAlert } from '@/hooks/use-alert';
+import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 import { sanitizeNamePart } from '@/lib/sanitize';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,7 +8,6 @@ import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,32 +21,54 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const { alert, AlertComponent } = useAlert();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [termsError, setTermsError] = useState('');
 
   const handleSignUp = async () => {
-    const fn = sanitizeNamePart(firstName);
-    const ln = sanitizeNamePart(lastName);
-    if (!fn || !ln || !email.trim() || !password) {
-      alert('Error', 'Please fill out all fields.');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmedName = sanitizeNamePart(name);
+    const nameParts = trimmedName.split(' ').filter(Boolean);
+    const fn = sanitizeNamePart(nameParts[0] || '');
+    const ln = sanitizeNamePart(nameParts.slice(1).join(' '));
     const emailNorm = email.trim().toLowerCase();
-    if (!emailRegex.test(emailNorm)) {
-      alert('Error', 'Please enter a valid email address.');
-      return;
-    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (password.length < 6) {
-      alert('Error', 'Password must be at least 6 characters.');
-      return;
+    let hasError = false;
+    setNameError('');
+    setEmailError('');
+    setPasswordError('');
+    setTermsError('');
+
+    if (!fn || !ln) {
+      setNameError('Please enter your first and last name');
+      hasError = true;
     }
+    if (!emailNorm) {
+      setEmailError('Please enter your email');
+      hasError = true;
+    } else if (!emailRegex.test(emailNorm)) {
+      setEmailError('Please enter a valid email address');
+      hasError = true;
+    }
+    if (!password) {
+      setPasswordError('Please enter a password');
+      hasError = true;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      hasError = true;
+    }
+    if (!agreedToTerms) {
+      setTermsError('Please agree to the Terms and Conditions');
+      hasError = true;
+    }
+    if (hasError) return;
 
     setLoading(true);
     const auth = getAuth();
@@ -64,16 +87,15 @@ export default function RegisterScreen() {
           email: emailNorm,
           role: 'default',
           profileImage: '',
+          onboardingCompleted: false,
         };
 
         await set(userRef, userMap);
 
-        alert('Success', 'Registration successful.', [
-          { text: 'OK', onPress: () => router.push('/') },
-        ]);
+        router.replace('/complete-profile');
       }
     } catch (error: any) {
-      alert('Registration Failed', error.message || 'Something went wrong.');
+      alert('Couldn\'t create your account', getFriendlyAuthErrorMessage(error, "We couldn't create your account. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -95,78 +117,70 @@ export default function RegisterScreen() {
           className="px-6"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo */}
-          <View className="items-center pt-12 mb-8 -mb-2">
-            <Image
-              source={require('../assets/images/ndcwlogo.png')}
-              style={{ width: 200, height: 100 }}
-              resizeMode="contain"
-            />
-          </View>
-
           {/* Heading */}
-          <View className="mb-7 items-center">
-            <Text className="text-[22px] font-bold text-[#1A1A1A] mb-1 text-center">
+          <View className="mb-9 items-center pt-20">
+            <Text className="text-[30px] font-inter-semibold tracking-tight text-[#1A1A1A] mb-1.5 text-center">
               Create an account
             </Text>
-            <Text className="text-[13px] text-[#999] text-center">
-              Fill in your details to get started
+            <Text
+              className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center"
+              style={{ maxWidth: 260 }}
+            >
+              Fill in your details below or sign up with your social account
             </Text>
           </View>
 
-          {/* First Name */}
-          <View className="mb-4">
-            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">First Name</Text>
+          {/* Name */}
+          <View className="mb-5">
+            <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">Name</Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
-              placeholder="Juan"
+              className={`bg-[#FAFAFA] border rounded-2xl px-4 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A] min-h-[52px] ${
+                nameError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
+              }`}
+              placeholder="Ex. Juan dela Cruz"
               placeholderTextColor="#C4C4C4"
-              value={firstName}
-              onChangeText={setFirstName}
+              value={name}
+              onChangeText={(t) => { setName(t); if (nameError) setNameError(''); }}
               autoCapitalize="words"
               autoCorrect={false}
             />
-          </View>
-
-          {/* Last Name */}
-          <View className="mb-4">
-            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Last Name</Text>
-            <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
-              placeholder="dela Cruz"
-              placeholderTextColor="#C4C4C4"
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
+            {!!nameError && (
+              <Text className="text-[12px] font-inter-regular tracking-tight text-[#DC2626] mt-1.5">{nameError}</Text>
+            )}
           </View>
 
           {/* Email */}
-          <View className="mb-4">
-            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Email Address</Text>
+          <View className="mb-5">
+            <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">Email</Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 py-4 text-[13px] text-[#1A1A1A] min-h-[52px]"
+              className={`bg-[#FAFAFA] border rounded-2xl px-4 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A] min-h-[52px] ${
+                emailError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
+              }`}
               placeholder="your.email@example.com"
               placeholderTextColor="#C4C4C4"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(''); }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
+            {!!emailError && (
+              <Text className="text-[12px] font-inter-regular tracking-tight text-[#DC2626] mt-1.5">{emailError}</Text>
+            )}
           </View>
 
           {/* Password */}
-          <View className="mb-7">
-            <Text className="text-[11px] font-semibold text-[#999] uppercase tracking-widest mb-1.5">Password</Text>
-            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg px-4 min-h-[52px]">
+          <View className="mb-6">
+            <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">Password</Text>
+            <View className={`flex-row items-center bg-[#FAFAFA] border rounded-2xl px-4 min-h-[52px] ${
+              passwordError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
+            }`}>
               <TextInput
-                className="flex-1 py-4 text-[13px] text-[#1A1A1A]"
+                className="flex-1 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A]"
                 placeholder="Create a password"
                 placeholderTextColor="#C4C4C4"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); if (passwordError) setPasswordError(''); }}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -175,25 +189,63 @@ export default function RegisterScreen() {
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
+            {!!passwordError && (
+              <Text className="text-[12px] font-inter-regular tracking-tight text-[#DC2626] mt-1.5">{passwordError}</Text>
+            )}
+          </View>
+
+          {/* Terms checkbox */}
+          <View className="mb-7">
+            <View className="flex-row items-center">
+              <TouchableOpacity
+                onPress={() => { setAgreedToTerms(!agreedToTerms); if (termsError) setTermsError(''); }}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className={`w-5 h-5 rounded-md border-2 items-center justify-center mr-2.5 ${
+                  agreedToTerms ? 'bg-[#F9EF08] border-[#F9EF08]' : termsError ? 'border-[#DC2626]' : 'border-[#D4D4D4] bg-white'
+                }`}
+              >
+                {agreedToTerms && <Ionicons name="checkmark" size={14} color="#1A1A00" />}
+              </TouchableOpacity>
+              <Text className="text-[13px] font-inter-regular tracking-tight text-[#666] flex-1">
+                I agree to the{' '}
+                <Text className="font-inter-bold text-[#1A1A1A] underline" onPress={() => router.push('/terms')}>
+                  Terms and Conditions
+                </Text>
+              </Text>
+            </View>
+            {!!termsError && (
+              <Text className="text-[12px] font-inter-regular tracking-tight text-[#DC2626] mt-1.5 ml-[30px]">{termsError}</Text>
+            )}
           </View>
 
           {/* Sign Up button */}
           <TouchableOpacity
-            className={`bg-[#F9EF08] rounded-lg py-4 items-center mb-8 min-h-[52px] justify-center ${loading ? 'opacity-60' : ''}`}
+            className={`bg-[#F9EF08] rounded-full py-4 items-center mb-5 min-h-[52px] justify-center ${loading ? 'opacity-60' : ''}`}
             onPress={handleSignUp}
             disabled={loading}
             activeOpacity={0.85}
           >
-            <Text className="text-[14px] font-bold text-[#1A1A00]">
+            <Text className="text-[15px] font-inter-bold tracking-tight text-[#1A1A00]">
               {loading ? 'Creating account...' : 'Sign Up'}
             </Text>
           </TouchableOpacity>
 
+          <View className="flex-row items-center mb-6">
+            <View className="flex-1 h-px bg-[#F0F0F0]" />
+            <Text className="mx-4 text-[12px] font-inter-regular tracking-tight text-[#999]">Or sign up with</Text>
+            <View className="flex-1 h-px bg-[#F0F0F0]" />
+          </View>
+
+          <View className="mb-8">
+            <GoogleAuthButton alert={alert} />
+          </View>
+
           {/* Footer */}
           <View className="items-center pb-8">
-            <Text className="text-[12px] text-[#999] text-center">
+            <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center">
               Already have an account?{' '}
-              <Text className="text-[#1A1A1A] font-bold" onPress={handleSignIn}>
+              <Text className="text-[#1A1A1A] font-inter-bold underline" onPress={handleSignIn}>
                 Sign In
               </Text>
             </Text>
