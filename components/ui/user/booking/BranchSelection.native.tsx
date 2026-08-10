@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { get, getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   ScrollView,
@@ -388,6 +389,24 @@ const handleSearch = (q: string) => {
           );
         })}
         </MapView>
+
+        {branchesLoading && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: '#FAFAFA',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ActivityIndicator size="small" color="#1A1A1A" />
+          </View>
+        )}
 
         {/* Search Bar Overlay */}
         <View className="absolute top-4 left-4 right-4 flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] px-3 py-2 rounded-full">

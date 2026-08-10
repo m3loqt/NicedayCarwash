@@ -6,11 +6,11 @@ import ServicesQuickAccess from '../../../components/ui/user/home/ServicesSlider
 
 export default function UserHomeScreen() {
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
+    <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#F9EF08" />
       <SafeAreaView className="flex-1 bg-[#F9EF08]" edges={['top']}>
         <ScrollView
-          className="bg-[#FAFAFA]"
+          className="bg-white"
           showsVerticalScrollIndicator={false}
           bounces={false}
           contentContainerStyle={{ paddingBottom: 24 }}

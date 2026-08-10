@@ -223,24 +223,24 @@ export default function BookingProgressScreen() {
                     <View className="items-center mr-4" style={{ width: 28 }}>
                       <View
                         className="w-7 h-7 rounded-full items-center justify-center"
-                        style={{ backgroundColor: reached ? '#1A1A1A' : '#EFEFEF' }}
+                        style={{ backgroundColor: reached ? '#F9EF08' : '#EFEFEF' }}
                       >
-                        <Ionicons name="checkmark" size={14} color={reached ? '#FFFFFF' : '#BDBDBD'} />
+                        <Ionicons name="checkmark" size={14} color={reached ? '#1A1A1A' : '#BDBDBD'} />
                       </View>
                       {!isLast && (
                         <View
                           style={{
                             width: 2,
                             flex: 1,
-                            minHeight: 40,
-                            backgroundColor: currentStepIndex > stepIndex ? '#1A1A1A' : '#EFEFEF',
+                            minHeight: 56,
+                            backgroundColor: currentStepIndex > stepIndex ? '#F9EF08' : '#EFEFEF',
                           }}
                         />
                       )}
                     </View>
 
                     {/* Label + timestamp */}
-                    <View className="flex-1 pb-7">
+                    <View className="flex-1 pb-10">
                       <Text
                         className="text-[14.5px] font-bold"
                         style={{ color: reached ? '#1A1A1A' : '#BDBDBD' }}
@@ -284,11 +284,11 @@ export default function BookingProgressScreen() {
         {/* Actions */}
         <View className="px-6 mt-6">
           <TouchableOpacity
-            className="bg-[#1A1A1A] rounded-full py-4 items-center"
+            className="bg-[#F9EF08] rounded-full py-4 items-center"
             onPress={() => setShowDetails(true)}
             activeOpacity={0.85}
           >
-            <Text className="text-[14px] font-bold text-white">View Full Details</Text>
+            <Text className="text-[14px] font-bold text-[#1A1A00]">View Full Details</Text>
           </TouchableOpacity>
 
           {booking.status === 'completed' && (

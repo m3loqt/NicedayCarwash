@@ -133,7 +133,9 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
         showsVerticalScrollIndicator={false}
         bounces={false}
         className="pt-6"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={
+          bookings.length > 0 ? { paddingBottom: 100 } : { flexGrow: 1, paddingBottom: 100 }
+        }
       >
         {bookings.length > 0 ? (
           bookings.map((booking) => (
@@ -157,12 +159,24 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
             />
           ))
         ) : (
-          <View className="flex-1 justify-center items-center py-24">
-            <Ionicons name="receipt-outline" size={48} color="#E0E0E0" />
-            <Text className="text-base text-[#999] mt-4">
+          <View className="flex-1 justify-center items-center px-10">
+            <View
+              style={{
+                width: 110,
+                height: 110,
+                borderRadius: 55,
+                backgroundColor: '#FFF3B0',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <Ionicons name="receipt-outline" size={52} color="#1A1A1A" />
+            </View>
+            <Text className="text-[19px] font-bold text-[#1A1A1A] mb-1.5">
               No {activeTab === 'accepted' ? 'confirmed' : activeTab} bookings
             </Text>
-            <Text className="text-[13px] text-[#CCC] mt-1">
+            <Text className="text-[13.5px] text-[#999] text-center leading-5">
               Your {activeTab === 'accepted' ? 'confirmed' : activeTab} bookings will appear here
             </Text>
           </View>
