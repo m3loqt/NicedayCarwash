@@ -222,7 +222,20 @@ export default function AppointmentDetailsModal({
 
             {/* Payment */}
             <View className="px-5 py-3">
-              <Row label="Payment Method" value={paymentMethod || 'Not selected'} />
+              <View className="flex-row justify-between items-center py-1">
+                <Text className="text-[13px] text-[#999]">Payment Method</Text>
+                {paymentMethod?.toLowerCase() === 'maya' ? (
+                  <Image
+                    source={require('../../../../../assets/images/maya_logo.png')}
+                    style={{ width: 51, height: 16 }}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Text className="text-[13px] font-semibold text-[#1A1A1A]">
+                    {paymentMethod || 'Not selected'}
+                  </Text>
+                )}
+              </View>
             </View>
 
             {/* Note */}

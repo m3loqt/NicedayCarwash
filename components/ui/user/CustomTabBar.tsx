@@ -1,3 +1,4 @@
+import { TAB_BAR_BOTTOM_MARGIN, TAB_BAR_HEIGHT } from '@/hooks/use-tab-bar-height';
 import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -17,7 +18,7 @@ export default function CustomTabBar({ state, descriptors, navigation, insets }:
   if (hidden) return null;
 
   return (
-    <View style={[styles.wrapper, { marginBottom: insets.bottom + 16 }]} pointerEvents="box-none">
+    <View style={[styles.wrapper, { marginBottom: insets.bottom + TAB_BAR_BOTTOM_MARGIN }]} pointerEvents="box-none">
       <View style={styles.bar}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -68,10 +69,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    height: 64,
+    height: TAB_BAR_HEIGHT,
     width: '92%',
     paddingHorizontal: 10,
-    elevation: 0.5,
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   inactiveSlot: {
     flex: 1,

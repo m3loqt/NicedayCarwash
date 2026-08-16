@@ -4,12 +4,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, ref } from "firebase/database";
 import { useEffect, useState } from "react";
 import {
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View
 } from "react-native";
-import AlertModal from "./modals/AlertModal";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
 
 interface Service {
@@ -52,7 +52,7 @@ export default function ServicesStep({
   selectedVehicle: Vehicle;
   onNext: (data: any) => void;
 }) {
-  const { alert, AlertComponent } = useAlert();
+  const { showAlert, AlertComponent } = useAlert();
   const [services, setServices] = useState<Service[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
@@ -67,16 +67,6 @@ export default function ServicesStep({
   const [branchSchedule, setBranchSchedule] = useState<{ openTime: string; closeTime: string } | null>(null);
   const [showScheduleUnavailableModal, setShowScheduleUnavailableModal] = useState(false);
   const [unavailableReason, setUnavailableReason] = useState<string>("");
-  const [alertModal, setAlertModal] = useState<{
-    visible: boolean;
-    type?: 'error' | 'warning' | 'info' | 'success';
-    title: string;
-    message: string;
-  }>({ visible: false, title: '', message: '' });
-
-  const showAlert = (title: string, message: string, type: 'error' | 'warning' | 'info' | 'success' = 'error') => {
-    setAlertModal({ visible: true, type, title, message });
-  };
 
   const db = getDatabase();
 
@@ -153,7 +143,7 @@ export default function ServicesStep({
         setServices([]);
       }
     } catch (err) {
-      showAlert("Couldn't load services", "Something went wrong while fetching the available services. Please try again.", 'error');
+      showAlert("Something went wrong while fetching the available services. Please try again.", { title: "Couldn't load services", type: 'error' });
     }
   };
 
@@ -177,7 +167,7 @@ export default function ServicesStep({
         setAddons(data);
       }
     } catch (err) {
-      showAlert("Couldn't load add-ons", "Something went wrong while fetching the available add-ons. Please try again.", 'error');
+      showAlert("Something went wrong while fetching the available add-ons. Please try again.", { title: "Couldn't load add-ons", type: 'error' });
     }
   };
 
@@ -387,15 +377,15 @@ export default function ServicesStep({
   // ------------------ Confirm Booking ------------------
   const handleNext = () => {
     if (!selectedServices.length) {
-      showAlert("No service selected", "Please choose a washing plan before proceeding.", 'warning');
+      showAlert("Please choose a washing plan before proceeding.", { title: "No service selected", type: 'warning' });
       return;
     }
     if (!selectedTimeSlot) {
-      showAlert("No time slot selected", "Please pick an available time slot for your appointment.", 'warning');
+      showAlert("Please pick an available time slot for your appointment.", { title: "No time slot selected", type: 'warning' });
       return;
     }
     if (!paymentMethod) {
-      showAlert("No payment method", "Please select how you'd like to pay before completing your booking.", 'warning');
+      showAlert("Please select how you'd like to pay before completing your booking.", { title: "No payment method", type: 'warning' });
       return;
     }
 
@@ -604,15 +594,6 @@ export default function ServicesStep({
           onClose={() => setShowScheduleUnavailableModal(false)}
         />
 
-        {/* Alert Modal */}
-        <AlertModal
-          visible={alertModal.visible}
-          type={alertModal.type}
-          title={alertModal.title}
-          message={alertModal.message}
-          onClose={() => setAlertModal(prev => ({ ...prev, visible: false }))}
-        />
-
         {/* Time slot label */}
         {timeSlots.length > 0 && (
           <Text className="text-[11px] font-semibold tracking-widest text-[#999] px-4 mb-2 uppercase">
@@ -650,39 +631,26 @@ export default function ServicesStep({
         {/* ------------------- PAYMENT OPTIONS ------------------- */}
         <Text className="text-xl font-semibold mt-6 mb-3 px-4">Payment Option</Text>
         <View className="px-4">
-            {/* COD – disabled / coming soon */}
-          <View className="flex-row items-center px-4 py-3 rounded-2xl mb-3 bg-white border border-transparent opacity-50">
-            <View className="w-9 h-9 rounded-xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mr-3">
-              <Ionicons name="cash-outline" size={20} color="#BDBDBD" />
-            </View>
-            <View className="flex-1">
-              <View className="flex-row items-center gap-2">
-                <Text className="text-[13px] font-semibold text-[#BDBDBD]">Cash on Delivery</Text>
-                <View className="bg-[#F0F0F0] rounded-full px-2 py-0.5">
-                  <Text className="text-[10px] font-semibold text-[#BDBDBD]">Coming soon</Text>
-                </View>
-              </View>
-              <Text className="text-[11px] text-[#C4C4C4] mt-0.5">Not available at the moment.</Text>
-            </View>
-          </View>
-
-          {/* E-Wallet */}
+          {/* Maya - the only integrated payment method */}
           <TouchableOpacity
-            onPress={() => setPaymentMethod('E-Wallet')}
+            onPress={() => setPaymentMethod('Maya')}
             className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 ${
-              paymentMethod === 'E-Wallet'
+              paymentMethod === 'Maya'
                 ? 'bg-white border border-[#D4D4D4]'
                 : 'bg-white border border-transparent'
             }`}
             activeOpacity={0.8}
           >
-            <View className="w-9 h-9 rounded-xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mr-3">
-              <Ionicons name="wallet-outline" size={20} color="#1A1A1A" />
-            </View>
             <View className="flex-1">
-              <Text className="text-[13px] font-semibold text-[#1A1A1A]">E-Wallet</Text>
-              <Text className="text-[11px] text-[#999] mt-0.5">GCash, Maya, and other supported wallets.</Text>
+              <Text className="text-[13px] font-semibold text-[#1A1A1A]">Maya</Text>
+              <Text className="text-[11px] text-[#999] mt-0.5">Pay via Maya wallet, card, or QR Ph.</Text>
             </View>
+            <Image
+              source={require('../../../../assets/images/maya_logo.png')}
+              style={{ width: 45, height: 14 }}
+              resizeMode="contain"
+              className="ml-3"
+            />
           </TouchableOpacity>
         </View>
 
@@ -699,6 +667,7 @@ export default function ServicesStep({
           </TouchableOpacity>
         </View>
       </ScrollView>
+      {AlertComponent}
     </View>
   );
 }

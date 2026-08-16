@@ -1,10 +1,11 @@
-import { View } from 'react-native';
+import { StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BookingSuccess from '../../components/ui/user/booking/BookingSuccess';
 
 export default function BookingSuccessPage() {
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View style={{ flex: 1 }}>
         <BookingSuccess />
       </View>

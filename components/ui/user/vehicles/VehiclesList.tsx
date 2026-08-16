@@ -1,5 +1,6 @@
 import { ListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { useAlert } from '@/hooks/use-alert';
+import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -40,6 +41,7 @@ const vehicleLabels: Record<string, string> = {
 
 export default function VehiclesList() {
   const { alert, AlertComponent } = useAlert();
+  const tabBarClearance = useTabBarClearance();
   const [vehicles, setVehicles] = useState<VehicleProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
@@ -130,7 +132,7 @@ export default function VehiclesList() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: tabBarClearance }}
       >
         {vehicles.length > 0 ? (
           vehicles.map((vehicle) => (

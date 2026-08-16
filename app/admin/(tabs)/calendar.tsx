@@ -200,12 +200,6 @@ export default function AdminCalendarScreen() {
           >
             <Ionicons name="chevron-forward" size={16} color="#1A1A1A" />
           </TouchableOpacity>
-          <TouchableOpacity
-            className="w-9 h-9 rounded-full border border-[#E0E0E0] items-center justify-center"
-            activeOpacity={0.7}
-          >
-            <Ionicons name="search-outline" size={16} color="#1A1A1A" />
-          </TouchableOpacity>
         </View>
 
         {/* ── Day-of-week labels ── */}

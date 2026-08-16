@@ -261,13 +261,22 @@ export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, 
   const failed = !succeeded && records.some((r) => r.status && MAYA_TERMINAL_FAILURE_STATUSES.includes(r.status));
 
   if (succeeded) {
-    await db.ref(refPath).update({ status: "succeeded", updatedAt: admin.database.ServerValue.TIMESTAMP });
+    // Maya's own payment id (not our locally-generated requestReferenceNumber) - this is what
+    // actually lets a receipt be reconciled against Maya's own dashboard/records.
+    const mayaPaymentId = records.find((r) => r.status === MAYA_SUCCESS_STATUS)?.id;
+
+    await db.ref(refPath).update({
+      status: "succeeded",
+      updatedAt: admin.database.ServerValue.TIMESTAMP,
+      ...(mayaPaymentId ? { mayaPaymentId } : {}),
+    });
     await db
       .ref(`Reservations/ReservationsByUser/${record.userId}/${record.dateKey}/${record.appointmentId}`)
       .update({
         isPaid: true,
         paidAt: admin.database.ServerValue.TIMESTAMP,
         paymentMethod: "maya",
+        ...(mayaPaymentId ? { mayaPaymentId } : {}),
       });
   } else if (failed) {
     await db.ref(refPath).update({ status: "failed", updatedAt: admin.database.ServerValue.TIMESTAMP });
@@ -278,7 +287,9 @@ export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, 
 });
 
 const PENDING_EXPIRY_MS = 24 * 60 * 60 * 1000;
+const PAYMENT_WINDOW_MS = 15 * 60 * 1000;
 const AUTO_CANCEL_REASON = "Branch might be too busy to accommodate your request at this time.";
+const PAYMENT_TIMEOUT_REASON = "Payment wasn't completed in time, so the slot was released.";
 
 async function notifyUser(userId: string, branchId: string, payload: Record<string, unknown>): Promise<void> {
   const db = admin.database();
@@ -292,7 +303,8 @@ async function expireOnePendingBooking(
   branchId: string,
   userId: string,
   dateKey: string,
-  appointmentId: string
+  appointmentId: string,
+  reason: string
 ): Promise<void> {
   const db = admin.database();
   const cancelledAt = new Date().toISOString();
@@ -302,7 +314,7 @@ async function expireOnePendingBooking(
 
   await userBookingRef.update({
     status: "cancelled",
-    cancelReason: AUTO_CANCEL_REASON,
+    cancelReason: reason,
     cancelledAt,
     cancelledBy: "system",
     refundEligible: true,
@@ -312,7 +324,7 @@ async function expireOnePendingBooking(
     await db.ref(`Reservations/ReservationsByBranch/${branchId}/${dateKey}/${appointmentId}`).set({
       ...bookingData,
       status: "cancelled",
-      cancelReason: AUTO_CANCEL_REASON,
+      cancelReason: reason,
       cancelledAt,
       cancelledBy: "system",
       refundEligible: true,
@@ -321,7 +333,7 @@ async function expireOnePendingBooking(
 
   await notifyUser(userId, branchId, {
     title: "Booking Automatically Cancelled",
-    body: `Your appointment (${appointmentId}) was automatically cancelled. ${AUTO_CANCEL_REASON}`,
+    body: `Your appointment (${appointmentId}) was automatically cancelled. ${reason}`,
     appointmentId,
     type: "cancelled",
     read: false,
@@ -340,8 +352,15 @@ async function expireOnePendingBooking(
 
 // Replaces the old client-side auto-decline (which only ran if an admin happened to have the
 // Appointments screen open) - this now has real refund consequences, so it can't depend on that.
+//
+// Two different failure modes share this one pass, each with its own threshold: an unpaid hold
+// (customer never finished Maya checkout) releases after PAYMENT_WINDOW_MS so the slot doesn't
+// sit locked up waiting on a payment that isn't coming; a paid-but-unaccepted booking (admin
+// never acted on it) gets the much longer PENDING_EXPIRY_MS, since there's no urgency to free a
+// slot the branch has already been paid to hold. Runs every 5 minutes (rather than every 15) so
+// the 15-minute payment window stays reasonably tight in practice.
 export const expirePendingBookings = onSchedule(
-  { schedule: "every 15 minutes", secrets: ALL_MAYA_SECRETS },
+  { schedule: "every 5 minutes", secrets: ALL_MAYA_SECRETS },
   async () => {
     const db = admin.database();
     const branchesSnap = await db.ref("Notifications/ByBranch").get();
@@ -355,13 +374,29 @@ export const expirePendingBookings = onSchedule(
       const pending = branchSnap.child("pendingBookings");
       pending.forEach((entrySnap) => {
         const data = entrySnap.val();
-        if (data?.createdAt && now - new Date(data.createdAt).getTime() > PENDING_EXPIRY_MS) {
-          tasks.push(
-            expireOnePendingBooking(branchId, data.userId, data.dateKey, data.appointmentId).catch((err) => {
-              logger.error("Failed to expire pending booking", { branchId, appointmentId: data.appointmentId, err });
-            })
-          );
-        }
+        if (!data?.createdAt || !data.userId || !data.dateKey || !data.appointmentId) return false;
+
+        const ageMs = now - new Date(data.createdAt).getTime();
+        tasks.push(
+          (async () => {
+            const bookingSnap = await db
+              .ref(`Reservations/ReservationsByUser/${data.userId}/${data.dateKey}/${data.appointmentId}`)
+              .get();
+            const isPaid = bookingSnap.val()?.isPaid === true;
+            const shouldExpire = isPaid ? ageMs > PENDING_EXPIRY_MS : ageMs > PAYMENT_WINDOW_MS;
+            if (!shouldExpire) return;
+
+            await expireOnePendingBooking(
+              branchId,
+              data.userId,
+              data.dateKey,
+              data.appointmentId,
+              isPaid ? AUTO_CANCEL_REASON : PAYMENT_TIMEOUT_REASON
+            );
+          })().catch((err) => {
+            logger.error("Failed to expire pending booking", { branchId, appointmentId: data.appointmentId, err });
+          })
+        );
         return false;
       });
       return false;

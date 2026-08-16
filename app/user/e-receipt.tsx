@@ -7,7 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 
@@ -27,6 +27,7 @@ interface BookingData {
   services?: ReceiptItem[];
   addOns?: ReceiptItem[];
   completedAt?: string;
+  mayaPaymentId?: string;
   transactionId?: string;
 }
 
@@ -111,8 +112,9 @@ export default function EReceiptScreen() {
   }, [appointmentId, date, uid]);
 
   const handleCopyTransactionId = async () => {
-    if (!booking?.transactionId) return;
-    await Clipboard.setStringAsync(booking.transactionId);
+    const id = booking?.mayaPaymentId || booking?.transactionId || booking?.appointmentId;
+    if (!id) return;
+    await Clipboard.setStringAsync(id);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -167,7 +169,7 @@ export default function EReceiptScreen() {
     : estMinutes > 0
     ? `${estMinutes} Minutes`
     : '—';
-  const transactionId = booking.transactionId || booking.appointmentId;
+  const transactionId = booking.mayaPaymentId || booking.transactionId || booking.appointmentId;
   const completedLabel = formatDateTime(booking.completedAt);
 
   const orderRows = [
@@ -179,14 +181,17 @@ export default function EReceiptScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center px-5 pt-2 pb-4">
+      <View className="flex-row items-center px-5 pt-2 pb-5">
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className="w-9 h-9 rounded-full border border-[#EEEEEE] items-center justify-center"
         >
-          <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
+          <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
         </TouchableOpacity>
-        <Text className="text-[17px] font-inter-semibold tracking-tight text-[#1A1A1A] ml-2">E-Receipt</Text>
+        <Text className="flex-1 text-center text-[17px] font-bold text-[#1A1A1A] mr-9">
+          E-Receipt
+        </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
@@ -217,7 +222,20 @@ export default function EReceiptScreen() {
 
             <View className="h-[0.5px] bg-[#EEEEEE] my-3" />
 
-            <Row label="Payment Method" value={booking.paymentMethod || 'Cash'} />
+            <View className="flex-row justify-between items-center py-2">
+              <Text className="text-[12.5px] font-inter-regular tracking-tight text-[#999]">Payment Method</Text>
+              {booking.paymentMethod?.toLowerCase() === 'maya' ? (
+                <Image
+                  source={require('../../assets/images/maya_logo.png')}
+                  style={{ width: 51, height: 16 }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text className="text-[13px] font-inter-bold tracking-tight text-[#1A1A1A]">
+                  {booking.paymentMethod || 'Cash'}
+                </Text>
+              )}
+            </View>
             <Row label="Date" value={completedLabel || '—'} />
 
             <View className="flex-row justify-between items-center py-2">
@@ -234,15 +252,15 @@ export default function EReceiptScreen() {
 
         <View className="px-6 mt-4">
           <TouchableOpacity
-            className={`bg-[#1A1A1A] rounded-full py-4 items-center ${downloading ? 'opacity-60' : ''}`}
+            className={`bg-[#F9EF08] rounded-full py-4 items-center ${downloading ? 'opacity-60' : ''}`}
             onPress={handleDownload}
             disabled={downloading}
             activeOpacity={0.85}
           >
             {downloading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color="#1A1A00" />
             ) : (
-              <Text className="text-[14px] font-inter-bold tracking-tight text-white">Download E-Receipt</Text>
+              <Text className="text-[14px] font-inter-bold tracking-tight text-[#1A1A00]">Download E-Receipt</Text>
             )}
           </TouchableOpacity>
         </View>

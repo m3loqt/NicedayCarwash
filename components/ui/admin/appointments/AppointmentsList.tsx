@@ -658,87 +658,29 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     return () => unsubscribe();
   }, [branchId, activeTab, searchQuery]);
 
-  // Separate listener for pending bookings sourced from Notifications/ByBranch pendingBookings
+  // Separate listener for pending bookings sourced from Notifications/ByBranch pendingBookings.
+  // Only bookings whose Maya deposit is confirmed (isPaid) are shown here - an abandoned/unpaid
+  // checkout still creates the reservation + notification entry (to hold the slot), but shouldn't
+  // reach the branch until the webhook confirms payment. Each entry is a live onValue (not a
+  // one-time get) so a booking appears the moment isPaid flips true, without needing a manual refresh.
   useEffect(() => {
     if (!branchId || activeTab !== 'pending') return;
 
     const pendingNotifRef = ref(db, `Notifications/ByBranch/${branchId}/pendingBookings`);
+    const bookingUnsubscribes: Record<string, () => void> = {};
+    const bookingData: Record<string, Booking> = {};
+    const searchLower = searchQuery.toLowerCase();
 
-    const unsubscribe = onValue(pendingNotifRef, async (snapshot) => {
-      if (!snapshot.exists()) {
-        setBookings([]);
-        setLoading(false);
-        return;
-      }
-
-      const pendingEntries: Array<{ userId: string; dateKey: string; appointmentId: string }> = [];
-      snapshot.forEach((snap) => {
-        const data = snap.val();
-        if (data && data.userId && data.dateKey && data.appointmentId) {
-          pendingEntries.push({ userId: data.userId, dateKey: data.dateKey, appointmentId: data.appointmentId });
-        }
+    const recompute = () => {
+      const bookingsList = Object.values(bookingData).filter((booking) => {
+        if (!booking.isPaid) return false;
+        if (!searchQuery) return true;
+        return (
+          booking.appointmentId.toLowerCase().includes(searchLower) ||
+          booking.vehicleDetails.vehicleName.toLowerCase().includes(searchLower) ||
+          booking.vehicleDetails.plateNumber.toLowerCase().includes(searchLower)
+        );
       });
-
-      const bookingsList: Booking[] = [];
-      const searchLower = searchQuery.toLowerCase();
-
-      for (const entry of pendingEntries) {
-        try {
-          const userBookingRef = ref(db, `Reservations/ReservationsByUser/${entry.userId}/${entry.dateKey}/${entry.appointmentId}`);
-          const bookingSnap = await get(userBookingRef);
-          if (!bookingSnap.exists()) continue;
-
-          const data = bookingSnap.val();
-          if (!data) continue;
-
-          const addOnsObj = data.addOns;
-          let addOns: any[] = [];
-          if (Array.isArray(addOnsObj)) {
-            addOns = addOnsObj;
-          } else if (addOnsObj && typeof addOnsObj === 'object') {
-            addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
-          }
-
-          const servicesObj = data.services;
-          let services: any[] = [];
-          if (Array.isArray(servicesObj)) {
-            services = servicesObj;
-          } else if (servicesObj && typeof servicesObj === 'object') {
-            services = Object.keys(servicesObj).map((k) => servicesObj[k]);
-          }
-
-          const booking: Booking = {
-            appointmentId: data.appointmentId || entry.appointmentId,
-            branchName: data.branchName || '',
-            branchAddress: data.branchAddress || '',
-            status: data.status || 'pending',
-            isPaid: data.isPaid !== undefined ? data.isPaid : false,
-            timeSlot: data.timeSlot || { appointmentDate: '', time: '', estCompletion: undefined },
-            vehicleDetails: data.vehicleDetails || { vehicleName: '', plateNumber: '', classification: '' },
-            amountDue: data.amountDue || 0,
-            key: entry.appointmentId,
-            dateKey: entry.dateKey,
-            cancelledAt: data.cancelledAt || undefined,
-            completedAt: data.completedAt || undefined,
-            addOns,
-            services,
-            paymentMethod: data.paymentMethod || '',
-            note: data.note || '',
-            userId: entry.userId,
-          };
-
-          if (
-            !searchQuery ||
-            booking.appointmentId.toLowerCase().includes(searchLower) ||
-            booking.vehicleDetails.vehicleName.toLowerCase().includes(searchLower) ||
-            booking.vehicleDetails.plateNumber.toLowerCase().includes(searchLower)
-          ) {
-            bookingsList.push(booking);
-          }
-        } catch (error) {
-          logError('AppointmentsList.fetchPendingBookingById', error, { context: 'Error fetching pending booking' });
-        }
-      }
 
       bookingsList.sort((a, b) => {
         const dateA = parseAppointmentDateTime(a.timeSlot.appointmentDate, a.timeSlot.time);
@@ -748,9 +690,89 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
       setBookings(bookingsList);
       setLoading(false);
+    };
+
+    const unsubscribeIndex = onValue(pendingNotifRef, (snapshot) => {
+      const currentIds = new Set<string>();
+
+      snapshot.forEach((snap) => {
+        const entry = snap.val();
+        if (!entry || !entry.userId || !entry.dateKey || !entry.appointmentId) return;
+        const { userId, dateKey, appointmentId } = entry;
+        currentIds.add(appointmentId);
+
+        if (bookingUnsubscribes[appointmentId]) return;
+
+        const userBookingRef = ref(db, `Reservations/ReservationsByUser/${userId}/${dateKey}/${appointmentId}`);
+        bookingUnsubscribes[appointmentId] = onValue(
+          userBookingRef,
+          (bookingSnap) => {
+            const data = bookingSnap.val();
+            if (!data) {
+              delete bookingData[appointmentId];
+              recompute();
+              return;
+            }
+
+            const addOnsObj = data.addOns;
+            let addOns: any[] = [];
+            if (Array.isArray(addOnsObj)) {
+              addOns = addOnsObj;
+            } else if (addOnsObj && typeof addOnsObj === 'object') {
+              addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
+            }
+
+            const servicesObj = data.services;
+            let services: any[] = [];
+            if (Array.isArray(servicesObj)) {
+              services = servicesObj;
+            } else if (servicesObj && typeof servicesObj === 'object') {
+              services = Object.keys(servicesObj).map((k) => servicesObj[k]);
+            }
+
+            bookingData[appointmentId] = {
+              appointmentId: data.appointmentId || appointmentId,
+              branchName: data.branchName || '',
+              branchAddress: data.branchAddress || '',
+              status: data.status || 'pending',
+              isPaid: data.isPaid !== undefined ? data.isPaid : false,
+              timeSlot: data.timeSlot || { appointmentDate: '', time: '', estCompletion: undefined },
+              vehicleDetails: data.vehicleDetails || { vehicleName: '', plateNumber: '', classification: '' },
+              amountDue: data.amountDue || 0,
+              key: appointmentId,
+              dateKey,
+              cancelledAt: data.cancelledAt || undefined,
+              completedAt: data.completedAt || undefined,
+              addOns,
+              services,
+              paymentMethod: data.paymentMethod || '',
+              note: data.note || '',
+              userId,
+            };
+            recompute();
+          },
+          (error) => {
+            logError('AppointmentsList.fetchPendingBookingById', error, { context: 'Error fetching pending booking' });
+          }
+        );
+      });
+
+      // Stop listening to entries that dropped off pendingBookings (accepted/cancelled/expired elsewhere)
+      Object.keys(bookingUnsubscribes).forEach((id) => {
+        if (!currentIds.has(id)) {
+          bookingUnsubscribes[id]();
+          delete bookingUnsubscribes[id];
+          delete bookingData[id];
+        }
+      });
+
+      recompute();
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeIndex();
+      Object.values(bookingUnsubscribes).forEach((unsub) => unsub());
+    };
   }, [branchId, activeTab, searchQuery]);
 
   // Fetches bay availability from Firebase, checking for conflicts with ongoing appointments
@@ -1318,18 +1340,12 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       }
 
       const completedAtTimestamp = toLocalISOString(new Date());
-      // E-receipt reference number, generated once at completion time (this is the only point
-      // a booking transitions to 'completed', so no risk of regenerating it on a later edit).
-      const transactionId = `TR${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, '0')}`;
 
       // Single multi-path update so a dropped connection can't leave ReservationsByBranch,
       // ReservationsByUser, Bays, and BayOccupancy disagreeing with each other.
       const updates: Record<string, any> = {
         [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/status`]: 'completed',
         [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/completedAt`]: completedAtTimestamp,
-        [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/transactionId`]: transactionId,
       };
 
       const userId = bookingToComplete.userId || '';
@@ -1337,7 +1353,6 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         const userBookingPath = `Reservations/ReservationsByUser/${userId}/${bookingToComplete.dateKey}/${bookingToComplete.key}`;
         updates[`${userBookingPath}/status`] = 'completed';
         updates[`${userBookingPath}/completedAt`] = completedAtTimestamp;
-        updates[`${userBookingPath}/transactionId`] = transactionId;
 
         // Sending notification to customer in both branch and user channels, folded into
         // this same multi-path update for atomicity

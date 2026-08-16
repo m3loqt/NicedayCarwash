@@ -1,6 +1,7 @@
 import { AccountSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import SignOutModal from '@/components/ui/SignOutModal';
 import { useAlert } from '@/hooks/use-alert';
+import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,6 +30,7 @@ const menuItems = [
 
 export default function UserProfileScreen() {
   const { alert, AlertComponent } = useAlert();
+  const tabBarClearance = useTabBarClearance();
   const [user, setUser] = useState<UserData | null>(null);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -114,7 +116,7 @@ export default function UserProfileScreen() {
           <Text className="text-3xl font-inter-semibold tracking-tight text-[#1A1A1A]">Profile</Text>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarClearance }}>
           {/* Profile section */}
           <View className="items-center pt-2 pb-6">
             {/* Avatar */}

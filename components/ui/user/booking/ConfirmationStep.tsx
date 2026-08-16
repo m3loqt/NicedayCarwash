@@ -1,3 +1,4 @@
+import { useAlert } from '@/hooks/use-alert';
 import { checkBranchCapacity } from '@/lib/capacityCheck';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logWarn } from '@/lib/logger';
@@ -9,7 +10,6 @@ import { getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import AlertModal from './modals/AlertModal';
 
 interface ServiceOrAddon {
   id: string;
@@ -120,14 +120,9 @@ export default function ConfirmationStep({
   onBack,
   onDone,
 }: ConfirmationStepProps) {
+  const { showAlert, AlertComponent } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState('');
-  const [alertModal, setAlertModal] = useState<{
-    visible: boolean; title: string; message: string;
-  }>({ visible: false, title: '', message: '' });
-
-  const showAlert = (title: string, message: string) =>
-    setAlertModal({ visible: true, title, message });
 
   const generateAppointmentId = () =>
     `ND-${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`;
@@ -151,7 +146,7 @@ export default function ConfirmationStep({
 
   const handleConfirm = async () => {
     if (!date || !timeSlot) {
-      showAlert('Missing info', 'Please select a date and time slot.');
+      showAlert('Please select a date and time slot.', { title: 'Missing info', type: 'warning' });
       return;
     }
     setSubmitting(true);
@@ -159,7 +154,7 @@ export default function ConfirmationStep({
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        showAlert('Not authenticated', 'Please sign in and try again.');
+        showAlert('Please sign in and try again.', { title: 'Not authenticated', type: 'error' });
         setSubmitting(false);
         return;
       }
@@ -171,7 +166,7 @@ export default function ConfirmationStep({
         setSubmitting(false);
         const waitSeconds = Math.ceil(bookingThrottle.retryAfterMs / 1000);
         logWarn('ConfirmationStep.handleConfirm', 'Client throttle blocked repeated booking submit', { userId, waitSeconds });
-        showAlert('Please wait', `Too many attempts. Try again in ${waitSeconds}s.`);
+        showAlert(`Too many attempts. Try again in ${waitSeconds}s.`, { title: 'Please wait', type: 'warning' });
         return;
       }
       const db = getDatabase();
@@ -185,7 +180,7 @@ export default function ConfirmationStep({
       try {
         const capacity = await checkBranchCapacity(branch.id, datePath, timeSlot.time, totalEstimatedTime);
         if (!capacity.ok) {
-          showAlert('Branch fully booked', capacity.reason || 'Please choose another time slot.');
+          showAlert(capacity.reason || 'Please choose another time slot.', { title: 'Branch fully booked', type: 'warning' });
           setSubmitting(false);
           return;
         }
@@ -247,9 +242,9 @@ export default function ConfirmationStep({
 
       setSubmitting(false);
       onDone?.();
-      router.replace({ pathname: '/user/booking-success', params: { appointmentId, paymentStatus } } as any);
+      router.replace({ pathname: '/user/booking-success', params: { appointmentId, paymentStatus, dateKey: datePath } } as any);
     } catch {
-      showAlert('Something went wrong', 'Failed to save your booking. Please try again.');
+      showAlert('Failed to save your booking. Please try again.', { title: 'Something went wrong', type: 'error' });
       setSubmitting(false);
     }
   };
@@ -260,27 +255,36 @@ export default function ConfirmationStep({
 
         <View className="mx-4 mb-4 bg-white rounded-2xl px-4 pt-5 pb-4">
 
-          {/* Branch */}
-          <SectionLabel>Branch</SectionLabel>
-          <Text className="text-[14px] font-bold text-[#1A1A1A] mb-0.5">{branch?.name}</Text>
-          <View className="flex-row items-center mb-5">
-            <Ionicons name="location-outline" size={11} color="#9CA3AF" style={{ marginRight: 3 }} />
-            <Text className="text-[12px] text-[#999] flex-1">{branch?.address || 'No address'}</Text>
-          </View>
+          {/* Branch + Vehicle — side by side */}
+          <View className="flex-row mb-5">
+            {/* Branch */}
+            <View className="flex-1 pr-3">
+              <SectionLabel>Branch</SectionLabel>
+              <Text className="text-[14px] font-bold text-[#1A1A1A] mb-0.5">{branch?.name}</Text>
+              <View className="flex-row items-center">
+                <Ionicons name="location-outline" size={11} color="#9CA3AF" style={{ marginRight: 3 }} />
+                <Text className="text-[12px] text-[#999] flex-1">{branch?.address || 'No address'}</Text>
+              </View>
+            </View>
 
-          {/* Vehicle */}
-          <SectionLabel>Vehicle</SectionLabel>
-          <View className="flex-row items-center mb-5">
-            <Image
-              source={getVehicleIcon(vehicle?.vtype || vehicle?.classification)}
-              style={{ width: 40, height: 26, tintColor: '#1A1A1A' }}
-              resizeMode="contain"
-            />
-            <View className="flex-1 ml-3">
-              <Text className="text-[13px] font-semibold text-[#1A1A1A]">{vehicle?.vname}</Text>
-              <Text className="text-[11px] text-[#999] mt-0.5">
-                {vehicle?.vplateNumber}  ·  {vehicle?.classification || getClassificationName(vehicle?.vtype)}
-              </Text>
+            <View className="w-[1px] bg-[#EEEEEE] mr-3" />
+
+            {/* Vehicle */}
+            <View className="flex-1">
+              <SectionLabel>Vehicle</SectionLabel>
+              <View className="flex-row items-center">
+                <Image
+                  source={getVehicleIcon(vehicle?.vtype || vehicle?.classification)}
+                  style={{ width: 28, height: 18, tintColor: '#1A1A1A' }}
+                  resizeMode="contain"
+                />
+                <View className="flex-1 ml-2">
+                  <Text className="text-[13px] font-semibold text-[#1A1A1A]">{vehicle?.vname}</Text>
+                  <Text className="text-[11px] text-[#999] mt-0.5">
+                    {vehicle?.vplateNumber} · {vehicle?.classification || getClassificationName(vehicle?.vtype)}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -308,8 +312,17 @@ export default function ConfirmationStep({
 
           {/* Payment */}
           <SectionLabel>Payment</SectionLabel>
-          <View className="mb-5">
-            <Row label="Method" value={paymentMethod || 'Not selected'} />
+          <View className="flex-row justify-between items-center py-2.5 mb-5 border-b border-[#F5F5F5]">
+            <Text className="text-[12px] text-[#999]">Method</Text>
+            {paymentMethod ? (
+              <Image
+                source={require('../../../../assets/images/maya_logo.png')}
+                style={{ width: 45, height: 14 }}
+                resizeMode="contain"
+              />
+            ) : (
+              <Text className="text-[13px] font-semibold text-[#1A1A1A]">Not selected</Text>
+            )}
           </View>
 
           {/* Note */}
@@ -351,13 +364,7 @@ export default function ConfirmationStep({
         </TouchableOpacity>
       </View>
 
-      {/* Alert Modal */}
-      <AlertModal
-        visible={alertModal.visible}
-        title={alertModal.title}
-        message={alertModal.message}
-        onClose={() => setAlertModal(prev => ({ ...prev, visible: false }))}
-      />
+      {AlertComponent}
     </View>
   );
 }

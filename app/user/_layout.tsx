@@ -38,12 +38,6 @@ export default function UserLayout() {
         }}
       />
       <Stack.Screen
-        name="cancelled-bookings"
-        options={{
-          headerShown: false
-        }}
-      />
-      <Stack.Screen
         name="payment"
         options={{
           headerShown: false,
