@@ -24,6 +24,10 @@ import BranchDetailsModal from './BranchDetailsModal';
 
 const { height } = Dimensions.get('window');
 
+// Below this latitudeDelta, branch pins have enough room to show their name label
+// without overlapping neighbors into unreadable clutter when zoomed out.
+const LABEL_ZOOM_DELTA_THRESHOLD = 0.08;
+
 interface Branch {
   id: string;
   name: string;
@@ -47,8 +51,17 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
   const [branches, setBranches] = useState<Branch[]>([]);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [branchesLoading, setBranchesLoading] = useState(true);
+  const [showPinLabels, setShowPinLabels] = useState(false);
 
   const mapRef = useRef(null);
+  const searchAnimTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAnimatedBranchId = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (searchAnimTimeout.current) clearTimeout(searchAnimTimeout.current);
+    };
+  }, []);
 
   // Retrieve device's current GPS coordinates
   const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
@@ -175,30 +188,39 @@ const handleSearch = (q: string) => {
   setSearchQuery(q);
   const query = q.trim().toLowerCase();
 
-  if (!query) {
-    setFilteredBranches(branches);
+  const filtered = query
+    ? branches.filter(
+        (b) =>
+          b.name.toLowerCase().includes(query) ||
+          b.address.toLowerCase().includes(query)
+      )
+    : branches;
+  setFilteredBranches(filtered);
+
+  if (searchAnimTimeout.current) clearTimeout(searchAnimTimeout.current);
+
+  const first = filtered[0];
+  if (!first) {
+    lastAnimatedBranchId.current = null;
     return;
   }
 
-  const filtered = branches.filter(
-    (b) =>
-      b.name.toLowerCase().includes(query) ||
-      b.address.toLowerCase().includes(query)
-  );
-  setFilteredBranches(filtered);
+  // Debouncing the camera move so rapid typing doesn't cancel and restart the
+  // animation on every keystroke - that's what made it look like an instant jump.
+  searchAnimTimeout.current = setTimeout(() => {
+    if (first.id === lastAnimatedBranchId.current || !mapRef.current) return;
+    lastAnimatedBranchId.current = first.id;
 
-  const first = filtered[0];
-  if (first && mapRef.current) {
     const lat = Number(first.coordinates.latitude);
     const lng = Number(first.coordinates.longitude);
     if (isFinite(lat) && isFinite(lng)) {
       // @ts-ignore
       mapRef.current.animateToRegion(
         { latitude: lat, longitude: lng, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-        400
+        600
       );
     }
-  }
+  }, 350);
 };
 
 
@@ -302,6 +324,16 @@ const handleSearch = (q: string) => {
   const handleMarkerPress = (branch: Branch) => {
     setSelectedBranch(branch);
     setBookingBranch(branch);
+
+    const lat = Number(branch.coordinates.latitude);
+    const lng = Number(branch.coordinates.longitude);
+    if (mapRef.current && isFinite(lat) && isFinite(lng)) {
+      // @ts-ignore
+      mapRef.current.animateToRegion(
+        { latitude: lat, longitude: lng, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+        600
+      );
+    }
   };
 
   const handleListPress = (branch: Branch) => {
@@ -343,13 +375,15 @@ const handleSearch = (q: string) => {
         </View>
       </View>
 
-      {/* Map */}
-      <View className="relative" style={{ height: height * 0.5 }}>
+      {/* Map - expands to fill the space the branch list leaves behind while it's
+          hidden for the details sheet, instead of leaving that space empty */}
+      <View className="relative" style={selectedBranch ? { flex: 1 } : { height: height * 0.5 }}>
         <MapView
           ref={mapRef}
           style={{ flex: 1 }}
           provider={PROVIDER_GOOGLE}
           initialRegion={getRegion()}
+          onRegionChangeComplete={(region) => setShowPinLabels(region.latitudeDelta < LABEL_ZOOM_DELTA_THRESHOLD)}
           showsUserLocation
           showsMyLocationButton
         >
@@ -361,29 +395,103 @@ const handleSearch = (q: string) => {
             return null;
           }
 
+          const iconBoxWidth = 32;
+
+          // Icon-only when zoomed out - packed-together pins would otherwise overlap
+          // their labels into unreadable clutter, and the label's extra width would
+          // also widen the marker's tap target into neighboring pins.
+          if (!showPinLabels) {
+            return (
+              <Marker
+                key={branch.id}
+                coordinate={{ latitude: lat, longitude: lng }}
+                onPress={() => handleMarkerPress(branch)}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View
+                  style={{
+                    width: iconBoxWidth,
+                    height: 32,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Image
+                    source={require('../../../../assets/images/nd_appicon.png')}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                    }}
+                    resizeMode="cover"
+                  />
+                </View>
+              </Marker>
+            );
+          }
+
+          // react-native-maps rasterizes custom marker content on Android bound to its
+          // measured box, so absolutely-positioned overflow gets clipped - the label needs
+          // real layout space, with `anchor` compensating so the pin still sits on the coordinate.
+          const markerWidth = 190;
+
           return (
             <Marker
               key={branch.id}
               coordinate={{ latitude: lat, longitude: lng }}
               onPress={() => handleMarkerPress(branch)}
+              anchor={{ x: (iconBoxWidth / 2) / markerWidth, y: 0.5 }}
             >
               <View
+                collapsable={false}
                 style={{
-                  width: 32,
+                  width: markerWidth,
                   height: 32,
+                  flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
                 }}
               >
-                <Image
-                  source={require('../../../../assets/images/nd_appicon.png')}
+                <View
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
+                    width: iconBoxWidth,
+                    height: 32,
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
-                  resizeMode="cover"
-                />
+                >
+                  <Image
+                    source={require('../../../../assets/images/nd_appicon.png')}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                    }}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  allowFontScaling={false}
+                  style={{
+                    marginLeft: 4,
+                    // Fixed (not max) width - `maxWidth` needs Android to measure the text's
+                    // intrinsic content size, which was racing with react-native-maps' marker
+                    // snapshot and rendering the label at ~0 width. Font scaling disabled too,
+                    // since otherwise the device's system text-scale setting would make the
+                    // actual rendered glyph size (and thus what needs to fit this fixed box)
+                    // unpredictable at measurement time.
+                    width: markerWidth - iconBoxWidth - 4,
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#1A1A1A',
+                    textShadowColor: 'rgba(255,255,255,0.9)',
+                    textShadowOffset: { width: 0, height: 0 },
+                    textShadowRadius: 3,
+                  }}
+                >
+                  {branch.name}
+                </Text>
               </View>
             </Marker>
           );
@@ -421,8 +529,8 @@ const handleSearch = (q: string) => {
         </View>
       </View>
 
-      {/* Branch cards */}
-      <View className="flex-1 pt-4">
+      {/* Branch cards - hidden while the branch details sheet is open so it can't peek out above it */}
+      <View className="flex-1 pt-4" style={{ display: selectedBranch ? 'none' : 'flex' }}>
         {branchesLoading ? (
           <BranchListSkeleton />
         ) : (

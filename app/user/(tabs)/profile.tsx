@@ -1,24 +1,13 @@
-import { AccountSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import SignOutModal from '@/components/ui/SignOutModal';
 import { useAlert } from '@/hooks/use-alert';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
-import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { get, ref } from 'firebase/database';
-import { useEffect, useState } from 'react';
-import { Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { auth, db } from '../../../firebase/firebase';
-
-type UserData = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  profileImage?: string;
-};
+import { auth } from '../../../firebase/firebase';
 
 const menuItems = [
   { label: 'Your Profile', icon: 'person-outline' as const, route: '/user/edit-profile' as const },
@@ -31,39 +20,8 @@ const menuItems = [
 export default function UserProfileScreen() {
   const { alert, AlertComponent } = useAlert();
   const tabBarClearance = useTabBarClearance();
-  const [user, setUser] = useState<UserData | null>(null);
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const uid = auth.currentUser?.uid;
-      if (!uid) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const snapshot = await get(ref(db, `users/${uid}`));
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          setUser({
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email,
-            phone: data.phone,
-            profileImage: data.profileImage,
-          });
-        }
-      } catch (error) {
-        logError('UserProfile.fetchUserData', error, { context: 'Error fetching user data' });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, []);
 
   const handleMenuPress = (route: string | null) => {
     if (route) router.push(route as any);
@@ -93,20 +51,6 @@ export default function UserProfileScreen() {
 
   const handleSignOutConfirm = handleSignOutConfirmWithOnboarding;
 
-  if (loading) {
-    return (
-      <View className="flex-1 bg-[#FAFAFA]">
-        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
-        <SafeAreaView className="flex-1" edges={['top']}>
-          <View className="px-5 pt-4 pb-4">
-            <Text className="text-3xl font-bold text-[#1A1A1A]">Account</Text>
-          </View>
-          <AccountSkeleton />
-        </SafeAreaView>
-      </View>
-    );
-  }
-
   return (
     <View className="flex-1 bg-[#FAFAFA]">
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
@@ -117,45 +61,8 @@ export default function UserProfileScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarClearance }}>
-          {/* Profile section */}
-          <View className="items-center pt-2 pb-6">
-            {/* Avatar */}
-            <View className="mb-3" style={{ width: 80, height: 80 }}>
-              <View className="w-20 h-20 rounded-full bg-white overflow-hidden border border-[#EEEEEE]">
-                {user?.profileImage ? (
-                  <Image
-                    source={{ uri: user.profileImage }}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View className="w-full h-full items-center justify-center">
-                    <Ionicons name="person" size={36} color="#BDBDBD" />
-                  </View>
-                )}
-              </View>
-              <TouchableOpacity
-                className="absolute w-6 h-6 rounded-full bg-[#1A1A1A] items-center justify-center border-2 border-white"
-                style={{ bottom: '15%', right: '10%' }}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                onPress={() => router.push('/user/edit-profile')}
-              >
-                <Ionicons name="camera" size={11} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Name */}
-            <Text className="text-xl font-inter-semibold tracking-tight text-[#1A1A1A]">
-              {user ? `${user.firstName} ${user.lastName}` : '...'}
-            </Text>
-            {/* Phone or email */}
-            <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] mt-0.5">
-              {user?.phone || user?.email || ''}
-            </Text>
-          </View>
-
           {/* Menu items */}
-          <View className="mx-5 mt-2">
+          <View className="mx-5 mt-4">
             {menuItems.map((item, index) => (
               <TouchableOpacity
                 key={item.label}

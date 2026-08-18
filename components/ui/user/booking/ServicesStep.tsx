@@ -119,24 +119,53 @@ export default function ServicesStep({
   // Loading services data from Firebase
   const loadServices = async () => {
     try {
-      const path = `Branches/${sanitizePath(branchId)}/Services`;
+      const sanitizedBranchId = sanitizePath(branchId);
+      const path = `Branches/${sanitizedBranchId}/Services`;
       const snapshot = await get(ref(db, path));
-      
+
       if (snapshot.exists()) {
         const data: Service[] = [];
-        
+
+        // Branch-level entries can either be a full inline service object (legacy),
+        // or just a true/false flag referencing the shared "services" catalog.
+        const catalogSnapshot = await get(ref(db, 'services'));
+        const catalog = catalogSnapshot.val() ?? {};
+
         snapshot.forEach((child) => {
           const val = child.val();
-          data.push({
-            id: child.key!,
-            name: val.name,
-            sedan: val.sedanPrice ?? 0,
-            suv: val.suvPrice ?? 0,
-            pickup: val.pickupPrice ?? 0,
-            motorcycle: val.motorcyclePrice ?? 0,
-            estimatedTime: val.estimatedTime ?? 0,
-            description: val.description ?? '',
-          });
+          const id = child.key!;
+
+          if (val && typeof val === 'object' && val.isAvailable === false) return;
+          if (val === false) return;
+
+          if (val && typeof val === 'object' && val.name) {
+            // Legacy format: full service object stored directly under the branch
+            data.push({
+              id,
+              name: val.name,
+              sedan: val.sedanPrice ?? 0,
+              suv: val.suvPrice ?? 0,
+              pickup: val.pickupPrice ?? 0,
+              motorcycle: val.motorcyclePrice ?? 0,
+              estimatedTime: val.estimatedTime ?? 0,
+              description: val.description ?? '',
+            });
+          } else {
+            // Catalog-reference format: resolve name/pricing from the shared "services" node
+            const master = catalog[id];
+            if (!master) return;
+            const prices = master.branchPrices?.[sanitizedBranchId] ?? master.defaultPrices ?? {};
+            data.push({
+              id,
+              name: master.name,
+              sedan: prices.sedan ?? 0,
+              suv: prices.suv ?? 0,
+              pickup: prices.pickup ?? 0,
+              motorcycle: prices.motorcycle ?? 0,
+              estimatedTime: master.estimatedTime ?? 0,
+              description: master.description ?? '',
+            });
+          }
         });
         setServices(data);
       } else {
@@ -149,20 +178,46 @@ export default function ServicesStep({
 
   const loadAddons = async () => {
     try {
+      const sanitizedBranchId = sanitizePath(branchId);
       const snapshot = await get(
-        ref(db, `Branches/${sanitizePath(branchId)}/AddOns`)
+        ref(db, `Branches/${sanitizedBranchId}/AddOns`)
       );
       if (snapshot.exists()) {
         const data: Addon[] = [];
+
+        // Branch-level entries can either be a full inline add-on object (legacy),
+        // or just a true/false flag referencing the shared "addOns" catalog.
+        const catalogSnapshot = await get(ref(db, 'addOns'));
+        const catalog = catalogSnapshot.val() ?? {};
+
         snapshot.forEach((child) => {
           const val = child.val();
-          data.push({
-            id: child.key!,
-            name: val.name,
-            price: val.price,
-            estimatedTime: val.estimatedTime ?? 0,
-            description: val.description ?? '',
-          });
+          const id = child.key!;
+
+          if (val === false || (val && typeof val === 'object' && val.isAvailable === false)) return;
+
+          if (val && typeof val === 'object' && val.name) {
+            // Legacy format: full add-on object stored directly under the branch
+            data.push({
+              id,
+              name: val.name,
+              price: val.price,
+              estimatedTime: val.estimatedTime ?? 0,
+              description: val.description ?? '',
+            });
+          } else {
+            // Catalog-reference format: resolve name/pricing from the shared "addOns" node
+            const master = catalog[id];
+            if (!master) return;
+            const price = master.branchPrices?.[sanitizedBranchId]?.price ?? master.defaultPrice ?? 0;
+            data.push({
+              id,
+              name: master.name,
+              price,
+              estimatedTime: master.estimatedTime ?? 0,
+              description: master.description ?? '',
+            });
+          }
         });
         setAddons(data);
       }

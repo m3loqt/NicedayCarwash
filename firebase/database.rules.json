@@ -28,6 +28,7 @@
 
     "Branches": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
       "$branchId": {
         "profile": {
           ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
