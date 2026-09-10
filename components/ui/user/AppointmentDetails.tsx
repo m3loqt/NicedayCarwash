@@ -1,3 +1,4 @@
+import { formatDuration, parseDurationMinutes } from '@/lib/duration';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -70,32 +71,33 @@ const formatDateForDisplay = (dateString?: string): string => {
   return `${monthNames[month - 1]} ${day}, ${year}`;
 };
 
-const formatTimeRange = (time?: string, estimatedHours?: string | number): string => {
+const formatTimeRange = (time?: string, estimatedMinutes?: number): string => {
   if (!time) return '';
-  if (!estimatedHours) return time;
-  
-  // Parsing start time and adding estimated hours
+  if (!estimatedMinutes) return time;
+
+  // Parsing start time and adding the estimated duration (in minutes)
   const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!match) return time;
-  
+
   let hour = parseInt(match[1], 10);
   const minute = parseInt(match[2], 10);
   const period = match[3].toUpperCase();
-  
+
   // Converting to 24-hour format
   if (period === 'PM' && hour !== 12) hour += 12;
   if (period === 'AM' && hour === 12) hour = 0;
-  
-  // Adding estimated hours
-  const estHours = typeof estimatedHours === 'number' ? estimatedHours : parseInt(String(estimatedHours).replace(/\D/g, ''), 10) || 0;
-  const endHour = hour + estHours;
-  
+
+  // Adding the estimated minutes, carrying into hours
+  const endTotal = hour * 60 + minute + Math.round(estimatedMinutes);
+  const endHour24 = Math.floor(endTotal / 60) % 24;
+  const endMinute = endTotal % 60;
+
   // Converting back to 12-hour format
-  const endHour12 = endHour > 12 ? endHour - 12 : (endHour === 0 ? 12 : endHour === 12 ? 12 : endHour);
-  const endPeriod = endHour >= 12 ? 'pm' : 'am';
-  
+  const endHour12 = endHour24 % 12 === 0 ? 12 : endHour24 % 12;
+  const endPeriod = endHour24 >= 12 ? 'pm' : 'am';
+
   const startTimeLower = time.toLowerCase();
-  return `${startTimeLower} - ${endHour12}:${minute.toString().padStart(2, '0')} ${endPeriod}`;
+  return `${startTimeLower} - ${endHour12}:${endMinute.toString().padStart(2, '0')} ${endPeriod}`;
 };
 
 const formatPrice = (value?: string | number): string => {
@@ -131,17 +133,10 @@ export default function AppointmentDetails({
   onBack,
 }: AppointmentDetailsProps) {
   const insets = useSafeAreaInsets();
-  // Extracting hours from estimatedCompletion (e.g., "3 Hours" -> 3)
-  const extractHours = (est?: string | number): number => {
-    if (!est) return 0;
-    if (typeof est === 'number') return est;
-    const match = String(est).match(/(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-  };
-
-  const estimatedHours = extractHours(estimatedCompletion);
+  // `estimatedCompletion` is a duration in MINUTES (see lib/duration.ts).
+  const estCompletionLabel = formatDuration(estimatedCompletion);
   const formattedDate = formatDateForDisplay(date);
-  const formattedTimeRange = formatTimeRange(time, estimatedHours);
+  const formattedTimeRange = formatTimeRange(time, parseDurationMinutes(estimatedCompletion));
   
   const showPaymentSection = status === 'accepted' && !isPaid;
   const showPaymentPaid = (status === 'ongoing' || status === 'accepted') && isPaid;
@@ -304,12 +299,12 @@ export default function AppointmentDetails({
           </View>
 
           {/* Estimated Time of Completion Section */}
-          {estimatedCompletion && (
+          {estCompletionLabel ? (
             <>
               <View className="p-4">
                 <View className="flex-row justify-between items-center">
                   <Text className="font-semibold text-[#1E1E1E]" style={{ fontSize: 20 }}>Estimated Time of Completion</Text>
-                  <Text className="text-gray-500" style={{ fontSize: 16 }}>{estimatedHours} {estimatedHours === 1 ? 'Hour' : 'Hours'}</Text>
+                  <Text className="text-gray-500" style={{ fontSize: 16 }}>{estCompletionLabel}</Text>
                 </View>
               </View>
 
@@ -318,7 +313,7 @@ export default function AppointmentDetails({
                 <View className="h-[0.5px] bg-gray-200" />
               </View>
             </>
-          )}
+          ) : null}
 
           {/* Payment Required Section */}
           {showPaymentSection && (
@@ -411,7 +406,7 @@ Usage example:
   orderSummary={[{ label: 'Body Wash', price: '₱220.0' }, { label: 'Under Chassis', price: '₱100.0' }]}
   amountDue="₱340.00"
   paymentMethod="Card Payment"
-  estimatedCompletion="3 Hours"
+  estimatedCompletion="50"   // minutes; rendered as "50 min" / "1 hr 20 min"
   note="Please be gentle with the rims"
   onBack={() => router.back()}
 />

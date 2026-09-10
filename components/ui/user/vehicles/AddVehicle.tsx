@@ -94,14 +94,14 @@ export default function AddVehicle() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white justify-center items-center">
+      <SafeAreaView className="flex-1 bg-[#FAFAFA] justify-center items-center">
         <ActivityIndicator size="small" color="#1A1A1A" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-6">
         <TouchableOpacity
@@ -129,8 +129,8 @@ export default function AddVehicle() {
               return (
                 <TouchableOpacity
                   key={type.id}
-                  className={`items-center mr-2.5 rounded-2xl px-5 py-4 border ${
-                    isSelected ? 'border-[#F9EF08] bg-[#FFFEF0]' : 'border-[#EEEEEE] bg-[#FAFAFA]'
+                  className={`items-center mr-2.5 rounded-2xl px-5 py-4 ${
+                    isSelected ? 'border border-[#F9EF08] bg-[#FFFEF0]' : 'bg-white'
                   }`}
                   style={{ minWidth: 100 }}
                   onPress={() => setSelectedType(type.id)}
@@ -159,7 +159,7 @@ export default function AddVehicle() {
           <View className="mb-4">
             <Text className="text-[13px] text-[#999] mb-1.5">Vehicle Brand and Model</Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
+              className="bg-white border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
               placeholder="e.g. Toyota Vios"
               placeholderTextColor="#BDBDBD"
               value={vehicleName}
@@ -169,7 +169,7 @@ export default function AddVehicle() {
           <View className="mb-4">
             <Text className="text-[13px] text-[#999] mb-1.5">Plate Number</Text>
             <TextInput
-              className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
+              className="bg-white border border-[#EEEEEE] rounded-2xl px-4 py-4 text-[15px] text-[#1A1A1A]"
               placeholder="e.g. ABC 1234"
               placeholderTextColor="#BDBDBD"
               value={plateNumber}
@@ -181,7 +181,7 @@ export default function AddVehicle() {
       </ScrollView>
 
       {/* Save button */}
-      <View className="px-5 pb-8 pt-3 bg-white">
+      <View className="px-5 pb-8 pt-3 bg-[#FAFAFA]">
         <TouchableOpacity
           className="bg-[#F9EF08] rounded-2xl py-4 items-center"
           onPress={handleSave}

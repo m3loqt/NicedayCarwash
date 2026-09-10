@@ -66,11 +66,15 @@ export default function TermsScreen() {
         </Section>
 
         <Section title="4. Bookings and Reservations">
-          When you submit a booking, it is initially recorded as pending and reviewed by branch
-          staff, who will confirm the appointment and assign a service bay based on availability.
-          We do our best to accommodate every request, but a booking is not guaranteed until it has
-          been accepted by the branch. Please arrive on or before your scheduled appointment time
-          to help us serve you and other customers efficiently.
+          {'When you submit a booking, it is initially recorded as pending and reviewed by branch ' +
+            'staff, who will confirm the appointment and assign a service bay based on availability. ' +
+            'We do our best to accommodate every request, but a booking is not guaranteed until it has ' +
+            'been accepted by the branch. Appointments may be booked no earlier than seven (7) days in ' +
+            'advance and must be made at least one (1) hour before the desired appointment time. A ' +
+            'branch can only review and accept bookings during its posted operating hours; a booking ' +
+            'submitted outside those hours will be reviewed once the branch reopens. Please arrive on ' +
+            'or before your scheduled appointment time to help us serve you and other customers ' +
+            'efficiently.'}
         </Section>
 
         <Section title="5. Booking Fee and Payment">
@@ -87,9 +91,14 @@ export default function TermsScreen() {
             'branch. However, if Niceday Carwash is unable to honor your booking for reasons within ' +
             'our control, including but not limited to washer unavailability, service unavailability, ' +
             'power interruptions, or insufficient bay capacity, your booking fee will be refunded to ' +
-            'your original payment method. If a branch does not act on your booking within twenty ' +
-            'four (24) hours of submission, it will be automatically cancelled and the booking fee ' +
-            'refunded. Refund processing times may vary depending on your payment provider.'}
+            'your original payment method. A booking must be paid within fifteen (15) minutes of ' +
+            'submission, or the reserved slot is released and the booking cancelled. Once paid, branch ' +
+            'staff have twenty four (24) hours of the operating hours of the branch, not counting ' +
+            'hours the branch is closed, to review and accept your booking. If the branch has not ' +
+            'acted on your booking by then, or no later than thirty (30) minutes before your scheduled ' +
+            'appointment time, whichever comes first, your booking will be automatically cancelled and ' +
+            'the booking fee refunded. Refund processing times may vary depending on your payment ' +
+            'provider.'}
         </Section>
 
         <Section title="7. Vehicle Condition and Owner Responsibilities">

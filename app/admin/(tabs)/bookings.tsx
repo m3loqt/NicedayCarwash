@@ -4,17 +4,19 @@ import {
   AppointmentsSearchBar,
   AppointmentsTabs,
 } from '@/components/ui/admin/appointments';
+import { useBranchBookingCounts } from '@/hooks/use-branch-booking-counts';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const VALID_TABS = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled'] as const;
+const VALID_TABS = ['pending', 'confirmed', 'ongoing', 'history'] as const;
 
 export default function AdminBookingsScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const counts = useBranchBookingCounts();
 
   useEffect(() => {
     const tab = params.tab;
@@ -32,15 +34,17 @@ export default function AdminBookingsScreen() {
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        {/* Header */}
-        <AppointmentsHeader />
+        {/* Header + Search */}
+        <View className="bg-white pb-4">
+          <AppointmentsHeader />
+          <AppointmentsSearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        </View>
 
         {/* Status Tabs */}
-        <AppointmentsTabs activeTab={activeTab} onTabChange={handleTabChange} />
+        <AppointmentsTabs activeTab={activeTab} onTabChange={handleTabChange} counts={counts} />
 
         {/* Content */}
-        <View className="flex-1 bg-white">
-          <AppointmentsSearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <View className="flex-1 bg-[#FAFAFA]">
           <AppointmentsList activeTab={activeTab} searchQuery={searchQuery} />
         </View>
       </SafeAreaView>

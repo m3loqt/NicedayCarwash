@@ -22,6 +22,7 @@ interface BookingCardProps {
   id: string;
   branchName: string;
   address: string;
+  imageUrl?: string;
   appointmentId: string;
   appointmentDate: string;
   amount: string;
@@ -39,6 +40,7 @@ interface BookingCardProps {
 export default function BookingCard({
   branchName,
   address,
+  imageUrl,
   appointmentDate,
   amount,
   onPress,
@@ -51,7 +53,7 @@ export default function BookingCard({
     >
       {/* Branch image */}
       <Image
-        source={require('../../../../assets/images/samplebranch.png')}
+        source={imageUrl ? { uri: imageUrl } : require('../../../../assets/images/samplebranch.png')}
         className="rounded-xl mr-4"
         style={{ width: 60, height: 60 }}
         resizeMode="cover"

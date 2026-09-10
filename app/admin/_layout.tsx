@@ -4,11 +4,17 @@ export default function AdminLayout() {
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="edit-profile" 
-        options={{ 
-          headerShown: false 
-        }} 
+      <Stack.Screen
+        name="edit-profile"
+        options={{
+          headerShown: false
+        }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{
+          headerShown: false,
+        }}
       />
     </Stack>
   );

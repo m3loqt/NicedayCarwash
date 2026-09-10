@@ -73,3 +73,16 @@ export function logAppError(scope: string, error: unknown, meta?: LogMeta): void
   logError(scope, error, meta);
 }
 
+/**
+ * Push-notification diagnostics that ALWAYS emit, including in release / EAS builds.
+ *
+ * The rest of this module is intentionally dev-only, but push token registration fails
+ * silently (permission edge cases, missing EAS projectId, FCM misconfig) and only
+ * reproduces on real devices and standalone builds - where the dev-only path shows
+ * nothing. These lines are the only way to see what happened via `adb logcat` /
+ * device console. Kept prefixed and free of secrets (meta is sanitized).
+ */
+export function logPushDiagnostic(message: string, meta?: LogMeta): void {
+  console.warn('[NicedayCarwash:PUSH]', message, meta ? sanitizeValue(meta) : '');
+}
+

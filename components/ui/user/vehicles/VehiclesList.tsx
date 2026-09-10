@@ -194,23 +194,24 @@ export default function VehiclesList() {
               </View>
             )}
 
-            {/* Edit button */}
-            <TouchableOpacity
-              className="bg-[#F9EF08] rounded-2xl py-4 items-center mb-3"
-              onPress={() => selectedVehicle && handleEdit(selectedVehicle.vplateNumber)}
-              activeOpacity={0.85}
-            >
-              <Text className="text-[#1A1A00] text-[15px] font-bold">Edit</Text>
-            </TouchableOpacity>
+            {/* Edit / Delete - side by side */}
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 bg-[#F9EF08] rounded-2xl py-4 items-center"
+                onPress={() => selectedVehicle && handleEdit(selectedVehicle.vplateNumber)}
+                activeOpacity={0.85}
+              >
+                <Text className="text-[#1A1A00] text-[15px] font-bold">Edit</Text>
+              </TouchableOpacity>
 
-            {/* Delete button */}
-            <TouchableOpacity
-              className="rounded-2xl py-4 items-center border border-[#EF4444]"
-              onPress={() => selectedVehicle && handleDelete(selectedVehicle.vplateNumber)}
-              activeOpacity={0.85}
-            >
-              <Text className="text-[#EF4444] text-[15px] font-bold">Delete</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 bg-[#F5F5F5] rounded-2xl py-4 items-center"
+                onPress={() => selectedVehicle && handleDelete(selectedVehicle.vplateNumber)}
+                activeOpacity={0.85}
+              >
+                <Text className="text-[#1A1A1A] text-[15px] font-bold">Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

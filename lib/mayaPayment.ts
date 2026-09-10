@@ -1,33 +1,50 @@
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import * as WebBrowser from 'expo-web-browser';
+import { AppState } from 'react-native';
 
 export type MayaPaymentResult = 'paid' | 'unconfirmed';
 
-// isPaid is only ever set by mayaWebhook after it re-verifies with Maya server-to-server -
-// this just watches for that write for a bit so the UI can report a real result instead of
-// leaving the user on an unexplained pending state.
-function waitForPaymentConfirmation(userId: string, dateKey: string, bookingKey: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const db = getDatabase();
-    const isPaidRef = ref(db, `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingKey}/isPaid`);
-    let settled = false;
-    let unsubscribe: (() => void) | null = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+// Once the user is confirmed back in the app, how much longer to wait for the webhook write
+// before giving up - Maya's server-to-server confirmation can lag slightly behind the user
+// closing the checkout tab.
+const CONFIRMATION_GRACE_MS = 20000;
 
-    const finish = (paid: boolean) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      if (unsubscribe) unsubscribe();
-      resolve(paid);
-    };
+// isPaid is only ever set by mayaWebhook after it re-verifies with Maya server-to-server. The
+// listener is attached immediately (before the checkout tab even opens) so a webhook landing
+// while the user is still paying - the common case - resolves this right away. Otherwise it
+// only resolves false once `armGraceTimeout` has been called (see payBookingFeeWithMaya) and
+// that grace period elapses with no write.
+function watchPaymentConfirmation(userId: string, dateKey: string, bookingKey: string) {
+  const db = getDatabase();
+  const isPaidRef = ref(db, `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingKey}/isPaid`);
+  let settled = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let resolvePromise!: (paid: boolean) => void;
 
-    unsubscribe = onValue(isPaidRef, (snapshot) => {
-      if (snapshot.val() === true) finish(true);
-    });
-    timeoutId = setTimeout(() => finish(false), 20000);
+  const promise = new Promise<boolean>((resolve) => {
+    resolvePromise = resolve;
   });
+
+  const finish = (paid: boolean) => {
+    if (settled) return;
+    settled = true;
+    if (timeoutId) clearTimeout(timeoutId);
+    unsubscribe();
+    resolvePromise(paid);
+  };
+
+  const unsubscribe = onValue(isPaidRef, (snapshot) => {
+    if (snapshot.val() === true) finish(true);
+  });
+
+  return {
+    promise,
+    armGraceTimeout: () => {
+      if (settled || timeoutId) return;
+      timeoutId = setTimeout(() => finish(false), CONFIRMATION_GRACE_MS);
+    },
+  };
 }
 
 export async function payBookingFeeWithMaya(
@@ -41,11 +58,30 @@ export async function payBookingFeeWithMaya(
   );
   const { data } = await createCheckout({ appointmentId });
 
-  // No deep-link auto-return - the user closes this tab manually (paymentReturn tells them to),
-  // and we don't need to distinguish how/why it closed since isPaid is only ever trusted from the
-  // webhook-verified DB state below, never from anything the browser or redirect claims.
+  const { promise, armGraceTimeout } = watchPaymentConfirmation(userId, dateKey, appointmentId);
+
+  // No deep-link auto-return - the user closes/backs out of this tab manually (paymentReturn
+  // tells them to). openBrowserAsync only actually blocks until that happens on iOS; on Android
+  // it resolves the instant the Custom Tab opens (`{ type: 'opened' }`, per expo-web-browser -
+  // NOT when it closes), well before the user has finished paying, so it can't be used to know
+  // when the user is actually done. AppState going back to 'active' can, on both platforms - on
+  // iOS the app never actually backgrounds for the in-app Safari sheet, so this fires
+  // immediately there, matching the previous behavior.
   await WebBrowser.openBrowserAsync(data.redirectUrl);
 
-  const paid = await waitForPaymentConfirmation(userId, dateKey, appointmentId);
-  return paid ? 'paid' : 'unconfirmed';
+  let sub: { remove: () => void } | null = null;
+  if (AppState.currentState === 'active') {
+    armGraceTimeout();
+  } else {
+    sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') armGraceTimeout();
+    });
+  }
+
+  try {
+    const paid = await promise;
+    return paid ? 'paid' : 'unconfirmed';
+  } finally {
+    sub?.remove();
+  }
 }

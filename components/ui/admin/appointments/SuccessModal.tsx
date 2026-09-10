@@ -81,11 +81,11 @@ export default function SuccessModal({ visible, message, onClose }: SuccessModal
           {/* Close button */}
           <View className="px-5 pb-10 pt-2">
             <TouchableOpacity
-              className="bg-[#F5F5F5] rounded-2xl py-4 items-center"
+              className="bg-[#F9EF08] rounded-2xl py-4 items-center"
               onPress={onClose}
               activeOpacity={0.8}
             >
-              <Text className="text-[14px] font-semibold text-[#1A1A1A]">Close</Text>
+              <Text className="text-[14px] font-bold text-[#1A1A00]">Close</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -2,6 +2,7 @@ import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp } from "firebase/app";
 import {
   connectAuthEmulator,
+  getAuth,
   getReactNativePersistence,
   initializeAuth
 } from "firebase/auth";
@@ -24,9 +25,18 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 void initializeFirebaseAppCheck(app);
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(ReactNativeAsyncStorage)
-});
+// initializeAuth throws auth/already-initialized if this module re-executes on the same
+// app instance (e.g. a Metro cache-clear reload without a full native process restart) -
+// fall back to the already-initialized auth instance instead of crashing.
+let authInstance;
+try {
+  authInstance = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+  });
+} catch {
+  authInstance = getAuth(app);
+}
+export const auth = authInstance;
 export const db = getDatabase(app);
 
 // Opt-in local Firebase Emulator Suite connection - OFF by default so normal dev/testing keeps

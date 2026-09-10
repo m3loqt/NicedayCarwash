@@ -1,75 +1,47 @@
+import { ActiveBookingSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import { useActiveBooking, type BookingStatus } from '@/hooks/use-active-booking';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { getAuth } from 'firebase/auth';
-import { getDatabase, onValue, ref } from 'firebase/database';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Image, Text, TouchableOpacity, View } from 'react-native';
 
-type BookingStatus = 'pending' | 'accepted' | 'ongoing';
-
-interface ActiveBooking {
-  appointmentId: string;
-  dateKey: string;
-  branchName: string;
-  time: string;
-  status: BookingStatus;
-}
-
-const STATUS_LABEL: Record<BookingStatus, string> = {
-  pending: 'Awaiting confirmation',
-  accepted: 'Confirmed',
-  ongoing: 'Wash in progress',
+const STATUS_ART: Record<BookingStatus, any> = {
+  pending: require('../../../assets/images/booking_status_pending.png'),
+  accepted: require('../../../assets/images/booking_status_confirmed.png'),
+  ongoing: require('../../../assets/images/booking_status_ongoing.png'),
 };
 
-// Higher priority wins when a customer has more than one active booking at once.
-const STATUS_PRIORITY: Record<BookingStatus, number> = {
-  ongoing: 2,
-  accepted: 1,
-  pending: 0,
+// "ongoing" now means the scheduled time has arrived (a fully automatic, time-driven trigger -
+// see autoStartTodayBookings in AppointmentsList.tsx), not that a supervisor has confirmed the
+// vehicle physically showed up. Copy here has to stay honest about that - it used to claim
+// "Wash in Progress" the instant the clock hit the appointment time, which could tell a customer
+// running late that their car was already being washed.
+const HEADLINE: Record<BookingStatus, string> = {
+  pending: 'Awaiting Confirmation',
+  accepted: 'Booking Confirmed',
+  ongoing: 'Appointment Time Started',
 };
+
+// The 4 stages of a booking's life, mirroring the "Ready" illustration reserved for a future
+// completion moment - completed bookings drop out of useActiveBooking entirely, so this bar
+// itself never shows the 4th stage as "current," only as the stepper's unreached end state.
+const STAGES: { status: BookingStatus | 'completed'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { status: 'pending', label: 'Booked', icon: 'document-text-outline' },
+  { status: 'accepted', label: 'Confirmed', icon: 'checkmark-circle-outline' },
+  { status: 'ongoing', label: 'Started', icon: 'water-outline' },
+  { status: 'completed', label: 'Ready', icon: 'home-outline' },
+];
+
+const STAGE_INDEX: Record<BookingStatus, number> = { pending: 0, accepted: 1, ongoing: 2 };
 
 export default function ActiveBookingBar() {
   const { hidden } = useTabBarVisibility();
   const tabBarClearance = useTabBarClearance(12);
-  const [booking, setBooking] = useState<ActiveBooking | null>(null);
+  const { booking, loading } = useActiveBooking();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(80)).current;
-
-  useEffect(() => {
-    const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
-
-    const db = getDatabase();
-    const bookingsRef = ref(db, `Reservations/ReservationsByUser/${uid}`);
-
-    const unsubscribe = onValue(bookingsRef, (snapshot) => {
-      let best: ActiveBooking | null = null;
-      snapshot.forEach((dateSnap) => {
-        dateSnap.forEach((bookingSnap) => {
-          const data = bookingSnap.val();
-          const status: BookingStatus | undefined =
-            data?.status === 'pending' || data?.status === 'accepted' || data?.status === 'ongoing'
-              ? data.status
-              : undefined;
-          if (!status) return;
-          if (!best || STATUS_PRIORITY[status] > STATUS_PRIORITY[best.status]) {
-            best = {
-              appointmentId: bookingSnap.key || data.appointmentId,
-              dateKey: dateSnap.key || '',
-              branchName: data.branchName || '',
-              time: data.timeSlot?.time || '',
-              status,
-            };
-          }
-        });
-      });
-      setBooking(best);
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (!booking) return;
@@ -93,7 +65,29 @@ export default function ActiveBookingBar() {
     return () => pulse.stop();
   }, [booking?.status, pulseAnim]);
 
-  if (!booking || hidden) return null;
+  if (hidden) return null;
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          paddingBottom: tabBarClearance,
+          paddingHorizontal: 16,
+          pointerEvents: 'box-none',
+        }}
+      >
+        <ActiveBookingSkeleton />
+      </View>
+    );
+  }
+
+  if (!booking) return null;
+
+  const currentIndex = STAGE_INDEX[booking.status];
 
   return (
     <Animated.View
@@ -124,41 +118,51 @@ export default function ActiveBookingBar() {
           elevation: 6,
         }}
       >
-        <View className="bg-white rounded-2xl px-4 py-3.5 flex-row items-center border border-[#F0F0F0]">
-          {/* Status icon - monochrome gray in a neutral badge; icon shape carries the meaning, not color */}
-          <View className="mr-3 items-center justify-center">
-            <View className="w-8 h-8 rounded-full bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center">
-              {booking.status === 'ongoing' ? (
-                <Animated.View style={{ opacity: pulseAnim }}>
-                  <Ionicons name="water" size={16} color="#666666" />
-                </Animated.View>
-              ) : (
-                <Ionicons
-                  name={booking.status === 'accepted' ? 'checkmark-circle-outline' : 'time-outline'}
-                  size={16}
-                  color="#666666"
-                />
-              )}
-            </View>
-          </View>
-
-          {/* Info */}
-          <View className="flex-1">
-            <View className="flex-row items-center gap-2">
-              <Text className="text-[13px] font-bold text-[#1A1A1A]" numberOfLines={1}>
-                {booking.branchName}
+        <View className="bg-white rounded-2xl px-4 pt-4 pb-3.5 border border-[#F0F0F0]">
+          {/* Headline + branch, with the current stage's illustration on the right */}
+          <View className="flex-row items-center">
+            <View className="flex-1 mr-3">
+              <Text className="text-[19px] font-bold text-[#1A1A1A]" numberOfLines={1}>
+                {HEADLINE[booking.status]}
               </Text>
-              {!!booking.time && (
-                <>
-                  <Text className="text-[12px] text-[#BDBDBD]">·</Text>
-                  <Text className="text-[12px] text-[#999]">{booking.time}</Text>
-                </>
-              )}
+              <Text className="text-[12px] text-[#999] mt-1" numberOfLines={1}>
+                {booking.time ? `Booked for ${booking.time} at ${booking.branchName}` : `Booked at ${booking.branchName}`}
+              </Text>
             </View>
-            <Text className="text-[11px] text-[#999] mt-0.5">{STATUS_LABEL[booking.status]}</Text>
+            <Image source={STATUS_ART[booking.status]} style={{ width: 68, height: 68 }} resizeMode="contain" />
           </View>
 
-          <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+          {/* Stepper - filled up to the current stage, current icon pulses while ongoing */}
+          <View className="flex-row items-center mt-3.5">
+            {STAGES.map((stage, i) => {
+              const reached = i <= currentIndex;
+              const isCurrent = i === currentIndex;
+              const isLast = i === STAGES.length - 1;
+              const icon = (
+                <Ionicons name={stage.icon} size={16} color={reached ? '#F9EF08' : '#D4D4D4'} />
+              );
+              return (
+                <View key={stage.status} style={{ flexDirection: 'row', alignItems: 'center', flex: isLast ? 0 : 1 }}>
+                  {isCurrent && booking.status === 'ongoing' ? (
+                    <Animated.View style={{ opacity: pulseAnim }}>{icon}</Animated.View>
+                  ) : (
+                    icon
+                  )}
+                  {!isLast && (
+                    <View
+                      style={{
+                        flex: 1,
+                        height: 4,
+                        marginHorizontal: 4,
+                        borderRadius: 2,
+                        backgroundColor: i < currentIndex ? '#F9EF08' : '#EEEEEE',
+                      }}
+                    />
+                  )}
+                </View>
+              );
+            })}
+          </View>
         </View>
       </TouchableOpacity>
     </Animated.View>

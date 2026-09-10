@@ -1,8 +1,12 @@
+import { ServicesSkeleton } from "@/components/ui/admin/AdminScreenSkeleton";
+import PullToRefresh from "@/components/ui/common/PullToRefresh";
 import { auth, db } from "@/firebase/firebase";
 import { useAlert } from "@/hooks/use-alert";
+import { useTabBarClearance } from "@/hooks/use-tab-bar-height";
+import { logError } from "@/lib/logger";
 import { get, ref, set, update } from "firebase/database";
-import { useState } from "react";
-import { ScrollView, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AddBayModal from "../../../components/ui/admin/services/AddBayModal";
 import AddOns from "../../../components/ui/admin/services/AddOns";
@@ -13,8 +17,13 @@ import TimeSlots from "../../../components/ui/admin/services/TimeSlot";
 
 export default function AdminServicesScreen() {
   const { alert, AlertComponent } = useAlert();
+  const tabBarClearance = useTabBarClearance();
   const [timeModalVisible, setTimeModalVisible] = useState(false);
   const [bayModalVisible, setBayModalVisible] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  // Passed down to Services/AddOns/TimeSlots/Bays; bumping it forces each child's listener to
+  // unsubscribe/resubscribe, delivering a fresh snapshot immediately.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const getAdminBranchId = async (): Promise<string | null> => {
     const uid = auth.currentUser?.uid;
@@ -25,10 +34,18 @@ export default function AdminServicesScreen() {
     return data.branchId ?? data.branch ?? null;
   };
 
+  useEffect(() => {
+    getAdminBranchId().finally(() => setPageLoading(false));
+  }, []);
+
+  if (pageLoading) {
+    return <ServicesSkeleton />;
+  }
+
   return (
-    <View className="flex-1 bg-white">
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <View className="flex-1 bg-[#FAFAFA]">
+      <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FAFAFA" />
 
         {/* Header */}
         <View className="px-5 pt-4 pb-4">
@@ -36,10 +53,11 @@ export default function AdminServicesScreen() {
         </View>
 
         {/* Body */}
-        <ScrollView
-          className="flex-1 bg-white"
+        <PullToRefresh
+          onRefresh={() => setRefreshKey((k) => k + 1)}
+          className="flex-1 bg-[#FAFAFA]"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: tabBarClearance }}
         >
           {/* Services */}
           <View className="mb-2">
@@ -47,7 +65,7 @@ export default function AdminServicesScreen() {
               Services
             </Text>
           </View>
-          <Services />
+          <Services refreshKey={refreshKey} />
 
           {/* Add-ons */}
           <View className="mt-6 mb-2">
@@ -55,7 +73,7 @@ export default function AdminServicesScreen() {
               Add-ons
             </Text>
           </View>
-          <AddOns />
+          <AddOns refreshKey={refreshKey} />
 
           {/* Time Slots */}
           <View className="mt-6" style={{ marginHorizontal: -20 }}>
@@ -69,7 +87,7 @@ export default function AdminServicesScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            <TimeSlots />
+            <TimeSlots refreshKey={refreshKey} />
           </View>
 
           {/* Bays */}
@@ -84,9 +102,9 @@ export default function AdminServicesScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            <Bays />
+            <Bays refreshKey={refreshKey} />
           </View>
-        </ScrollView>
+        </PullToRefresh>
 
         {/* MODALS */}
         <AddTimeSlotModal
@@ -138,13 +156,19 @@ export default function AdminServicesScreen() {
               let existingSlotTimes: Set<string> = new Set();
               let minExistingTime: number | null = null;
               let maxExistingTime: number | null = null;
+              let nextSlotIndex = 0;
 
               if (existingSnapshot.exists()) {
                 const existingData = existingSnapshot.val();
                 if (Array.isArray(existingData)) {
                   existingSlots = existingData.filter((s: any) => s && s.time);
+                  nextSlotIndex = existingData.length;
                 } else if (typeof existingData === 'object') {
                   existingSlots = Object.values(existingData).filter((s: any) => s && s.time) as any[];
+                  const numericKeys = Object.keys(existingData)
+                    .map((key) => parseInt(key, 10))
+                    .filter((key) => Number.isFinite(key));
+                  nextSlotIndex = numericKeys.length > 0 ? Math.max(...numericKeys) + 1 : 0;
                 }
 
                 existingSlots.forEach((slot: any) => {
@@ -157,9 +181,10 @@ export default function AdminServicesScreen() {
                 });
               }
 
-              const duplicateSlots = newSlots.filter(slot => existingSlotTimes.has(slot.time));
-              if (duplicateSlots.length > 0) {
-                alert("Error", `Time slot(s) already exist: ${duplicateSlots.map(s => s.time).join(", ")}`);
+              const slotsToAdd = newSlots.filter((slot) => !existingSlotTimes.has(slot.time));
+              const duplicateSlots = newSlots.filter((slot) => existingSlotTimes.has(slot.time));
+              if (slotsToAdd.length === 0) {
+                alert("Error", `Time slot(s) already exist: ${duplicateSlots.map((s) => s.time).join(", ")}`);
                 return;
               }
 
@@ -169,29 +194,40 @@ export default function AdminServicesScreen() {
                 if (startMinutes < minExistingTime) overallStart = startMinutes;
                 else overallStart = minExistingTime;
                 if (endMinutes > maxExistingTime) overallEnd = endMinutes;
-                else overallEnd = maxExistingTime;
+                else overallEnd = maxExistingTime + 60;
               }
 
               const updates: any = {};
-              let slotIndex = existingSlots.length;
-              newSlots.forEach((slot) => {
-                updates[String(slotIndex)] = { time: slot.time, status: slot.status || "available" };
-                slotIndex++;
+              slotsToAdd.forEach((slot) => {
+                updates[String(nextSlotIndex)] = { time: slot.time, status: slot.status || "available" };
+                nextSlotIndex++;
               });
 
               await update(timeSlotsRef, updates);
 
-              const scheduleRef = ref(db, `Branches/${branchId}/profile/schedule`);
-              const scheduleSnapshot = await get(scheduleRef);
-              let scheduleString = scheduleSnapshot.exists() ? scheduleSnapshot.val() : "";
-              const scheduleMatch = String(scheduleString).match(/(.*?):\s*\d{1,2}:\d{2}\s*(?:AM|PM)/i);
-              const schedulePrefix = scheduleMatch ? scheduleMatch[1].trim() : "Mon-Sat";
-              const newScheduleString = `${schedulePrefix}: ${formatTimeTo12Hour(overallStart)} - ${formatTimeTo12Hour(overallEnd)}`;
-              await set(scheduleRef, newScheduleString);
+              try {
+                const scheduleRef = ref(db, `Branches/${branchId}/profile/schedule`);
+                const scheduleSnapshot = await get(scheduleRef);
+                const scheduleString = scheduleSnapshot.exists() ? scheduleSnapshot.val() : "";
+                const scheduleMatch = String(scheduleString).match(/(.*?):\s*\d{1,2}:\d{2}\s*(?:AM|PM)/i);
+                const schedulePrefix = scheduleMatch ? scheduleMatch[1].trim() : "Mon-Sat";
+                const newScheduleString = `${schedulePrefix}: ${formatTimeTo12Hour(overallStart)} - ${formatTimeTo12Hour(overallEnd)}`;
+                await set(scheduleRef, newScheduleString);
+              } catch (scheduleError) {
+                logError("AdminServices.addTimeSlots.schedule", scheduleError, { branchId });
+              }
 
               setTimeModalVisible(false);
-              alert("Success", "Time slots added successfully.");
-            } catch {
+              if (duplicateSlots.length > 0) {
+                alert(
+                  "Success",
+                  `Added ${slotsToAdd.map((s) => s.time).join(", ")}. Already existed: ${duplicateSlots.map((s) => s.time).join(", ")}.`
+                );
+              } else {
+                alert("Success", "Time slots added successfully.");
+              }
+            } catch (error) {
+              logError("AdminServices.addTimeSlots", error, { context: "Failed to add time slots" });
               alert("Error", "Failed to add time slots.");
             }
           }}

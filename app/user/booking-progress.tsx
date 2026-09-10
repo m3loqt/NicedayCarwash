@@ -5,13 +5,13 @@ import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AppointmentDetailsModal from '../../components/ui/user/history/modals/AppointmentDetailsModal';
 
 type BookingStatus = 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
 
@@ -41,10 +41,13 @@ const STATUS_ORDER: Record<string, number> = {
   cancelled: -1,
 };
 
+// "ongoing" fires automatically once the scheduled time arrives (see autoStartTodayBookings in
+// AppointmentsList.tsx) - it isn't a supervisor confirming the vehicle physically showed up, so
+// the label here has to stop short of claiming the wash itself is happening.
 const STEPS: { id: BookingStatus; label: string; timestampKey: keyof BookingData }[] = [
   { id: 'pending', label: 'Booking Confirmed', timestampKey: 'createdAt' },
   { id: 'accepted', label: 'Accepted by Branch', timestampKey: 'acceptedAt' },
-  { id: 'ongoing', label: 'Wash In Progress', timestampKey: 'startedAt' },
+  { id: 'ongoing', label: 'Appointment Time Started', timestampKey: 'startedAt' },
   { id: 'completed', label: 'Completed', timestampKey: 'completedAt' },
 ];
 
@@ -99,7 +102,6 @@ export default function BookingProgressScreen() {
   const { appointmentId, date } = useLocalSearchParams<{ appointmentId: string; date: string }>();
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     if (!appointmentId || !date) return;
@@ -189,9 +191,20 @@ export default function BookingProgressScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="px-6">
-          <Text className="text-[16px] font-bold text-[#1A1A1A] mb-6">
+          <Text className="text-[16px] font-bold text-[#1A1A1A] mb-3">
             Appointment #{booking.appointmentId}
           </Text>
+
+          {/* Client-confirmed notice copy - sets expectations that acceptance only happens
+              during the branch's operating hours, not the moment a booking is placed. */}
+          {booking.status === 'pending' && (
+            <View className="flex-row items-start bg-[#FFFBE0] rounded-xl px-4 py-3 mb-6">
+              <Ionicons name="information-circle-outline" size={16} color="#8A7A00" style={{ marginRight: 8, marginTop: 1 }} />
+              <Text className="flex-1 text-[12px] text-[#5A5100] leading-[17px]">
+                Booking hours can only be accepted during the operating hours of this branch, please be patient.
+              </Text>
+            </View>
+          )}
 
           {booking.status === 'cancelled' ? (
             <View className="items-center py-10">
@@ -263,7 +276,9 @@ export default function BookingProgressScreen() {
           <Row label="Branch" value={booking.branchName} />
           <Row
             label="Vehicle"
-            value={`${booking.vehicleDetails?.vehicleName || ''} · ${booking.vehicleDetails?.plateNumber || ''}`}
+            value={`${booking.vehicleDetails?.vehicleName || ''} · ${booking.vehicleDetails?.plateNumber || ''}${
+              booking.vehicleDetails?.classification ? ` · ${booking.vehicleDetails.classification}` : ''
+            }`}
           />
           <Row
             label="Date & Time"
@@ -279,17 +294,53 @@ export default function BookingProgressScreen() {
           ))}
           <View className="h-[0.5px] bg-[#EEEEEE] my-2" />
           <Row label="Total" value={`₱${Number(booking.amountDue).toFixed(2)}`} />
+
+          <View className="h-[0.5px] bg-[#EEEEEE] my-3" />
+
+          {/* Everything this used to hide behind a separate "View Full Details" modal - which,
+              on this exact screen, had its own "View Booking Status" button that just looped
+              back here. Shown inline instead so there's nowhere left to loop to. */}
+          <View className="flex-row justify-between items-center py-2">
+            <Text className="text-[13px] text-[#999]">Payment Method</Text>
+            {booking.paymentMethod?.toLowerCase() === 'maya' ? (
+              <Image
+                source={require('../../assets/images/maya_logo.png')}
+                style={{ width: 51, height: 16 }}
+                resizeMode="contain"
+              />
+            ) : (
+              <Text className="text-[13px] font-semibold text-[#1A1A1A]">
+                {booking.paymentMethod || 'Not selected'}
+              </Text>
+            )}
+          </View>
+
+          <Text className="text-[15px] font-bold text-[#1A1A1A] mt-3 mb-2">Note</Text>
+          <View className="rounded-xl bg-[#FAFAFA] p-3">
+            <Text className="text-[12px] text-[#666] leading-[17px]">
+              {booking.note || 'No note provided.'}
+            </Text>
+          </View>
         </View>
 
         {/* Actions */}
         <View className="px-6 mt-6">
-          <TouchableOpacity
-            className="bg-[#F9EF08] rounded-full py-4 items-center"
-            onPress={() => setShowDetails(true)}
-            activeOpacity={0.85}
-          >
-            <Text className="text-[14px] font-bold text-[#1A1A00]">View Full Details</Text>
-          </TouchableOpacity>
+          {/* Only while a branch hasn't acted on it yet - once accepted, the branch is locked in */}
+          {booking.status === 'pending' && (
+            <TouchableOpacity
+              className="bg-white border border-[#EEEEEE] rounded-full py-4 items-center flex-row justify-center mt-3"
+              onPress={() =>
+                router.push({
+                  pathname: '/user/switch-branch' as any,
+                  params: { appointmentId: booking.appointmentId, date: booking.timeSlot?.appointmentDate },
+                })
+              }
+              activeOpacity={0.85}
+            >
+              <Ionicons name="swap-horizontal-outline" size={16} color="#1A1A1A" style={{ marginRight: 6 }} />
+              <Text className="text-[14px] font-bold text-[#1A1A1A]">Look for Another Branch</Text>
+            </TouchableOpacity>
+          )}
 
           {booking.status === 'completed' && (
             <TouchableOpacity
@@ -308,27 +359,6 @@ export default function BookingProgressScreen() {
           )}
         </View>
       </ScrollView>
-
-      {/* Details Modal */}
-      <AppointmentDetailsModal
-        visible={showDetails}
-        branchName={booking.branchName}
-        branchAddress={booking.branchAddress}
-        branchImage={require('../../assets/images/samplebranch.png')}
-        vehicleName={booking.vehicleDetails?.vehicleName}
-        plateNumber={booking.vehicleDetails?.plateNumber}
-        classification={booking.vehicleDetails?.classification}
-        date={booking.timeSlot?.appointmentDate}
-        time={booking.timeSlot?.time}
-        orderSummary={orderRows.map((item) => ({ label: item.label, price: `₱${item.price}` }))}
-        amountDue={String(booking.amountDue)}
-        paymentMethod={booking.paymentMethod}
-        estimatedCompletion={booking.timeSlot?.estCompletion}
-        note={booking.note}
-        status={booking.status}
-        appointmentId={booking.appointmentId}
-        onClose={() => setShowDetails(false)}
-      />
     </SafeAreaView>
   );
 }

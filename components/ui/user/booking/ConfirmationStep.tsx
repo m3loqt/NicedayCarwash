@@ -1,10 +1,10 @@
 import { useAlert } from '@/hooks/use-alert';
 import { checkBranchCapacity } from '@/lib/capacityCheck';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
+import { formatDuration } from '@/lib/duration';
 import { logWarn } from '@/lib/logger';
 import { payBookingFeeWithMaya } from '@/lib/mayaPayment';
 import { sanitizePlainText } from '@/lib/sanitize';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
@@ -44,17 +44,6 @@ const getClassificationName = (vtype?: string): string => {
     'motorcycle-large': 'Motorcycle (L)',
   };
   return map[vtype.toLowerCase()] || vtype;
-};
-
-const getVehicleIcon = (vehicleType?: string) => {
-  switch (vehicleType?.toLowerCase()) {
-    case 'sedan': return require('../../../../assets/images/sedan.png');
-    case 'suv': return require('../../../../assets/images/suv.png');
-    case 'pickup': return require('../../../../assets/images/pickup.png');
-    case 'motorcycle-small': return require('../../../../assets/images/motosmall.png');
-    case 'motorcycle-large': return require('../../../../assets/images/motobig.png');
-    default: return require('../../../../assets/images/sedan.png');
-  }
 };
 
 const getPriceForClassification = (item: ServiceOrAddon, classification?: string): number => {
@@ -255,37 +244,15 @@ export default function ConfirmationStep({
 
         <View className="mx-4 mb-4 bg-white rounded-2xl px-4 pt-5 pb-4">
 
-          {/* Branch + Vehicle — side by side */}
-          <View className="flex-row mb-5">
-            {/* Branch */}
-            <View className="flex-1 pr-3">
-              <SectionLabel>Branch</SectionLabel>
-              <Text className="text-[14px] font-bold text-[#1A1A1A] mb-0.5">{branch?.name}</Text>
-              <View className="flex-row items-center">
-                <Ionicons name="location-outline" size={11} color="#9CA3AF" style={{ marginRight: 3 }} />
-                <Text className="text-[12px] text-[#999] flex-1">{branch?.address || 'No address'}</Text>
-              </View>
-            </View>
-
-            <View className="w-[1px] bg-[#EEEEEE] mr-3" />
-
-            {/* Vehicle */}
-            <View className="flex-1">
-              <SectionLabel>Vehicle</SectionLabel>
-              <View className="flex-row items-center">
-                <Image
-                  source={getVehicleIcon(vehicle?.vtype || vehicle?.classification)}
-                  style={{ width: 28, height: 18, tintColor: '#1A1A1A' }}
-                  resizeMode="contain"
-                />
-                <View className="flex-1 ml-2">
-                  <Text className="text-[13px] font-semibold text-[#1A1A1A]">{vehicle?.vname}</Text>
-                  <Text className="text-[11px] text-[#999] mt-0.5">
-                    {vehicle?.vplateNumber} · {vehicle?.classification || getClassificationName(vehicle?.vtype)}
-                  </Text>
-                </View>
-              </View>
-            </View>
+          {/* Branch + Vehicle — plain rows, matching the rest of this summary's style */}
+          <Row label="Branch" value={branch?.name || ''} />
+          <View className="mb-5">
+            <Row
+              label="Vehicle"
+              value={`${vehicle?.vname || ''} · ${vehicle?.vplateNumber || ''} · ${
+                vehicle?.classification || getClassificationName(vehicle?.vtype)
+              }`}
+            />
           </View>
 
           {/* Date & Time */}
@@ -295,7 +262,7 @@ export default function ConfirmationStep({
               <Row label="Appointment date" value={formatDate(date)} />
               {timeSlot && <Row label="Time" value={formatTimeRange(timeSlot, totalEstimatedTime)} />}
               <View className="mb-5">
-                <Row label="Est. duration" value={`${totalEstimatedTime} mins`} />
+                <Row label="Est. duration" value={formatDuration(totalEstimatedTime) || '—'} />
               </View>
             </>
           )}
@@ -368,5 +335,10 @@ export default function ConfirmationStep({
     </View>
   );
 }
+
+
+
+
+
 
 

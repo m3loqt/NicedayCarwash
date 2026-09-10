@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { onValue, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../firebase/firebase';
 
 interface Notification {
@@ -46,6 +46,12 @@ function isToday(isoString: string): boolean {
 
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  // react-native-safe-area-context's insets.top can briefly read 0 on this screen's first
+  // paint (visible as the header flashing flush against the status bar before settling).
+  // StatusBar.currentHeight is a synchronous native value on Android, so it's used as the
+  // floor - never an animated flash from 0 up to the real inset.
+  const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight ?? 0) : insets.top;
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -82,7 +88,7 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAFA' }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: '#FAFAFA', paddingTop: topPadding }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -144,7 +150,7 @@ export default function NotificationsScreen() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

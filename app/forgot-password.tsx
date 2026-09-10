@@ -21,7 +21,11 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
-  const handleBack = () => router.push('/');
+  // router.back() (not push('/')) - pushing '/' remounts app/index.tsx and re-runs its full
+  // session-restore flow (a fresh RTDB read of users/{uid}), which on any hiccup can hit the
+  // "account not found" branch and sign the user out. Going back just returns to wherever
+  // they actually came from (Profile or the logged-out Login screen) with no re-auth risk.
+  const handleBack = () => router.back();
 
   const handleResetPassword = async () => {
     const trimmedEmail = email.trim();

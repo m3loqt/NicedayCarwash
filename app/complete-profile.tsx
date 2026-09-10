@@ -1,7 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
 import { sanitizeNamePart } from '@/lib/sanitize';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, update } from 'firebase/database';
@@ -24,7 +22,6 @@ export default function CompleteProfileScreen() {
   const { alert, AlertComponent } = useAlert();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
@@ -41,21 +38,10 @@ export default function CompleteProfileScreen() {
       if (snapshot.exists()) {
         const data = snapshot.val();
         setName(`${data.firstName || ''} ${data.lastName || ''}`.trim());
-        setProfileImage(data.profileImage || null);
       }
       setLoading(false);
     })();
   }, [userId]);
-
-  const handleChangeProfilePicture = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-    if (!result.canceled && Array.isArray(result.assets) && result.assets.length > 0) {
-      setProfileImage(result.assets[0].uri);
-    }
-  };
 
   const handleCompleteProfile = async () => {
     const trimmedName = sanitizeNamePart(name);
@@ -85,7 +71,6 @@ export default function CompleteProfileScreen() {
         lastName: ln,
         phone: trimmedPhone,
         countryCode: '+63',
-        profileImage: profileImage || '',
       });
       router.replace('/enable-location');
     } catch {
@@ -121,26 +106,18 @@ export default function CompleteProfileScreen() {
               className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center"
               style={{ maxWidth: 280 }}
             >
-              Don't worry, only you can see your personal data. No one else will be able to see it.
+              Don&apos;t worry, only you can see your personal data. No one else will be able to see it.
             </Text>
           </View>
 
-          {/* Avatar */}
+          {/* Avatar — decorative only; customers don't set a profile picture */}
           <View className="items-center mb-8">
-            <View className="relative">
-              <View className="w-24 h-24 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">
-                <Image
-                  source={profileImage ? { uri: profileImage } : require('../assets/images/profile_placeholder.png')}
-                  className="w-full h-full"
-                  resizeMode="cover"
-                />
-              </View>
-              <TouchableOpacity
-                className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#F9EF08] rounded-full items-center justify-center border-2 border-white"
-                onPress={handleChangeProfilePicture}
-              >
-                <Ionicons name="pencil" size={14} color="#1A1A00" />
-              </TouchableOpacity>
+            <View className="w-24 h-24 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">
+              <Image
+                source={require('../assets/images/profile_placeholder.png')}
+                className="w-full h-full"
+                resizeMode="cover"
+              />
             </View>
           </View>
 

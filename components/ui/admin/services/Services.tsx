@@ -16,9 +16,10 @@ interface Service {
 
 interface ServicesProps {
   branchId?: string | null;
+  refreshKey?: number;
 }
 
-export default function Services({ branchId: propBranchId }: ServicesProps = {}) {
+export default function Services({ branchId: propBranchId, refreshKey }: ServicesProps = {}) {
   const { alert, AlertComponent } = useAlert();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,25 +45,56 @@ export default function Services({ branchId: propBranchId }: ServicesProps = {})
         setBranchId(fetchedBranchId);
 
         const servicesRef = ref(db, `Branches/${fetchedBranchId}/Services`);
-        unsubscribeServices = onValue(servicesRef, (snapshot) => {
-          setLoading(false);
-          if (snapshot.exists()) {
-            const data: Service[] = [];
-            snapshot.forEach((child) => {
-              const val = child.val();
+        unsubscribeServices = onValue(servicesRef, async (snapshot) => {
+          const branchLocal = snapshot.val() ?? {};
+
+          // The shared "services" catalog (managed on the web) is the source of truth for which
+          // services exist and which branches offer them, via its `branches` array -
+          // branch-local entries are either legacy full-object services or per-branch
+          // availability overrides for catalog services (see ServicesStep.tsx).
+          const catalogSnapshot = await get(ref(db, "services"));
+          const catalog = catalogSnapshot.val() ?? {};
+
+          const data: Service[] = [];
+          const addedIds = new Set<string>();
+
+          Object.entries(branchLocal).forEach(([id, val]: [string, any]) => {
+            if (val && typeof val === "object" && val.name) {
+              // Legacy format: full service object stored directly under the branch
               data.push({
-                id: child.key!,
+                id,
                 name: val.name,
                 sedan: val.sedanPrice || 0,
                 suv: val.suvPrice || 0,
                 pickup: val.pickupPrice || 0,
                 isAvailable: val.isAvailable !== undefined ? val.isAvailable : true,
               });
+              addedIds.add(id);
+            }
+          });
+
+          Object.entries(catalog).forEach(([id, master]: [string, any]) => {
+            if (addedIds.has(id)) return;
+            if (!Array.isArray(master?.branches) || !master.branches.includes(fetchedBranchId)) return;
+
+            const override = branchLocal[id];
+            const isAvailable =
+              typeof override === "boolean" ? override : override?.isAvailable !== undefined ? override.isAvailable : true;
+
+            const prices = master.branchPrices?.[fetchedBranchId] ?? master.defaultPrices ?? {};
+            data.push({
+              id,
+              name: master.name,
+              sedan: prices.sedan ?? 0,
+              suv: prices.suv ?? 0,
+              pickup: prices.pickup ?? 0,
+              isAvailable,
             });
-            setServices(data);
-          } else {
-            setServices([]);
-          }
+            addedIds.add(id);
+          });
+
+          setServices(data);
+          setLoading(false);
         }, () => setLoading(false));
       } catch {
         setLoading(false);
@@ -71,7 +103,7 @@ export default function Services({ branchId: propBranchId }: ServicesProps = {})
 
     getUserBranchId();
     return () => { if (unsubscribeServices) unsubscribeServices(); };
-  }, []);
+  }, [refreshKey]);
 
   const handleToggleRequest = (item: Service, newValue: boolean) => {
     setConfirmModal({ item, newValue });
@@ -103,7 +135,7 @@ export default function Services({ branchId: propBranchId }: ServicesProps = {})
 
   if (services.length === 0) {
     return (
-      <View className="rounded-lg bg-[#FAFAFA] px-4 py-4">
+      <View className="rounded-lg bg-white px-4 py-4">
         <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: "Inter_400Regular" }}>
           No services yet
         </Text>
@@ -112,7 +144,7 @@ export default function Services({ branchId: propBranchId }: ServicesProps = {})
   }
 
   return (
-    <View className="rounded-lg bg-[#FAFAFA] overflow-hidden">
+    <View className="rounded-lg bg-white overflow-hidden">
       {services.map((item) => (
         <View key={item.id} className="flex-row items-center px-4 py-3 border-b border-[#F5F5F5] last:border-0">
           <View className="flex-1 mr-3">

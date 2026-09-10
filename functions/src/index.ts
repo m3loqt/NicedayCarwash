@@ -16,10 +16,11 @@ import {
   mayaSandboxSecretKey,
 } from "./maya";
 import { performRefund } from "./refunds";
-import { checkBranchCapacity } from "./capacity";
-import { sendPushOnNewNotification } from "./pushNotifications";
+import { checkBranchCapacity, parseDateTime } from "./capacity";
+import { sendPushOnNewNotification, notifyBranchStaffOfNewBooking } from "./pushNotifications";
+import { getSwitchableBranches, moveBookingToBranch } from "./branchSwitch";
 
-export { sendPushOnNewNotification };
+export { sendPushOnNewNotification, getSwitchableBranches, moveBookingToBranch };
 
 // Both key pairs must be declared here even though only one is read at runtime (per MAYA_ENVIRONMENT) -
 // Cloud Functions v2 needs every secret a function might touch listed at deploy time.
@@ -270,14 +271,42 @@ export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, 
       updatedAt: admin.database.ServerValue.TIMESTAMP,
       ...(mayaPaymentId ? { mayaPaymentId } : {}),
     });
+    const paidFields = {
+      isPaid: true,
+      paidAt: admin.database.ServerValue.TIMESTAMP,
+      paymentMethod: "maya",
+      ...(mayaPaymentId ? { mayaPaymentId } : {}),
+    };
     await db
       .ref(`Reservations/ReservationsByUser/${record.userId}/${record.dateKey}/${record.appointmentId}`)
-      .update({
-        isPaid: true,
-        paidAt: admin.database.ServerValue.TIMESTAMP,
-        paymentMethod: "maya",
-        ...(mayaPaymentId ? { mayaPaymentId } : {}),
-      });
+      .update(paidFields);
+    // Also sync the branch-side copy - a booking already accepted (and thus copied into
+    // ReservationsByBranch) before this webhook fires would otherwise permanently miss
+    // isPaid/mayaPaymentId there, since nothing else re-syncs the two copies after that initial
+    // copy-on-accept. Older payment records predate branchId being stored here, hence the guard.
+    //
+    // This path doesn't exist at all yet for a still-pending booking (admin's Pending tab reads
+    // ReservationsByUser directly - ReservationsByBranch is only populated once accepted), and
+    // the webhook typically fires right after checkout, well before an admin gets to accepting
+    // it. update() on a non-existent path creates it with just these 4 fields, so this checks
+    // existence first rather than risk writing a partial booking missing status/vehicleDetails/
+    // timeSlot/etc.
+    if (record.branchId) {
+      const branchBookingRef = db.ref(
+        `Reservations/ReservationsByBranch/${record.branchId}/${record.dateKey}/${record.appointmentId}`
+      );
+      const branchBookingSnap = await branchBookingRef.get();
+      if (branchBookingSnap.exists()) {
+        await branchBookingRef.update(paidFields);
+      }
+
+      // This is the moment the booking actually becomes real to staff - it's what the in-app
+      // pending list/bell badge already gates on (see hooks/use-pending-branch-bookings.ts),
+      // regardless of whether it's been accepted yet, so the push fires here too rather than
+      // at raw booking-creation time (before checkout even starts).
+      const branchNameSnap = await db.ref(`Branches/${record.branchId}/profile/name`).get();
+      await notifyBranchStaffOfNewBooking(record.branchId, record.appointmentId, branchNameSnap.val() ?? null);
+    }
   } else if (failed) {
     await db.ref(refPath).update({ status: "failed", updatedAt: admin.database.ServerValue.TIMESTAMP });
   }
@@ -286,10 +315,65 @@ export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, 
   res.status(200).send("ok");
 });
 
-const PENDING_EXPIRY_MS = 24 * 60 * 60 * 1000;
 const PAYMENT_WINDOW_MS = 15 * 60 * 1000;
+// Client-confirmed policy: a paid-but-unaccepted booking gets 24 hours of the branch's actual
+// operating time to be reviewed - not 24 wall-clock hours, since a booking placed at 9pm hasn't
+// "used up" any of that budget by 7am the next open-day. See openHoursElapsedMs below.
+const PENDING_OPEN_HOURS_BUDGET_MS = 24 * 60 * 60 * 1000;
+// Independent hard override: if a paid booking is still pending this close to its own scheduled
+// time, cancel it outright regardless of the open-hours budget above. This is what keeps that
+// generous budget from ever leaving a customer standing at the branch with an unconfirmed
+// booking - most notably for a booking against the very first slot of the day, where the
+// open-hours budget hasn't even started ticking yet by the time the appointment arrives.
+const APPOINTMENT_CANCEL_BUFFER_MS = 30 * 60 * 1000;
 const AUTO_CANCEL_REASON = "Branch might be too busy to accommodate your request at this time.";
+const APPOINTMENT_BUFFER_CANCEL_REASON = "Your booking wasn't confirmed in time before your appointment, so it was cancelled.";
 const PAYMENT_TIMEOUT_REASON = "Payment wasn't completed in time, so the slot was released.";
+
+// Branch schedule is stored as a single string like "8:00 AM - 6:00 PM" (see Branches/{id}/
+// profile/schedule) - mirrors ServicesStep.tsx's own parsing, kept local since that one runs
+// client-side.
+function parseScheduleHours(schedule: string | undefined | null): { openHour: number; closeHour: number } | null {
+  if (!schedule) return null;
+  const match = schedule.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return null;
+  const to24Hour = (hourStr: string, period: string): number => {
+    let hour = parseInt(hourStr, 10);
+    const p = period.toUpperCase();
+    if (p === "PM" && hour !== 12) hour += 12;
+    else if (p === "AM" && hour === 12) hour = 0;
+    return hour;
+  };
+  return { openHour: to24Hour(match[1], match[3]), closeHour: to24Hour(match[4], match[6]) };
+}
+
+// Sums the time that actually fell within a branch's daily [openHour, closeHour) window between
+// two timestamps - a booking placed at 9pm and reviewed at 8am the next open-day has accrued
+// zero "open" time overnight, not 11 hours.
+function openHoursElapsedMs(fromMs: number, toMs: number, openHour: number, closeHour: number): number {
+  if (toMs <= fromMs || closeHour <= openHour) return 0;
+
+  let elapsedMs = 0;
+  const cursor = new Date(fromMs);
+  cursor.setHours(0, 0, 0, 0);
+  const endDay = new Date(toMs);
+  endDay.setHours(0, 0, 0, 0);
+
+  while (cursor.getTime() <= endDay.getTime()) {
+    const dayOpen = new Date(cursor);
+    dayOpen.setHours(openHour, 0, 0, 0);
+    const dayClose = new Date(cursor);
+    dayClose.setHours(closeHour, 0, 0, 0);
+
+    const windowStart = Math.max(dayOpen.getTime(), fromMs);
+    const windowEnd = Math.min(dayClose.getTime(), toMs);
+    if (windowEnd > windowStart) elapsedMs += windowEnd - windowStart;
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return elapsedMs;
+}
 
 async function notifyUser(userId: string, branchId: string, payload: Record<string, unknown>): Promise<void> {
   const db = admin.database();
@@ -353,12 +437,18 @@ async function expireOnePendingBooking(
 // Replaces the old client-side auto-decline (which only ran if an admin happened to have the
 // Appointments screen open) - this now has real refund consequences, so it can't depend on that.
 //
-// Two different failure modes share this one pass, each with its own threshold: an unpaid hold
-// (customer never finished Maya checkout) releases after PAYMENT_WINDOW_MS so the slot doesn't
-// sit locked up waiting on a payment that isn't coming; a paid-but-unaccepted booking (admin
-// never acted on it) gets the much longer PENDING_EXPIRY_MS, since there's no urgency to free a
-// slot the branch has already been paid to hold. Runs every 5 minutes (rather than every 15) so
-// the 15-minute payment window stays reasonably tight in practice.
+// Three different thresholds share this one pass:
+// - An unpaid hold (customer never finished Maya checkout) releases after PAYMENT_WINDOW_MS,
+//   wall-clock, so the slot doesn't sit locked up waiting on a payment that isn't coming.
+// - A paid-but-unaccepted booking gets PENDING_OPEN_HOURS_BUDGET_MS worth of the branch's actual
+//   operating hours (not wall-clock) - no urgency to free a slot the branch has already been
+//   paid to hold, and nobody should be expected to act on it overnight.
+// - Regardless of that budget, APPOINTMENT_CANCEL_BUFFER_MS before the booking's own scheduled
+//   time is a hard override - this is what stops a customer ever showing up to an unconfirmed
+//   booking, including for a booking against the very first slot of the day (where the
+//   open-hours budget may not have started ticking at all yet).
+// Runs every 5 minutes (rather than every 15) so the 15-minute payment window stays reasonably
+// tight in practice.
 export const expirePendingBookings = onSchedule(
   { schedule: "every 5 minutes", secrets: ALL_MAYA_SECRETS },
   async () => {
@@ -369,6 +459,21 @@ export const expirePendingBookings = onSchedule(
     const now = Date.now();
     const tasks: Promise<void>[] = [];
 
+    // One schedule fetch per branch, shared by every pending booking under it (not one per
+    // booking) - concurrent tasks for the same branch await the same cached promise.
+    const scheduleCache = new Map<string, Promise<{ openHour: number; closeHour: number } | null>>();
+    const getBranchSchedule = (branchId: string) => {
+      let cached = scheduleCache.get(branchId);
+      if (!cached) {
+        cached = db
+          .ref(`Branches/${branchId}/profile/schedule`)
+          .get()
+          .then((snap) => parseScheduleHours(snap.val()));
+        scheduleCache.set(branchId, cached);
+      }
+      return cached;
+    };
+
     branchesSnap.forEach((branchSnap) => {
       const branchId = branchSnap.key as string;
       const pending = branchSnap.child("pendingBookings");
@@ -376,27 +481,112 @@ export const expirePendingBookings = onSchedule(
         const data = entrySnap.val();
         if (!data?.createdAt || !data.userId || !data.dateKey || !data.appointmentId) return false;
 
-        const ageMs = now - new Date(data.createdAt).getTime();
+        const createdAtMs = new Date(data.createdAt).getTime();
+        const ageMs = now - createdAtMs;
         tasks.push(
           (async () => {
             const bookingSnap = await db
               .ref(`Reservations/ReservationsByUser/${data.userId}/${data.dateKey}/${data.appointmentId}`)
               .get();
-            const isPaid = bookingSnap.val()?.isPaid === true;
-            const shouldExpire = isPaid ? ageMs > PENDING_EXPIRY_MS : ageMs > PAYMENT_WINDOW_MS;
-            if (!shouldExpire) return;
+            const bookingData = bookingSnap.val();
+            const isPaid = bookingData?.isPaid === true;
+
+            if (!isPaid) {
+              if (ageMs > PAYMENT_WINDOW_MS) {
+                await expireOnePendingBooking(branchId, data.userId, data.dateKey, data.appointmentId, PAYMENT_TIMEOUT_REASON);
+              }
+              return;
+            }
+
+            // No parseable schedule - fail open to plain wall-clock counting rather than let
+            // missing/malformed branch data block expiry entirely.
+            const schedule = await getBranchSchedule(branchId);
+            const openHoursElapsed = schedule
+              ? openHoursElapsedMs(createdAtMs, now, schedule.openHour, schedule.closeHour)
+              : ageMs;
+            const openHoursExpired = openHoursElapsed > PENDING_OPEN_HOURS_BUDGET_MS;
+
+            const appointmentDate = bookingData?.timeSlot?.appointmentDate;
+            const appointmentTime = bookingData?.timeSlot?.time;
+            const appointmentBufferExpired =
+              !!appointmentDate &&
+              !!appointmentTime &&
+              now >= parseDateTime(appointmentDate, appointmentTime).getTime() - APPOINTMENT_CANCEL_BUFFER_MS;
+
+            if (!openHoursExpired && !appointmentBufferExpired) return;
 
             await expireOnePendingBooking(
               branchId,
               data.userId,
               data.dateKey,
               data.appointmentId,
-              isPaid ? AUTO_CANCEL_REASON : PAYMENT_TIMEOUT_REASON
+              appointmentBufferExpired ? APPOINTMENT_BUFFER_CANCEL_REASON : AUTO_CANCEL_REASON
             );
           })().catch((err) => {
             logger.error("Failed to expire pending booking", { branchId, appointmentId: data.appointmentId, err });
           })
         );
+        return false;
+      });
+      return false;
+    });
+
+    await Promise.all(tasks);
+  }
+);
+
+const REMINDER_LEAD_MS = 30 * 60 * 1000;
+
+// Nudges a customer shortly before their confirmed appointment - partly a nice touch, partly a
+// practical no-show reducer (Confirmed -> Ongoing now has zero manual gate, see
+// autoStartTodayBookings in AppointmentsList.tsx, so a customer who simply forgot is the main
+// failure mode worth heading off). `reminderSentAt` on the booking is the dedupe guard against
+// re-sending on every 5-minute tick; only "accepted" bookings qualify - a still-pending one
+// hasn't even been confirmed by the branch yet, so reminding about it would be premature.
+export const sendAppointmentReminders = onSchedule(
+  { schedule: "every 5 minutes" },
+  async () => {
+    const db = admin.database();
+    const branchesSnap = await db.ref("Reservations/ReservationsByBranch").get();
+    if (!branchesSnap.exists()) return;
+
+    const now = Date.now();
+    const tasks: Promise<void>[] = [];
+
+    branchesSnap.forEach((branchSnap) => {
+      const branchId = branchSnap.key as string;
+
+      branchSnap.forEach((dateSnap) => {
+        const dateKey = dateSnap.key as string;
+
+        dateSnap.forEach((bookingSnap) => {
+          const booking = bookingSnap.val();
+          if (!booking || booking.status !== "accepted" || booking.reminderSentAt || !booking.userId) return false;
+
+          const appointmentAt = parseDateTime(booking.timeSlot?.appointmentDate, booking.timeSlot?.time).getTime();
+          if (appointmentAt <= now || appointmentAt - now > REMINDER_LEAD_MS) return false;
+
+          tasks.push(
+            (async () => {
+              await db
+                .ref(`Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingSnap.key}/reminderSentAt`)
+                .set(new Date().toISOString());
+
+              await notifyUser(booking.userId, branchId, {
+                title: "Your Appointment is Coming Up",
+                body: `Your wash at ${booking.branchName || "the branch"} is scheduled for ${booking.timeSlot?.time}. We'll be ready for you!`,
+                appointmentId: booking.appointmentId,
+                date: booking.timeSlot?.appointmentDate,
+                type: "reminder",
+                read: false,
+                createdAt: new Date().toISOString(),
+              });
+            })().catch((err) => {
+              logger.error("Failed to send appointment reminder", { branchId, appointmentId: booking.appointmentId, err });
+            })
+          );
+          return false;
+        });
         return false;
       });
       return false;

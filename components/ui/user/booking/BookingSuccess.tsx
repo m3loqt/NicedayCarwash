@@ -4,7 +4,8 @@ import { payBookingFeeWithMaya } from "@/lib/mayaPayment";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { getAuth } from "firebase/auth";
-import { useState } from "react";
+import { getDatabase, onValue, ref } from "firebase/database";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 type PaymentStatus = "paid" | "unconfirmed" | "cancelled" | "error";
@@ -14,9 +15,10 @@ const PAYMENT_STATE: Record<
   { title: string; icon: keyof typeof Ionicons.glyphMap; notice: string }
 > = {
   paid: {
-    title: "Appointment Confirmed",
+    title: "Thank you for choosing Nice Day!",
     icon: "checkmark-circle-outline",
-    notice: "Your booking fee has been confirmed.",
+    notice:
+      "We're processing your appointment and will notify you once it's confirmed. Please hold on for a moment!",
   },
   unconfirmed: {
     title: "Booking Not Sent",
@@ -52,6 +54,24 @@ export default function BookingSuccess() {
   );
   const [retrying, setRetrying] = useState(false);
   const state = PAYMENT_STATE[status];
+
+  // Self-heals if the webhook confirms after we've already given up and rendered "not paid" -
+  // e.g. it landed just past the grace window, or the app was backgrounded while waiting. Without
+  // this, a user who actually paid would be stuck staring at "Pay Again" (which would then reject
+  // as already-paid) until they left and reopened this screen.
+  useEffect(() => {
+    if (status === "paid") return;
+    const userId = getAuth().currentUser?.uid;
+    if (!appointmentId || !dateKey || !userId) return;
+    const isPaidRef = ref(
+      getDatabase(),
+      `Reservations/ReservationsByUser/${userId}/${dateKey}/${appointmentId}/isPaid`,
+    );
+    const unsubscribe = onValue(isPaidRef, (snapshot) => {
+      if (snapshot.val() === true) setStatus("paid");
+    });
+    return () => unsubscribe();
+  }, [status, appointmentId, dateKey]);
 
   const handlePayAgain = async () => {
     const userId = getAuth().currentUser?.uid;

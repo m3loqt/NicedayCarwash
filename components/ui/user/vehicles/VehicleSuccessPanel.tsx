@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface VehicleSuccessPanelProps {
@@ -8,56 +8,36 @@ interface VehicleSuccessPanelProps {
   iconType?: 'success' | 'delete';
 }
 
-export default function VehicleSuccessPanel({ 
-  message, 
-  onContinue, 
-  iconType = 'success' 
+export default function VehicleSuccessPanel({
+  message,
+  onContinue,
+  iconType = 'success',
 }: VehicleSuccessPanelProps) {
-  const getIcon = () => {
-    if (iconType === 'delete') {
-      return (
-        <View className="w-16 h-16 bg-red-500 rounded-full items-center justify-center">
-          <Image
-            source={require('../../../../assets/images/remove_icon.png')}
-            className="w-8 h-8"
-            resizeMode="contain"
-          />
-        </View>
-      );
-    }
-    
-    return (
-      <Ionicons name="checkmark" size={90} color="#1A1A1A" />
-    );
-  };
-
-  const getBackgroundColor = () => {
-    return iconType === 'delete' ? 'bg-red-500' : 'bg-[#F5F5F5]';
-  };
+  const isDelete = iconType === 'delete';
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100 items-center justify-center" edges={['top', 'bottom']}>
+    <SafeAreaView className="flex-1 items-center justify-center bg-white px-8">
+      <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-5">
+        <Ionicons
+          name={isDelete ? 'trash-outline' : 'checkmark-circle-outline'}
+          size={30}
+          color={isDelete ? '#DC2626' : '#1A1A1A'}
+        />
+      </View>
+
+      <Text className="text-[18px] font-bold text-[#1A1A1A] text-center mb-1.5">
+        {isDelete ? 'Vehicle Removed' : 'Success'}
+      </Text>
+
+      <Text className="text-[12px] text-[#999] text-center mb-6 px-2">{message}</Text>
+
       <TouchableOpacity
-        className="absolute inset-0 items-center justify-center"
+        className="w-full bg-[#F9EF08] py-3.5 rounded-2xl items-center"
+        activeOpacity={0.85}
         onPress={onContinue}
-        activeOpacity={1}
       >
-        {/* Success/Delete Icon */}
-        <View className={`w-32 h-32 ${getBackgroundColor()} rounded-full items-center justify-center mb-8 shadow-md`}>
-          {getIcon()}
-        </View>
-
-        {/* Message */}
-        <Text className="text-2xl font-bold text-gray-800 text-center mb-4">
-          {message}
-        </Text>
-
-        {/* Continue Prompt */}
-        <Text className="text-base text-gray-500 text-center">
-          Click anywhere to continue
-        </Text>
+        <Text className="text-[14px] font-bold text-[#1A1A00]">Continue</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 }
-

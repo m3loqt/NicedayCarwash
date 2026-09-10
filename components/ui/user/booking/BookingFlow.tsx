@@ -16,7 +16,6 @@ interface Branch {
   address: string;
   phone: string;
   hours: string;
-  distance: string;
   status: 'Open' | 'Closed';
   coordinates: { latitude: number; longitude: number };
 }

@@ -36,12 +36,12 @@ const FAQ_ITEMS: { question: string; answer: string }[] = [
   {
     question: 'How will I know when my car is ready?',
     answer:
-      "You'll get a notification as soon as the branch accepts your booking, when your wash starts, and again when it's completed. You can also check live status anytime from the History tab.",
+      "You'll get a notification as soon as the branch accepts your booking, when your appointment time arrives, and again when it's completed. You can also check live status anytime from the History tab.",
   },
   {
     question: 'Can I change or cancel my appointment?',
     answer:
-      'You can cancel a pending or confirmed appointment from the History tab before it starts. Once your wash is in progress, it can no longer be cancelled.',
+      'To cancel or make changes to an appointment, please contact us using the details in the Contact Us tab. Once your wash is in progress, it can no longer be cancelled.',
   },
   {
     question: 'Where can I see my past bookings and receipts?',
@@ -71,7 +71,7 @@ function FAQAccordion({ items }: { items: typeof FAQ_ITEMS }) {
         return (
           <TouchableOpacity
             key={item.question}
-            className="bg-white border border-[#EEEEEE] rounded-2xl px-4 py-4 mb-3"
+            className="bg-white rounded-2xl px-4 py-6 mb-1.5"
             activeOpacity={0.8}
             onPress={() => setExpandedIndex(expanded ? null : index)}
           >
@@ -97,46 +97,46 @@ function ContactRow({
   icon,
   label,
   value,
-  expanded,
-  onPress,
   onPressValue,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  expanded: boolean;
-  onPress: () => void;
   onPressValue?: () => void;
 }) {
+  const hasValue = !!onPressValue;
+
   return (
-    <View className="bg-white border border-[#EEEEEE] rounded-2xl px-4 py-4 mb-3">
-      <TouchableOpacity className="flex-row items-center justify-between" activeOpacity={0.8} onPress={onPress}>
-        <View className="flex-row items-center flex-1">
-          <View className="w-9 h-9 rounded-full bg-[#FAFAFA] items-center justify-center mr-3">
-            {icon}
-          </View>
-          <Text className="text-[13px] font-inter-semibold tracking-tight text-[#1A1A1A]">{label}</Text>
-        </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#999" />
-      </TouchableOpacity>
-      {expanded && (
-        <View className="mt-2.5 pl-12">
-          <Text
-            className="text-[12.5px] font-inter-regular tracking-tight text-[#666]"
-            onPress={onPressValue}
-          >
-            {value}
-          </Text>
-        </View>
-      )}
-    </View>
+    <TouchableOpacity
+      className="bg-white rounded-2xl px-4 py-4 mb-1.5 flex-row items-center"
+      activeOpacity={hasValue ? 0.7 : 1}
+      onPress={onPressValue}
+      disabled={!hasValue}
+    >
+      <View className="w-9 h-9 rounded-full bg-[#FAFAFA] items-center justify-center mr-3">
+        {icon}
+      </View>
+      <View className="flex-1 mr-2">
+        <Text className="text-[11.5px] font-inter-regular tracking-tight text-[#999]">{label}</Text>
+        <Text
+          className={`text-[13.5px] font-inter-semibold tracking-tight ${hasValue ? 'text-[#1A1A1A]' : 'text-[#BDBDBD]'}`}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      </View>
+      {hasValue && <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />}
+    </TouchableOpacity>
   );
 }
+
+// Strips the protocol and trailing slash so the card shows a clean, readable link
+// (e.g. "https://www.instagram.com/nicedaycarwashmain/" -> "www.instagram.com/nicedaycarwashmain").
+const formatLink = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
 export default function HelpCenterScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('faq');
   const [search, setSearch] = useState('');
-  const [expandedContact, setExpandedContact] = useState<string | null>(null);
 
   const filteredFaq = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -146,53 +146,42 @@ export default function HelpCenterScreen() {
     );
   }, [search]);
 
-  const toggleContact = (key: string) => setExpandedContact((prev) => (prev === key ? null : key));
-
   const contactRows: { key: string; icon: React.ReactNode; label: string; value: string; onPressValue?: () => void }[] = [
     {
       key: 'customerService',
-      icon: <Ionicons name="headset-outline" size={18} color="#666" />,
-      label: 'Customer Service',
+      icon: <Ionicons name="call-outline" size={18} color="#666" />,
+      label: 'Contact Number',
       value: CONTACT_INFO.customerServicePhone || 'Contact details coming soon',
       onPressValue: CONTACT_INFO.customerServicePhone
-        ? () => Linking.openURL(`tel:${CONTACT_INFO.customerServicePhone}`)
+        ? () => Linking.openURL(`tel:${CONTACT_INFO.customerServicePhone.replace(/[^0-9+]/g, '')}`)
         : undefined,
     },
     {
-      key: 'whatsapp',
-      icon: <Ionicons name="logo-whatsapp" size={18} color="#666" />,
-      label: 'WhatsApp',
-      value: CONTACT_INFO.whatsapp || 'Contact details coming soon',
-      onPressValue: CONTACT_INFO.whatsapp
-        ? () => Linking.openURL(`https://wa.me/${CONTACT_INFO.whatsapp.replace(/[^0-9]/g, '')}`)
-        : undefined,
+      key: 'email',
+      icon: <Ionicons name="mail-outline" size={18} color="#666" />,
+      label: 'Email',
+      value: CONTACT_INFO.email || 'Contact details coming soon',
+      onPressValue: CONTACT_INFO.email ? () => Linking.openURL(`mailto:${CONTACT_INFO.email}`) : undefined,
     },
     {
       key: 'website',
       icon: <Ionicons name="globe-outline" size={18} color="#666" />,
       label: 'Website',
-      value: CONTACT_INFO.website || 'Coming soon',
+      value: CONTACT_INFO.website ? formatLink(CONTACT_INFO.website) : 'Coming soon',
       onPressValue: CONTACT_INFO.website ? () => Linking.openURL(CONTACT_INFO.website) : undefined,
     },
     {
       key: 'facebook',
       icon: <Ionicons name="logo-facebook" size={18} color="#666" />,
       label: 'Facebook',
-      value: CONTACT_INFO.facebook || 'Coming soon',
+      value: CONTACT_INFO.facebook ? formatLink(CONTACT_INFO.facebook) : 'Coming soon',
       onPressValue: CONTACT_INFO.facebook ? () => Linking.openURL(CONTACT_INFO.facebook) : undefined,
-    },
-    {
-      key: 'twitter',
-      icon: <Ionicons name="logo-twitter" size={18} color="#666" />,
-      label: 'Twitter',
-      value: CONTACT_INFO.twitter || 'Coming soon',
-      onPressValue: CONTACT_INFO.twitter ? () => Linking.openURL(CONTACT_INFO.twitter) : undefined,
     },
     {
       key: 'instagram',
       icon: <Ionicons name="logo-instagram" size={18} color="#666" />,
       label: 'Instagram',
-      value: CONTACT_INFO.instagram || 'Coming soon',
+      value: CONTACT_INFO.instagram ? formatLink(CONTACT_INFO.instagram) : 'Coming soon',
       onPressValue: CONTACT_INFO.instagram ? () => Linking.openURL(CONTACT_INFO.instagram) : undefined,
     },
   ];
@@ -235,7 +224,7 @@ export default function HelpCenterScreen() {
           <TouchableOpacity
             key={tab}
             className="flex-1 items-center pb-3"
-            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === tab ? '#1A1A1A' : '#F0F0F0' }}
+            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === tab ? '#F9EF08' : '#F0F0F0' }}
             onPress={() => setActiveTab(tab)}
             activeOpacity={0.7}
           >
@@ -250,7 +239,7 @@ export default function HelpCenterScreen() {
         ))}
       </View>
 
-      <ScrollView className="flex-1 px-5 pt-4" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 bg-[#FAFAFA] px-5 pt-4" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {activeTab === 'faq' ? (
           <FAQAccordion items={filteredFaq} />
         ) : (
@@ -260,8 +249,6 @@ export default function HelpCenterScreen() {
               icon={row.icon}
               label={row.label}
               value={row.value}
-              expanded={expandedContact === row.key}
-              onPress={() => toggleContact(row.key)}
               onPressValue={row.onPressValue}
             />
           ))
