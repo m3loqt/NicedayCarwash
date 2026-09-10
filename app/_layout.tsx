@@ -19,9 +19,14 @@ import {
   Inter_900Black,
 } from '@expo-google-fonts/inter';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import { getAuth } from 'firebase/auth';
+
 import EnvConfigurationError from '@/components/EnvConfigurationError';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { validateFirebasePublicEnv } from '@/lib/env';
+import { ensureAndroidNotificationChannel, handleNotificationResponse } from '@/lib/pushNotifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -46,6 +51,32 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // App-wide notification wiring: ensure the Android channel exists, and route the user to
+  // the right screen when they tap a notification while the app is already running (warm
+  // tap). Cold-start taps - the app being launched by a notification - are handled by the
+  // session gate in app/index.tsx once the persisted session has been restored; the shared
+  // dedupe in handleNotificationResponse keeps the two paths from double-navigating.
+  useEffect(() => {
+    ensureAndroidNotificationChannel();
+
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      void (async () => {
+        try {
+          // getAuth() (not a firebase/firebase import) so the EnvConfigurationError guard
+          // below still wins on a misconfigured build. By the time a tap fires, a route has
+          // already mounted and initialized the Firebase app.
+          await getAuth().authStateReady();
+          const role = await AsyncStorage.getItem('role');
+          handleNotificationResponse(response, role);
+        } catch {
+          // A failed deep-link must never take the app down - the notification list is
+          // still reachable from the bell icon.
+        }
+      })();
+    });
+    return () => sub.remove();
+  }, []);
 
   if (!loaded) {
     return null;

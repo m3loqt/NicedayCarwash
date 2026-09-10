@@ -6,8 +6,10 @@ export interface CapacityCheckResult {
 }
 
 // Mirrors ConfirmationStep/AppointmentsList's own date-time parsing (MM-DD-YYYY + "8:00 AM" etc.)
-// Kept local rather than shared - this runs server-side, those run client-side.
-function parseDateTime(appointmentDate: string, time: string): Date {
+// Kept local rather than shared - this runs server-side, those run client-side. Exported for
+// expirePendingBookings (index.ts), which needs the same MM-DD-YYYY + "8:00 AM" parsing to check
+// a booking's own scheduled time.
+export function parseDateTime(appointmentDate: string, time: string): Date {
   const [month, day, year] = (appointmentDate || "").split("-").map(Number);
   if (!month || !day || !year) return new Date();
 

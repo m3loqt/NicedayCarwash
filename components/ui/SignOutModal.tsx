@@ -49,11 +49,11 @@ export default function SignOutModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
+              className="flex-1 bg-[#DC2626] rounded-lg py-3 items-center"
               onPress={onConfirm}
               disabled={loading}
             >
-              <Text className="text-[#1A1A1A] font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
+              <Text className="text-white font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
                 {loading ? '...' : 'Sign out'}
               </Text>
             </TouchableOpacity>

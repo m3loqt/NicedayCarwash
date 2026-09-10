@@ -3,7 +3,7 @@ import { logError, logWarn } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Platform,
   ScrollView,
@@ -29,7 +29,15 @@ interface Branch {
   };
 }
 
-export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (branch: Branch) => void } = {}) {
+interface BranchSelectionProps {
+  onBranchSelect?: (branch: Branch) => void;
+  initialQuery?: string;
+  // A value that changes on every navigation even when initialQuery repeats - see the native
+  // variant for why initialQuery alone can't be used to detect a fresh request.
+  initialQueryNonce?: string;
+}
+
+export default function BranchSelection({ onBranchSelect, initialQuery, initialQueryNonce }: BranchSelectionProps = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
@@ -135,7 +143,7 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
         snapshot.forEach(branchSnap => {
           const branchId = branchSnap.key;
           const profile = branchSnap.child('profile').val();
-          if (profile) {
+          if (profile && !profile.archivedAt) {
             const lat = Number(profile.latitude);
             const lng = Number(profile.longitude);
             if (!isFinite(lat) || !isFinite(lng)) return;
@@ -163,6 +171,28 @@ export default function BranchSelection({ onBranchSelect }: { onBranchSelect?: (
     })();
     return () => unsub();
   }, []);
+
+  // Seeds the search field from a branch name picked in the home screen's search dropdown or a
+  // "Branches near you" card - applied once per distinct navigation, only after branches have
+  // actually loaded (see the native variant for why initialQueryNonce, not initialQuery itself,
+  // is what's tracked - a repeat tap on the same branch sends an identical `q` string, which
+  // React's dependency check would treat as "nothing changed"). An exact name match means the
+  // user already told us which branch they want, so this skips straight to BookingFlow instead
+  // of the details modal.
+  const appliedInitialQueryNonce = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!initialQuery || branchesLoading || appliedInitialQueryNonce.current === (initialQueryNonce ?? initialQuery)) return;
+    appliedInitialQueryNonce.current = initialQueryNonce ?? initialQuery;
+    handleSearch(initialQuery);
+
+    const exactMatch = branches.find((b) => b.name === initialQuery);
+    if (exactMatch) {
+      setBookingBranch(exactMatch);
+      setShowBookingFlow(true);
+      onBranchSelect?.(exactMatch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery, initialQueryNonce, branchesLoading]);
 
   return (
     <View className="flex-1 bg-[#F5F5F5]">

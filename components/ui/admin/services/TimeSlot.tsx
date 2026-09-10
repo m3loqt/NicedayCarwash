@@ -14,7 +14,11 @@ interface TimeSlot {
   originalKey?: string; // For database operations
 }
 
-export default function TimeSlots() {
+interface TimeSlotsProps {
+  refreshKey?: number;
+}
+
+export default function TimeSlots({ refreshKey }: TimeSlotsProps = {}) {
   const { alert, AlertComponent } = useAlert();
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +135,7 @@ export default function TimeSlots() {
         unsubscribeTimeSlots();
       }
     };
-  }, []);
+  }, [refreshKey]);
 
   const handleOpenOptions = (slot: TimeSlot) => {
     setSelectedSlot(slot);
@@ -292,7 +296,7 @@ export default function TimeSlots() {
 
   if (timeSlots.length === 0) {
     return (
-      <View className="py-4 rounded-lg bg-[#FAFAFA] px-4 py-4">
+      <View className="py-4 rounded-lg bg-white px-4 py-4">
         <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: 'Inter_400Regular' }}>No time slots available</Text>
       </View>
     );
@@ -318,7 +322,7 @@ export default function TimeSlots() {
               marginLeft: index === 0 ? 0 : 8,
               opacity: item.status === "unavailable" ? 0.5 : 1,
             }}
-            className="rounded-lg bg-[#FAFAFA] flex-col overflow-hidden"
+            className="rounded-lg bg-white flex-col overflow-hidden"
           >
             <View className="flex-1 justify-center items-center pt-1.5 pb-1.5">
               {period ? (

@@ -23,36 +23,23 @@ export default function SuccessModal({ visible, message, onDismiss }: SuccessMod
           {/* Handle bar */}
           <View className="w-10 h-1 rounded-full bg-[#E0E0E0] mb-8" />
 
-          {/* Radial rings + icon */}
-          <View className="items-center justify-center mb-6" style={{ width: 140, height: 140 }}>
-            {/* Outer ring */}
-            <View
-              className="absolute rounded-full border border-[#E8F4FD]"
-              style={{ width: 140, height: 140 }}
-            />
-            {/* Middle ring */}
-            <View
-              className="absolute rounded-full border border-[#D0EAFB]"
-              style={{ width: 110, height: 110 }}
-            />
-            {/* Inner ring */}
-            <View
-              className="absolute rounded-full border border-[#B8DFF8]"
-              style={{ width: 80, height: 80 }}
-            />
-            {/* Icon circle */}
-            <View
-              className="rounded-full bg-[#4A9FE5] items-center justify-center"
-              style={{ width: 56, height: 56 }}
-            >
-              <Ionicons name="checkmark" size={30} color="#FFFFFF" />
-            </View>
+          {/* Icon */}
+          <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-6">
+            <Ionicons name="checkmark-circle-outline" size={30} color="#1A1A1A" />
           </View>
 
           {/* Message */}
-          <Text className="text-[17px] font-bold text-[#1A1A1A] text-center">
+          <Text className="text-[17px] font-bold text-[#1A1A1A] text-center mb-6">
             {message}
           </Text>
+
+          <TouchableOpacity
+            className="w-full bg-[#F9EF08] py-3.5 rounded-2xl items-center"
+            activeOpacity={0.85}
+            onPress={onDismiss}
+          >
+            <Text className="text-[14px] font-bold text-[#1A1A00]">OK</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>

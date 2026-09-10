@@ -3,7 +3,7 @@ import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddVehicleInline from './AddVehicleInline';
 import ChooseVehicleStep from './ChooseVehicleStep';
@@ -16,7 +16,6 @@ interface Branch {
   address: string;
   phone: string;
   hours: string;
-  distance: string;
   status: 'Open' | 'Closed';
   coordinates: { latitude: number; longitude: number };
 }
@@ -79,9 +78,10 @@ const handleNext = (data?: any, vehicleOverride?: any) => {
   };
 
   return (
-    <View className="absolute inset-0 bg-white">
+    <View className="absolute bg-white" style={{ top: -insets.top, left: 0, right: 0, bottom: 0 }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Header + segmented progress line (aligned with Select branch) */}
-      <View className="bg-white pt-4 pb-0">
+      <View className="bg-white pb-0" style={{ paddingTop: insets.top + 16 }}>
         {/* Title row */}
         <View className="px-5 flex-row items-center mb-3">
           <TouchableOpacity

@@ -28,9 +28,13 @@
 
     "Branches": {
       ".read": "auth != null",
+      ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'superadmin'",
       "$branchId": {
         "profile": {
-          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
+          "schedule": {
+            ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+          }
         },
         "Services": {
           ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
@@ -282,6 +286,7 @@
 
     "users": {
       ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')",
+      ".indexOn": ["branchId", "branch"],
       "$userId": {
         ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor')",
         ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || auth.uid === $userId)",

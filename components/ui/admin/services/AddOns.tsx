@@ -12,7 +12,11 @@ interface Addon {
   isAvailable?: boolean;
 }
 
-export default function AddOns() {
+interface AddOnsProps {
+  refreshKey?: number;
+}
+
+export default function AddOns({ refreshKey }: AddOnsProps = {}) {
   const { alert, AlertComponent } = useAlert();
   const [addons, setAddons] = useState<Addon[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,23 +42,52 @@ export default function AddOns() {
         setBranchId(fetchedBranchId);
 
         const addonsRef = ref(db, `Branches/${fetchedBranchId}/AddOns`);
-        unsubscribeAddons = onValue(addonsRef, (snapshot) => {
-          setLoading(false);
-          if (snapshot.exists()) {
-            const data: Addon[] = [];
-            snapshot.forEach((child) => {
-              const val = child.val();
+        unsubscribeAddons = onValue(addonsRef, async (snapshot) => {
+          const branchLocal = snapshot.val() ?? {};
+
+          // The shared "addOns" catalog (managed on the web) is the source of truth for which
+          // add-ons exist and which branches offer them, via its `branches` array -
+          // branch-local entries are either legacy full-object add-ons or per-branch
+          // availability overrides for catalog add-ons (see ServicesStep.tsx).
+          const catalogSnapshot = await get(ref(db, "addOns"));
+          const catalog = catalogSnapshot.val() ?? {};
+
+          const data: Addon[] = [];
+          const addedIds = new Set<string>();
+
+          Object.entries(branchLocal).forEach(([id, val]: [string, any]) => {
+            if (val && typeof val === "object" && val.name) {
+              // Legacy format: full add-on object stored directly under the branch
               data.push({
-                id: child.key!,
+                id,
                 name: val.name,
                 price: val.price || 0,
                 isAvailable: val.isAvailable !== undefined ? val.isAvailable : true,
               });
+              addedIds.add(id);
+            }
+          });
+
+          Object.entries(catalog).forEach(([id, master]: [string, any]) => {
+            if (addedIds.has(id)) return;
+            if (!Array.isArray(master?.branches) || !master.branches.includes(fetchedBranchId)) return;
+
+            const override = branchLocal[id];
+            const isAvailable =
+              typeof override === "boolean" ? override : override?.isAvailable !== undefined ? override.isAvailable : true;
+
+            const price = master.branchPrices?.[fetchedBranchId]?.price ?? master.defaultPrice ?? 0;
+            data.push({
+              id,
+              name: master.name,
+              price,
+              isAvailable,
             });
-            setAddons(data);
-          } else {
-            setAddons([]);
-          }
+            addedIds.add(id);
+          });
+
+          setAddons(data);
+          setLoading(false);
         }, () => setLoading(false));
       } catch {
         setLoading(false);
@@ -63,7 +96,7 @@ export default function AddOns() {
 
     getUserBranchId();
     return () => { if (unsubscribeAddons) unsubscribeAddons(); };
-  }, []);
+  }, [refreshKey]);
 
   const handleToggleRequest = (item: Addon, newValue: boolean) => {
     setConfirmModal({ item, newValue });
@@ -95,7 +128,7 @@ export default function AddOns() {
 
   if (addons.length === 0) {
     return (
-      <View className="rounded-lg bg-[#FAFAFA] px-4 py-4">
+      <View className="rounded-lg bg-white px-4 py-4">
         <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: "Inter_400Regular" }}>
           No add-ons yet
         </Text>
@@ -104,7 +137,7 @@ export default function AddOns() {
   }
 
   return (
-    <View className="rounded-lg bg-[#FAFAFA] overflow-hidden">
+    <View className="rounded-lg bg-white overflow-hidden">
       {addons.map((item) => (
         <View key={item.id} className="flex-row items-center px-4 py-3 border-b border-[#F5F5F5] last:border-0">
           <View className="flex-1 mr-3">

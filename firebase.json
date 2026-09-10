@@ -2,6 +2,11 @@
   "database": {
     "rules": "firebase/database.rules.emulator.json"
   },
+  "hosting": {
+    "public": "hosting",
+    "cleanUrls": true,
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+  },
   "functions": [
     {
       "source": "functions",

@@ -98,4 +98,89 @@ export function BranchListSkeleton() {
   );
 }
 
+/** Skeleton for the home screen's horizontal "Branches near you" slider */
+export function BranchesSliderSkeleton() {
+  const pulse = usePulse();
+  return (
+    <View className="mt-10">
+      <View className="flex-row justify-between items-center px-5 mb-2">
+        <SkeletonBar width="45%" height={20} animatedValue={pulse} />
+      </View>
+      <View className="flex-row px-5 gap-4">
+        {[1, 2].map((i) => (
+          <View key={i} style={{ width: 220 }}>
+            <SkeletonBar width="100%" height={115} style={{ borderRadius: 8 }} animatedValue={pulse} />
+            <View className="pt-2.5 gap-1.5">
+              <SkeletonBar width="70%" height={14} animatedValue={pulse} />
+              <SkeletonBar width="90%" height={11} animatedValue={pulse} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Skeleton for the booking flow's horizontal "Select plan" service cards */
+export function ServiceCardsSkeleton() {
+  const pulse = usePulse();
+  return (
+    <View className="flex-row px-3 gap-0" style={{ paddingVertical: 4 }}>
+      {[1, 2].map((i) => (
+        <View key={i} className="mx-2 rounded-2xl px-4 pt-4 pb-4 bg-white" style={{ width: 256 }}>
+          <SkeletonBar width="60%" height={18} style={{ marginBottom: 14 }} animatedValue={pulse} />
+          <SkeletonBar width="95%" height={12} style={{ marginBottom: 6 }} animatedValue={pulse} />
+          <SkeletonBar width="80%" height={12} style={{ marginBottom: 14 }} animatedValue={pulse} />
+          <SkeletonBar width="95%" height={12} style={{ marginBottom: 6 }} animatedValue={pulse} />
+          <SkeletonBar width="70%" height={12} style={{ marginBottom: 16 }} animatedValue={pulse} />
+          <View className="flex-row justify-between items-center pt-3" style={{ borderTopWidth: 1, borderTopColor: SKELETON_BG }}>
+            <SkeletonBar width={60} height={14} animatedValue={pulse} />
+            <SkeletonBar width={70} height={16} animatedValue={pulse} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Skeleton for the booking flow's horizontal "Add ons" cards */
+export function AddonCardsSkeleton() {
+  const pulse = usePulse();
+  return (
+    <View className="flex-row px-3 gap-0" style={{ paddingVertical: 4 }}>
+      {[1, 2, 3].map((i) => (
+        <View key={i} className="mx-2 rounded-2xl px-4 pt-4 pb-4 bg-white" style={{ width: 192 }}>
+          <SkeletonBar width="90%" height={16} style={{ marginBottom: 6 }} animatedValue={pulse} />
+          <SkeletonBar width="60%" height={16} style={{ marginBottom: 14 }} animatedValue={pulse} />
+          <View className="flex-row justify-between items-center pt-3" style={{ borderTopWidth: 1, borderTopColor: SKELETON_BG }}>
+            <SkeletonBar width={55} height={14} animatedValue={pulse} />
+            <SkeletonBar width={65} height={16} animatedValue={pulse} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Skeleton for the floating active-booking bar, shown only while its first fetch is in flight */
+export function ActiveBookingSkeleton() {
+  const pulse = usePulse();
+  return (
+    <View className="bg-white rounded-2xl px-4 pt-4 pb-3.5 border border-[#F0F0F0]">
+      <View className="flex-row items-center">
+        <View className="flex-1 mr-3 gap-1.5">
+          <SkeletonBar width="55%" height={19} animatedValue={pulse} />
+          <SkeletonBar width="40%" height={12} animatedValue={pulse} />
+        </View>
+        <SkeletonBar width={68} height={68} style={{ borderRadius: 34 }} animatedValue={pulse} />
+      </View>
+      <View className="flex-row items-center mt-3.5 gap-1">
+        {[1, 2, 3, 4].map((i) => (
+          <SkeletonBar key={i} width={16} height={16} style={{ borderRadius: 8 }} animatedValue={pulse} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export { ListSkeleton, AccountSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';

@@ -182,11 +182,14 @@ export default function AlertModal({
           )}
 
           <View className="px-6 pt-3 pb-8">
-            {/* Icon display */}
+            {/* Icon display - skipped for confirmation dialogs, where title + message already
+                carry the context and a generic icon (usually just "i") adds nothing */}
             <View className="items-center mb-1">
-              <View className="w-12 h-12 rounded-full bg-[#F5F5F5] items-center justify-center mb-3">
-                <Ionicons name={iconConfig.name} size={24} color={iconConfig.color} />
-              </View>
+              {!isConfirmation && (
+                <View className="w-12 h-12 rounded-full bg-[#F5F5F5] items-center justify-center mb-3">
+                  <Ionicons name={iconConfig.name} size={24} color={iconConfig.color} />
+                </View>
+              )}
 
               {/* Title text */}
               <Text className="text-[18px] font-inter-semibold tracking-tight text-[#1A1A1A] text-center mb-1.5">
@@ -204,6 +207,7 @@ export default function AlertModal({
               <View className={`mt-6 gap-3 ${stackButtons ? '' : 'flex-row'}`}>
                 {buttons.map((button, index) => {
                   const isCancel = button.style === 'cancel';
+                  const isDestructive = button.style === 'destructive';
 
                   return (
                     <TouchableOpacity
@@ -211,12 +215,12 @@ export default function AlertModal({
                       onPress={() => handleButtonPress(button)}
                       activeOpacity={0.85}
                       className={`flex-1 py-3.5 rounded-full items-center justify-center ${
-                        isCancel ? 'bg-[#F5F5F5]' : 'bg-[#F9EF08]'
+                        isCancel ? 'bg-[#F5F5F5]' : isDestructive ? 'bg-[#DC2626]' : 'bg-[#F9EF08]'
                       }`}
                     >
                       <Text
                         className={`text-[14px] font-inter-bold tracking-tight ${
-                          isCancel ? 'text-[#1A1A1A]' : 'text-[#1A1A00]'
+                          isCancel ? 'text-[#1A1A1A]' : isDestructive ? 'text-white' : 'text-[#1A1A00]'
                         }`}
                       >
                         {button.text}

@@ -1,31 +1,28 @@
 import { useAlert } from '@/hooks/use-alert';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { logAppError } from '@/lib/logger';
 import { sanitizeNamePart } from '@/lib/sanitize';
 
 import SuccessModal from './SuccessModal';
 
 export default function EditProfile() {
-  const insets = useSafeAreaInsets();
   const { alert, AlertComponent } = useAlert();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -43,7 +40,7 @@ export default function EditProfile() {
           const data = snapshot.val();
           setFirstName(data.firstName || '');
           setLastName(data.lastName || '');
-          setProfileImage(data.profileImage || null);
+          setPhone(data.phone || '');
         } else {
           alert('Error', 'User data not found');
         }
@@ -72,23 +69,16 @@ export default function EditProfile() {
       await update(ref(db, `users/${userId}`), {
         firstName: fn,
         lastName: ln,
-        profileImage: profileImage || '',
+        // Optional here (unlike complete-profile.tsx, where it's required at signup) - this
+        // screen also has to work for existing accounts that predate phone collection and are
+        // just editing their name, not necessarily backfilling a phone number right now.
+        phone: phone.trim().replace(/[^0-9]/g, ''),
+        countryCode: '+63',
       });
       setShowSuccess(true);
     } catch (err) {
       logAppError('EditProfile.handleSaveChanges', err);
       alert('Error', 'Failed to save changes');
-    }
-  };
-
-  const handleChangeProfilePicture = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-
-    if (!result.canceled && Array.isArray(result.assets) && result.assets.length > 0) {
-      setProfileImage(result.assets[0].uri);
     }
   };
 
@@ -117,30 +107,11 @@ export default function EditProfile() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         bounces={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         className="flex-1"
       >
-        {/* Profile picture */}
-        <View className="items-center mb-8">
-          <View className="relative">
-            <View className="w-24 h-24 rounded-full bg-[#FAFAFA] overflow-hidden border border-[#EEEEEE]">
-              <Image
-                source={profileImage ? { uri: profileImage } : require('../../../../assets/images/profile_placeholder.png')}
-                className="w-full h-full"
-                resizeMode="cover"
-              />
-            </View>
-            <TouchableOpacity
-              className="absolute -bottom-1 -right-1 w-8 h-8 bg-[#F9EF08] rounded-full items-center justify-center border-2 border-white"
-              onPress={handleChangeProfilePicture}
-            >
-              <Ionicons name="camera" size={14} color="#1A1A00" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Form */}
-        <View className="px-5">
+        <View className="px-5 pt-2">
           <View className="mb-4">
             <Text className="text-[13px] text-[#999] mb-1.5">First Name</Text>
             <TextInput
@@ -163,25 +134,41 @@ export default function EditProfile() {
             />
           </View>
 
+          <View className="mb-4">
+            <Text className="text-[13px] text-[#999] mb-1.5">Phone Number</Text>
+            <View className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl overflow-hidden">
+              <View className="flex-row items-center px-4 py-4 border-r border-[#EEEEEE]">
+                <Text className="text-[15px] font-medium text-[#1A1A1A]">+63</Text>
+              </View>
+              <TextInput
+                className="flex-1 px-4 py-4 text-[15px] text-[#1A1A1A]"
+                placeholder="Enter phone number"
+                placeholderTextColor="#BDBDBD"
+                value={phone}
+                onChangeText={(t) => setPhone(t.replace(/[^0-9]/g, ''))}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+
           <TouchableOpacity
             onPress={() => router.push('/forgot-password' as any)}
-            className="mt-1"
+            className="mt-1 mb-8"
           >
             <Text className="text-[13px] font-semibold text-[#999]">Reset Password</Text>
           </TouchableOpacity>
+
+          {/* Sits directly in the form flow instead of pinned to the screen bottom - with only
+              3 fields, a pinned footer left a large dead gap between Reset Password and Save. */}
+          <TouchableOpacity
+            className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+            onPress={handleSaveChanges}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[#1A1A00] text-[15px] font-bold">Save Changes</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Save button */}
-      <View className="px-5 pb-8 pt-3 bg-white">
-        <TouchableOpacity
-          className="bg-[#F9EF08] rounded-2xl py-4 items-center"
-          onPress={handleSaveChanges}
-          activeOpacity={0.85}
-        >
-          <Text className="text-[#1A1A00] text-[15px] font-bold">Save Changes</Text>
-        </TouchableOpacity>
-      </View>
 
       <SuccessModal
         visible={showSuccess}

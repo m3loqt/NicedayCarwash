@@ -1,10 +1,13 @@
 import { ListSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
 import { SelectBayModal, type Bay } from '@/components/ui/admin/dashboard';
+import PullToRefresh from '@/components/ui/common/PullToRefresh';
 import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
+import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logError } from '@/lib/logger';
+import { Ionicons } from '@expo/vector-icons';
 import { get, onValue, push, ref, set, update } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useRef, useState } from 'react';
@@ -47,6 +50,10 @@ interface Booking {
   addOns?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number }>;
   services?: Array<{ name?: string; price?: number | string; estimatedTime?: string | number; status?: string }>;
   paymentMethod?: string;
+  // Maya's own payment id (set by functions/src/index.ts's mayaWebhook), not our locally
+  // generated requestReferenceNumber - this is what a supervisor would actually reconcile
+  // against Maya's own dashboard/records.
+  mayaPaymentId?: string;
   note?: string;
   cancelledAt?: string;
   completedAt?: string;
@@ -464,9 +471,14 @@ const updateBayStatus = async (
 
 export default function AppointmentsList({ activeTab, searchQuery }: AppointmentsListProps) {
   const { alert, AlertComponent } = useAlert();
+  const tabBarClearance = useTabBarClearance();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
+  const [branchImageUrl, setBranchImageUrl] = useState<string | null>(null);
+  // Bumped by pull-to-refresh to force the listeners below to unsubscribe/resubscribe, which
+  // delivers a fresh snapshot immediately (onValue always fires on subscribe, not just on change).
+  const [refreshKey, setRefreshKey] = useState(0);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [selectedCancelReason, setSelectedCancelReason] = useState<CancelReason | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
@@ -485,6 +497,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [customerName, setCustomerName] = useState<string>('');
+  const [customerPhone, setCustomerPhone] = useState<string>('');
   
   // State for Success Modal
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -546,6 +559,10 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           if (adminBranchId) {
             setBranchId(adminBranchId);
 
+            get(ref(db, `Branches/${adminBranchId}/profile/imageUrl`)).then((imgSnap) => {
+              if (typeof imgSnap.val() === 'string') setBranchImageUrl(imgSnap.val());
+            });
+
             await autoStartTodayBookings(adminBranchId);
             // 24h pending-expiry auto-decline now runs server-side (functions/src/index.ts,
             // expirePendingBookings) since it carries real refund consequences and can't depend
@@ -566,7 +583,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   }, []);
 
   useEffect(() => {
-    if (!branchId) return;
+    // Pending is sourced exclusively from the separate Notifications/ByBranch listener below -
+    // subscribing here too would race it and intermittently clobber its resolved list with [].
+    if (!branchId || activeTab === 'pending') return;
 
     const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
 
@@ -616,6 +635,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               addOns: addOns,
               services: services,
               paymentMethod: data.paymentMethod || '',
+              mayaPaymentId: data.mayaPaymentId || undefined,
               note: data.note || '',
               userId: data.userId || undefined,
             };
@@ -625,8 +645,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             const statusMatchesTab =
               (activeTab === 'confirmed' && booking.status === 'accepted') ||
               (activeTab === 'ongoing' && booking.status === 'ongoing') ||
-              (activeTab === 'completed' && booking.status === 'completed') ||
-              (activeTab === 'cancelled' && booking.status === 'cancelled');
+              (activeTab === 'history' && (booking.status === 'completed' || booking.status === 'cancelled'));
             
             if (statusMatchesTab) {
               // Filtering by search query
@@ -656,89 +675,31 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     });
 
     return () => unsubscribe();
-  }, [branchId, activeTab, searchQuery]);
+  }, [branchId, activeTab, searchQuery, refreshKey]);
 
-  // Separate listener for pending bookings sourced from Notifications/ByBranch pendingBookings
+  // Separate listener for pending bookings sourced from Notifications/ByBranch pendingBookings.
+  // Only bookings whose Maya deposit is confirmed (isPaid) are shown here - an abandoned/unpaid
+  // checkout still creates the reservation + notification entry (to hold the slot), but shouldn't
+  // reach the branch until the webhook confirms payment. Each entry is a live onValue (not a
+  // one-time get) so a booking appears the moment isPaid flips true, without needing a manual refresh.
   useEffect(() => {
     if (!branchId || activeTab !== 'pending') return;
 
     const pendingNotifRef = ref(db, `Notifications/ByBranch/${branchId}/pendingBookings`);
+    const bookingUnsubscribes: Record<string, () => void> = {};
+    const bookingData: Record<string, Booking> = {};
+    const searchLower = searchQuery.toLowerCase();
 
-    const unsubscribe = onValue(pendingNotifRef, async (snapshot) => {
-      if (!snapshot.exists()) {
-        setBookings([]);
-        setLoading(false);
-        return;
-      }
-
-      const pendingEntries: Array<{ userId: string; dateKey: string; appointmentId: string }> = [];
-      snapshot.forEach((snap) => {
-        const data = snap.val();
-        if (data && data.userId && data.dateKey && data.appointmentId) {
-          pendingEntries.push({ userId: data.userId, dateKey: data.dateKey, appointmentId: data.appointmentId });
-        }
+    const recompute = () => {
+      const bookingsList = Object.values(bookingData).filter((booking) => {
+        if (!booking.isPaid) return false;
+        if (!searchQuery) return true;
+        return (
+          booking.appointmentId.toLowerCase().includes(searchLower) ||
+          booking.vehicleDetails.vehicleName.toLowerCase().includes(searchLower) ||
+          booking.vehicleDetails.plateNumber.toLowerCase().includes(searchLower)
+        );
       });
-
-      const bookingsList: Booking[] = [];
-      const searchLower = searchQuery.toLowerCase();
-
-      for (const entry of pendingEntries) {
-        try {
-          const userBookingRef = ref(db, `Reservations/ReservationsByUser/${entry.userId}/${entry.dateKey}/${entry.appointmentId}`);
-          const bookingSnap = await get(userBookingRef);
-          if (!bookingSnap.exists()) continue;
-
-          const data = bookingSnap.val();
-          if (!data) continue;
-
-          const addOnsObj = data.addOns;
-          let addOns: any[] = [];
-          if (Array.isArray(addOnsObj)) {
-            addOns = addOnsObj;
-          } else if (addOnsObj && typeof addOnsObj === 'object') {
-            addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
-          }
-
-          const servicesObj = data.services;
-          let services: any[] = [];
-          if (Array.isArray(servicesObj)) {
-            services = servicesObj;
-          } else if (servicesObj && typeof servicesObj === 'object') {
-            services = Object.keys(servicesObj).map((k) => servicesObj[k]);
-          }
-
-          const booking: Booking = {
-            appointmentId: data.appointmentId || entry.appointmentId,
-            branchName: data.branchName || '',
-            branchAddress: data.branchAddress || '',
-            status: data.status || 'pending',
-            isPaid: data.isPaid !== undefined ? data.isPaid : false,
-            timeSlot: data.timeSlot || { appointmentDate: '', time: '', estCompletion: undefined },
-            vehicleDetails: data.vehicleDetails || { vehicleName: '', plateNumber: '', classification: '' },
-            amountDue: data.amountDue || 0,
-            key: entry.appointmentId,
-            dateKey: entry.dateKey,
-            cancelledAt: data.cancelledAt || undefined,
-            completedAt: data.completedAt || undefined,
-            addOns,
-            services,
-            paymentMethod: data.paymentMethod || '',
-            note: data.note || '',
-            userId: entry.userId,
-          };
-
-          if (
-            !searchQuery ||
-            booking.appointmentId.toLowerCase().includes(searchLower) ||
-            booking.vehicleDetails.vehicleName.toLowerCase().includes(searchLower) ||
-            booking.vehicleDetails.plateNumber.toLowerCase().includes(searchLower)
-          ) {
-            bookingsList.push(booking);
-          }
-        } catch (error) {
-          logError('AppointmentsList.fetchPendingBookingById', error, { context: 'Error fetching pending booking' });
-        }
-      }
 
       bookingsList.sort((a, b) => {
         const dateA = parseAppointmentDateTime(a.timeSlot.appointmentDate, a.timeSlot.time);
@@ -748,10 +709,91 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
       setBookings(bookingsList);
       setLoading(false);
+    };
+
+    const unsubscribeIndex = onValue(pendingNotifRef, (snapshot) => {
+      const currentIds = new Set<string>();
+
+      snapshot.forEach((snap) => {
+        const entry = snap.val();
+        if (!entry || !entry.userId || !entry.dateKey || !entry.appointmentId) return;
+        const { userId, dateKey, appointmentId } = entry;
+        currentIds.add(appointmentId);
+
+        if (bookingUnsubscribes[appointmentId]) return;
+
+        const userBookingRef = ref(db, `Reservations/ReservationsByUser/${userId}/${dateKey}/${appointmentId}`);
+        bookingUnsubscribes[appointmentId] = onValue(
+          userBookingRef,
+          (bookingSnap) => {
+            const data = bookingSnap.val();
+            if (!data) {
+              delete bookingData[appointmentId];
+              recompute();
+              return;
+            }
+
+            const addOnsObj = data.addOns;
+            let addOns: any[] = [];
+            if (Array.isArray(addOnsObj)) {
+              addOns = addOnsObj;
+            } else if (addOnsObj && typeof addOnsObj === 'object') {
+              addOns = Object.keys(addOnsObj).map((k) => addOnsObj[k]);
+            }
+
+            const servicesObj = data.services;
+            let services: any[] = [];
+            if (Array.isArray(servicesObj)) {
+              services = servicesObj;
+            } else if (servicesObj && typeof servicesObj === 'object') {
+              services = Object.keys(servicesObj).map((k) => servicesObj[k]);
+            }
+
+            bookingData[appointmentId] = {
+              appointmentId: data.appointmentId || appointmentId,
+              branchName: data.branchName || '',
+              branchAddress: data.branchAddress || '',
+              status: data.status || 'pending',
+              isPaid: data.isPaid !== undefined ? data.isPaid : false,
+              timeSlot: data.timeSlot || { appointmentDate: '', time: '', estCompletion: undefined },
+              vehicleDetails: data.vehicleDetails || { vehicleName: '', plateNumber: '', classification: '' },
+              amountDue: data.amountDue || 0,
+              key: appointmentId,
+              dateKey,
+              cancelledAt: data.cancelledAt || undefined,
+              completedAt: data.completedAt || undefined,
+              addOns,
+              services,
+              paymentMethod: data.paymentMethod || '',
+              mayaPaymentId: data.mayaPaymentId || undefined,
+              note: data.note || '',
+              userId,
+            };
+            recompute();
+          },
+          (error) => {
+            logError('AppointmentsList.fetchPendingBookingById', error, { context: 'Error fetching pending booking' });
+          }
+        );
+      });
+
+      // Stop listening to entries that dropped off pendingBookings (accepted/cancelled/expired elsewhere)
+      Object.keys(bookingUnsubscribes).forEach((id) => {
+        if (!currentIds.has(id)) {
+          bookingUnsubscribes[id]();
+          delete bookingUnsubscribes[id];
+          delete bookingData[id];
+        }
+      });
+
+      recompute();
     });
 
-    return () => unsubscribe();
-  }, [branchId, activeTab, searchQuery]);
+    return () => {
+      unsubscribeIndex();
+      Object.values(bookingUnsubscribes).forEach((unsub) => unsub());
+    };
+  }, [branchId, activeTab, searchQuery, refreshKey]);
 
   // Fetches bay availability from Firebase, checking for conflicts with ongoing appointments
   const fetchBayAvailability = async (appointmentDate: string, appointmentTime: string) => {
@@ -1012,53 +1054,82 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     }
   };
 
+  // Confirmed -> Ongoing is fully automatic (client decision: a manual "Start Wash" button was
+  // extra friction for supervisors mid-shift) - this is the only mechanism, triggered by the
+  // scheduled appointment time itself having arrived. It only runs when this screen loads/the
+  // branch resolves, not on a server-side timer, so an accepted booking sits in Confirmed until
+  // the next time a supervisor opens this screen after its scheduled time - acceptable given the
+  // client's own explicit preference for zero extra taps over split-second precision.
+  //
+  // Previously this checked only the booking's *date*, not its time, so it flipped every
+  // accepted booking dated today straight to "ongoing" the instant this screen loaded -
+  // including ones scheduled hours in the future. It also only ever wrote to
+  // ReservationsByBranch, never ReservationsByUser, so a customer's own view of their booking
+  // never reflected the change at all.
   const autoStartTodayBookings = async (branchId: string) => {
-  try {
-    const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
-    const snapshot = await get(bookingsRef);
+    try {
+      const bookingsRef = ref(db, `Reservations/ReservationsByBranch/${branchId}`);
+      const snapshot = await get(bookingsRef);
 
-    if (!snapshot.exists()) return;
+      if (!snapshot.exists()) return;
 
-    const today = new Date();
+      const now = Date.now();
+      const tasks: Promise<void>[] = [];
 
-    snapshot.forEach((dateSnap) => {
-      const dateKey = dateSnap.key;
+      snapshot.forEach((dateSnap) => {
+        const dateKey = dateSnap.key;
 
-      dateSnap.forEach((bookingSnap) => {
-        const booking = bookingSnap.val();
+        dateSnap.forEach((bookingSnap) => {
+          const booking = bookingSnap.val();
+          if (!booking || booking.status !== 'accepted') return false;
 
-        if (!booking) return;
+          const appointmentDateTime = parseAppointmentDateTime(
+            booking.timeSlot?.appointmentDate,
+            booking.timeSlot?.time
+          );
+          if (now < appointmentDateTime.getTime()) return false;
 
-        if (booking.status === 'accepted') {
-          const [month, day, year] = booking.timeSlot?.appointmentDate
-            ?.split('-')
-            .map(Number);
+          const startedAtTimestamp = toLocalISOString(new Date());
+          const updates: Record<string, any> = {
+            [`Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingSnap.key}/status`]: 'ongoing',
+            [`Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingSnap.key}/startedAt`]: startedAtTimestamp,
+          };
 
-          const bookingDate = new Date(year, month - 1, day);
+          const userId = booking.userId || '';
+          if (userId) {
+            const userBookingPath = `Reservations/ReservationsByUser/${userId}/${dateKey}/${bookingSnap.key}`;
+            updates[`${userBookingPath}/status`] = 'ongoing';
+            updates[`${userBookingPath}/startedAt`] = startedAtTimestamp;
 
-          const isToday =
-            bookingDate.getFullYear() === today.getFullYear() &&
-            bookingDate.getMonth() === today.getMonth() &&
-            bookingDate.getDate() === today.getDate();
-
-          if (isToday) {
-            const bookingRef = ref(
-              db,
-              `Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingSnap.key}`
-            );
-
-            update(bookingRef, {
-              status: 'ongoing',
-              startedAt: toLocalISOString(new Date()),
-            });
+            // This fires purely because the clock reached the scheduled time - not because a
+            // supervisor confirmed the vehicle showed up - so the copy can't claim the wash
+            // itself has started, only that the appointment time has.
+            const startedNotification = {
+              title: 'Your Appointment Time Has Arrived',
+              body: `Your scheduled time at ${booking.branchName || 'the branch'} has arrived. We'll have your bay ready shortly!`,
+              appointmentId: booking.appointmentId,
+              date: booking.timeSlot?.appointmentDate,
+              type: 'ongoing',
+              read: false,
+              createdAt: startedAtTimestamp,
+            };
+            const branchNotifKey = push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`)).key;
+            const userNotifKey = push(ref(db, `Notifications/ByUser/${userId}`)).key;
+            updates[`Notifications/ByBranch/${branchId}/userNotifications/${userId}/${branchNotifKey}`] = startedNotification;
+            updates[`Notifications/ByUser/${userId}/${userNotifKey}`] = startedNotification;
           }
-        }
+
+          tasks.push(update(ref(db), updates));
+          return false;
+        });
+        return false;
       });
-    });
-  } catch (error) {
-    logError('AppointmentsList.autoStartAcceptedBookings', error, { context: 'Auto start booking check failed' });
-  }
-};
+
+      await Promise.all(tasks);
+    } catch (error) {
+      logError('AppointmentsList.autoStartAcceptedBookings', error, { context: 'Auto start booking check failed' });
+    }
+  };
 
   const handleBaySelect = (bayNumber: number) => {
     setSelectedBay(bayNumber);
@@ -1282,6 +1353,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     setSelectedBay(null);
   };
 
+
   const handleComplete = (booking: Booking) => {
     setBookingToComplete(booking);
     setCompleteModalVisible(true);
@@ -1318,18 +1390,12 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       }
 
       const completedAtTimestamp = toLocalISOString(new Date());
-      // E-receipt reference number, generated once at completion time (this is the only point
-      // a booking transitions to 'completed', so no risk of regenerating it on a later edit).
-      const transactionId = `TR${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, '0')}`;
 
       // Single multi-path update so a dropped connection can't leave ReservationsByBranch,
       // ReservationsByUser, Bays, and BayOccupancy disagreeing with each other.
       const updates: Record<string, any> = {
         [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/status`]: 'completed',
         [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/completedAt`]: completedAtTimestamp,
-        [`Reservations/ReservationsByBranch/${branchId}/${bookingToComplete.dateKey}/${bookingToComplete.key}/transactionId`]: transactionId,
       };
 
       const userId = bookingToComplete.userId || '';
@@ -1337,7 +1403,6 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         const userBookingPath = `Reservations/ReservationsByUser/${userId}/${bookingToComplete.dateKey}/${bookingToComplete.key}`;
         updates[`${userBookingPath}/status`] = 'completed';
         updates[`${userBookingPath}/completedAt`] = completedAtTimestamp;
-        updates[`${userBookingPath}/transactionId`] = transactionId;
 
         // Sending notification to customer in both branch and user channels, folded into
         // this same multi-path update for atomicity
@@ -1639,8 +1704,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const handleViewMore = async (booking: Booking) => {
     setSelectedBooking(booking);
     setShowDetailsModal(true);
-    
-    // Fetching customer name using stored userId
+    setCustomerPhone('');
+
+    // Fetching customer name + contact number using stored userId
     try {
       const userId = booking.userId || '';
       if (userId) {
@@ -1650,6 +1716,11 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           const firstName = userInfo.firstName || '';
           const lastName = userInfo.lastName || '';
           setCustomerName(`${firstName} ${lastName}`.trim() || 'Customer');
+          // Not every account has added a phone number yet (older accounts predate this field,
+          // or just haven't gotten to it) - modal falls back to "No contact number on file".
+          if (userInfo.phone) {
+            setCustomerPhone(`${userInfo.countryCode || '+63'} ${userInfo.phone}`);
+          }
           return;
         }
       }
@@ -1665,6 +1736,37 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     setSelectedBooking(null);
   };
 
+  const renderAppointmentCard = (booking: Booking) => (
+    <AppointmentCard
+      key={`${booking.dateKey}-${booking.key}`}
+      date={booking.timeSlot.appointmentDate}
+      time={booking.timeSlot.time}
+      vehicleName={booking.vehicleDetails.vehicleName}
+      classification={booking.vehicleDetails.classification}
+      amountDue={booking.amountDue}
+      status={booking.status}
+      isPaid={booking.isPaid}
+      cancelledAt={booking.cancelledAt}
+      completedAt={booking.completedAt}
+      onAccept={() => handleAccept(booking)}
+      onCancel={() => handleCancel(booking)}
+      onComplete={() => handleComplete(booking)}
+      onNoShow={() => handleMarkNoShow(booking)}
+      onViewMore={() => handleViewMore(booking)}
+    />
+  );
+
+  // History groups Completed and Cancelled into labeled sections (mirroring the customer-side
+  // Ongoing/History screen) since both are terminal, no-action states for staff - only the
+  // label distinguishes them once merged into one tab.
+  const historySections =
+    activeTab === 'history'
+      ? [
+          { label: 'Completed', items: bookings.filter((b) => b.status === 'completed') },
+          { label: 'Cancelled', items: bookings.filter((b) => b.status === 'cancelled') },
+        ].filter((section) => section.items.length > 0)
+      : null;
+
   if (loading) {
     return (
       <View className="flex-1">
@@ -1675,45 +1777,50 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
   return (
     <View className="flex-1" style={{ backgroundColor: 'transparent' }}>
-      <ScrollView
+      <PullToRefresh
+        onRefresh={() => setRefreshKey((k) => k + 1)}
         showsVerticalScrollIndicator={false}
-        bounces={false}
+        bounces
         style={{ backgroundColor: 'transparent', flex: 1 }}
         className="pt-4"
-        contentContainerStyle={{ paddingBottom: 80, backgroundColor: 'transparent' }}
+        contentContainerStyle={
+          bookings.length === 0
+            ? { flexGrow: 1, paddingBottom: tabBarClearance, backgroundColor: 'transparent' }
+            : { paddingBottom: tabBarClearance, backgroundColor: 'transparent' }
+        }
       >
         {bookings.length > 0 ? (
-          bookings.map((booking) => (
-            <AppointmentCard
-              key={`${booking.dateKey}-${booking.key}`}
-              appointmentId={booking.appointmentId}
-              date={booking.timeSlot.appointmentDate}
-              time={booking.timeSlot.time}
-              vehicleName={booking.vehicleDetails.vehicleName}
-              classification={booking.vehicleDetails.classification}
-              amountDue={booking.amountDue}
-              status={booking.status}
-              isPaid={booking.isPaid}
-              cancelledAt={booking.cancelledAt}
-              completedAt={booking.completedAt}
-              onAccept={() => handleAccept(booking)}
-              onCancel={() => handleCancel(booking)}
-              onComplete={() => handleComplete(booking)}
-              onNoShow={() => handleMarkNoShow(booking)}
-              onViewMore={() => handleViewMore(booking)}
-            />
-          ))
+          historySections ? (
+            historySections.map((section) => (
+              <View key={section.label}>
+                <Text className="px-5 pb-2 text-[12px] font-bold text-[#999] uppercase tracking-wide">
+                  {section.label}
+                </Text>
+                {section.items.map((booking) => renderAppointmentCard(booking))}
+              </View>
+            ))
+          ) : (
+            bookings.map((booking) => renderAppointmentCard(booking))
+          )
         ) : (
-          <View className="flex-1 justify-center items-center py-20">
-            <Text className="text-lg text-gray-500 text-center">
-              No {activeTab} bookings found
+          <View className="flex-1 justify-center items-center px-10">
+            <Ionicons name="calendar-outline" size={48} color="#E0E0E0" />
+            <Text className="text-[19px] font-bold text-[#1A1A1A] mt-4 mb-1.5 text-center">
+              {activeTab === 'history' ? 'No history yet' : `No ${activeTab} bookings found`}
             </Text>
-            <Text className="text-sm text-gray-400 text-center mt-2">
-              {searchQuery ? 'Try a different search term' : `Your ${activeTab} bookings will appear here`}
+            <Text
+              className="text-[13.5px] text-[#999] text-center leading-5"
+              style={{ maxWidth: 220 }}
+            >
+              {searchQuery
+                ? 'Try a different search term'
+                : activeTab === 'history'
+                ? 'Completed and cancelled bookings will appear here'
+                : `Your ${activeTab} bookings will appear here`}
             </Text>
           </View>
         )}
-      </ScrollView>
+      </PullToRefresh>
 
       {/* Cancel Reason Modal */}
       <CancelReasonModal
@@ -1748,8 +1855,9 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           visible={showDetailsModal}
           branchName={selectedBooking.branchName}
           branchAddress={selectedBooking.branchAddress}
-          branchImage={require('../../../../assets/images/samplebranch.png')}
+          branchImage={branchImageUrl ? { uri: branchImageUrl } : require('../../../../assets/images/samplebranch.png')}
           customerName={customerName}
+          customerPhone={customerPhone}
           vehicleName={selectedBooking.vehicleDetails.vehicleName}
           plateNumber={selectedBooking.vehicleDetails.plateNumber}
           classification={selectedBooking.vehicleDetails.classification}
@@ -1769,16 +1877,15 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           amountDue={`₱${selectedBooking.amountDue.toFixed(2)}`}
           paymentMethod={selectedBooking.paymentMethod || ''}
           estimatedCompletion={
-            selectedBooking.timeSlot.estCompletion
-              ? typeof selectedBooking.timeSlot.estCompletion === "number"
-                ? `${selectedBooking.timeSlot.estCompletion} Hours`
-                : selectedBooking.timeSlot.estCompletion
+            selectedBooking.timeSlot.estCompletion != null
+              ? String(selectedBooking.timeSlot.estCompletion)
               : undefined
           }
           note={selectedBooking.note}
           status={selectedBooking.status}
           isPaid={selectedBooking.isPaid}
           appointmentId={selectedBooking.appointmentId}
+          paymentReferenceId={selectedBooking.mayaPaymentId}
           isAdminView={true}
           onClose={handleCloseDetailsModal}
           onAccept={() => {

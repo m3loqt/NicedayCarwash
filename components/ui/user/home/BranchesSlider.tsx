@@ -1,7 +1,8 @@
+import { BranchesSliderSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { onValue, ref } from 'firebase/database';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { db } from '../../../../firebase/firebase';
 import { formatDistance, getCurrentLocation, haversineMeters } from '../../../../lib/location';
@@ -13,6 +14,7 @@ interface Branch {
   status: 'Open' | 'Closed';
   latitude?: number;
   longitude?: number;
+  imageUrl?: string;
 }
 
 const BRANCH_IMAGES = [
@@ -23,6 +25,7 @@ const BRANCH_IMAGES = [
 
 export default function BranchesSlider() {
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
@@ -31,7 +34,7 @@ export default function BranchesSlider() {
       const list: Branch[] = [];
       snapshot.forEach((child) => {
         const profile = child.child('profile').val();
-        if (profile && profile.name) {
+        if (profile && profile.name && !profile.archivedAt) {
           const lat = Number(profile.latitude);
           const lng = Number(profile.longitude);
           list.push({
@@ -41,10 +44,12 @@ export default function BranchesSlider() {
             status: profile.status ?? 'Open',
             latitude: isFinite(lat) ? lat : undefined,
             longitude: isFinite(lng) ? lng : undefined,
+            imageUrl: typeof profile.imageUrl === 'string' ? profile.imageUrl : undefined,
           });
         }
       });
       setBranches(list);
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -56,6 +61,28 @@ export default function BranchesSlider() {
     getCurrentLocation().then(setUserLocation);
   }, []);
 
+  // Branches with a known distance come first, nearest to farthest; branches missing
+  // coordinates (can't compute distance) fall to the end in their original order.
+  const sortedBranches = useMemo(() => {
+    if (!userLocation) return branches;
+    return branches
+      .map((branch, index) => {
+        const hasCoords = branch.latitude !== undefined && branch.longitude !== undefined;
+        const distanceMeters = hasCoords
+          ? haversineMeters(userLocation.latitude, userLocation.longitude, branch.latitude!, branch.longitude!)
+          : null;
+        return { branch, distanceMeters, index };
+      })
+      .sort((a, b) => {
+        if (a.distanceMeters === null && b.distanceMeters === null) return a.index - b.index;
+        if (a.distanceMeters === null) return 1;
+        if (b.distanceMeters === null) return -1;
+        return a.distanceMeters - b.distanceMeters;
+      })
+      .map((item) => item.branch);
+  }, [branches, userLocation]);
+
+  if (loading) return <BranchesSliderSkeleton />;
   if (branches.length === 0) return null;
 
   return (
@@ -79,7 +106,7 @@ export default function BranchesSlider() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20 }}
       >
-        {branches.map((branch, index) => {
+        {sortedBranches.map((branch, index) => {
           const hasCoords = branch.latitude !== undefined && branch.longitude !== undefined;
           const distanceText =
             userLocation && hasCoords
@@ -93,13 +120,17 @@ export default function BranchesSlider() {
               key={branch.id}
               className={index < branches.length - 1 ? 'mr-4' : ''}
               style={{ width: 220 }}
-              onPress={() => router.push('/user/(tabs)/book')}
+              onPress={() =>
+                // `ts` forces a distinct navigation even for a repeat tap on the same branch -
+                // see HomeHeader's handleSelectBranch for why a repeated `q` alone isn't enough.
+                router.push({ pathname: '/user/(tabs)/book', params: { q: branch.name, ts: String(Date.now()) } })
+              }
               activeOpacity={0.82}
             >
               {/* Image */}
               <View className="rounded-lg overflow-hidden">
                 <Image
-                  source={BRANCH_IMAGES[index % BRANCH_IMAGES.length]}
+                  source={branch.imageUrl ? { uri: branch.imageUrl } : BRANCH_IMAGES[index % BRANCH_IMAGES.length]}
                   className="w-full"
                   style={{ height: 115 }}
                   resizeMode="cover"

@@ -1,6 +1,7 @@
 import GoogleAuthButton from '@/components/ui/auth/GoogleAuthButton';
 import { useAlert } from '@/hooks/use-alert';
 import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
+import { getPasswordPolicyError, PASSWORD_REQUIREMENTS } from '@/lib/passwordPolicy';
 import { sanitizeNamePart } from '@/lib/sanitize';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -60,9 +61,12 @@ export default function RegisterScreen() {
     if (!password) {
       setPasswordError('Please enter a password');
       hasError = true;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      hasError = true;
+    } else {
+      const policyError = getPasswordPolicyError(password);
+      if (policyError) {
+        setPasswordError(policyError);
+        hasError = true;
+      }
     }
     if (!agreedToTerms) {
       setTermsError('Please agree to the Terms and Conditions');
@@ -106,7 +110,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-[#FAFAFA]">
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -134,7 +138,7 @@ export default function RegisterScreen() {
           <View className="mb-5">
             <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">Name</Text>
             <TextInput
-              className={`bg-[#FAFAFA] border rounded-2xl px-4 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A] min-h-[52px] ${
+              className={`bg-white border rounded-2xl px-4 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A] min-h-[52px] ${
                 nameError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
               }`}
               placeholder="Ex. Juan dela Cruz"
@@ -153,7 +157,7 @@ export default function RegisterScreen() {
           <View className="mb-5">
             <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">Email</Text>
             <TextInput
-              className={`bg-[#FAFAFA] border rounded-2xl px-4 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A] min-h-[52px] ${
+              className={`bg-white border rounded-2xl px-4 py-4 text-[14px] font-inter-regular tracking-tight text-[#1A1A1A] min-h-[52px] ${
                 emailError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
               }`}
               placeholder="your.email@example.com"
@@ -172,7 +176,7 @@ export default function RegisterScreen() {
           {/* Password */}
           <View className="mb-6">
             <Text className="text-[13px] font-inter-medium tracking-tight text-[#374151] mb-1.5">Password</Text>
-            <View className={`flex-row items-center bg-[#FAFAFA] border rounded-2xl px-4 min-h-[52px] ${
+            <View className={`flex-row items-center bg-white border rounded-2xl px-4 min-h-[52px] ${
               passwordError ? 'border-[#DC2626]' : 'border-[#EEEEEE]'
             }`}>
               <TextInput
@@ -189,9 +193,30 @@ export default function RegisterScreen() {
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
-            {!!passwordError && (
+            {!!passwordError && !password && (
               <Text className="text-[12px] font-inter-regular tracking-tight text-[#DC2626] mt-1.5">{passwordError}</Text>
             )}
+            <View className="mt-2 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+              {PASSWORD_REQUIREMENTS.map((req) => {
+                const met = req.test(password);
+                return (
+                  <View key={req.key} className="flex-row items-center">
+                    <Ionicons
+                      name={met ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={13}
+                      color={met ? '#16A34A' : '#C4C4C4'}
+                    />
+                    <Text
+                      className={`text-[11.5px] tracking-tight ml-1.5 ${
+                        met ? 'font-inter-semibold text-[#16A34A]' : 'font-inter-regular text-[#999]'
+                      }`}
+                    >
+                      {req.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
 
           {/* Terms checkbox */}

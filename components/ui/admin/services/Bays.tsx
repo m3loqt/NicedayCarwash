@@ -14,7 +14,11 @@ interface Bay {
   originalKey?: string; // Store original key from database for deletion
 }
 
-export default function Bays() {
+interface BaysProps {
+  refreshKey?: number;
+}
+
+export default function Bays({ refreshKey }: BaysProps = {}) {
   const { alert, AlertComponent } = useAlert();
   const [bays, setBays] = useState<Bay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,7 +153,7 @@ export default function Bays() {
         unsubscribeBays();
       }
     };
-  }, []);
+  }, [refreshKey]);
 
   const handleOpenBayOptions = (bay: Bay) => {
     setSelectedBay(bay);
@@ -337,7 +341,7 @@ export default function Bays() {
 
   if (bays.length === 0) {
     return (
-      <View className="py-4 rounded-lg bg-[#FAFAFA] px-4 py-4">
+      <View className="py-4 rounded-lg bg-white px-4 py-4">
         <Text className="text-center text-gray-500 text-sm" style={{ fontFamily: 'Inter_400Regular' }}>No bays available</Text>
       </View>
     );
@@ -361,7 +365,7 @@ export default function Bays() {
             marginLeft: index === 0 ? 0 : 8,
             opacity: item.status === "unavailable" ? 0.4 : 1,
           }}
-          className="rounded-xl bg-[#FAFAFA] items-center justify-center"
+          className="rounded-xl bg-white items-center justify-center"
         >
           <Text
             className="text-[10px] text-[#999]"

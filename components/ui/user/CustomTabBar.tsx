@@ -1,7 +1,17 @@
+import { TAB_BAR_BOTTOM_MARGIN, TAB_BAR_HEIGHT } from '@/hooks/use-tab-bar-height';
 import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  LayoutAnimation,
+  type LayoutAnimationConfig,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  UIManager,
+  View,
+} from 'react-native';
 
 // Same outline glyph for both states - only color distinguishes active/inactive.
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -12,12 +22,27 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   profile: 'person-outline',
 };
 
+// Old architecture requires this opt-in on Android for LayoutAnimation to do anything at all -
+// harmless no-op on iOS and on the New Architecture, where it's supported without it.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// A spring feel for the pill sliding/resizing between tabs, with the label fading in/out rather
+// than popping - this is what actually makes switching tabs read as fluid instead of a hard snap.
+const TAB_LAYOUT_ANIMATION: LayoutAnimationConfig = {
+  duration: 300,
+  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+  update: { type: LayoutAnimation.Types.spring, springDamping: 0.7 },
+  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+};
+
 export default function CustomTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
   const { hidden } = useTabBarVisibility();
   if (hidden) return null;
 
   return (
-    <View style={[styles.wrapper, { marginBottom: insets.bottom + 16 }]} pointerEvents="box-none">
+    <View style={[styles.wrapper, { marginBottom: insets.bottom + TAB_BAR_BOTTOM_MARGIN }]} pointerEvents="box-none">
       <View style={styles.bar}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -28,6 +53,7 @@ export default function CustomTabBar({ state, descriptors, navigation, insets }:
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
             if (!focused && !event.defaultPrevented) {
+              LayoutAnimation.configureNext(TAB_LAYOUT_ANIMATION);
               navigation.navigate(route.name);
             }
           };
@@ -39,7 +65,7 @@ export default function CustomTabBar({ state, descriptors, navigation, insets }:
               style={focused ? styles.activeSlot : styles.inactiveSlot}
               activeOpacity={0.8}
             >
-              <View key={focused ? 'active' : 'inactive'} style={[styles.pill, focused && styles.pillActive]}>
+              <View style={[styles.pill, focused && styles.pillActive]}>
                 <Ionicons name={iconName} size={20} color={focused ? '#1A1A1A' : '#B0B0B0'} />
                 {focused && (
                   <Text style={styles.label} numberOfLines={1}>
@@ -67,11 +93,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    height: 64,
+    borderRadius: TAB_BAR_HEIGHT / 2,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    height: TAB_BAR_HEIGHT,
     width: '92%',
-    paddingHorizontal: 10,
-    elevation: 0.5,
+    paddingHorizontal: 6,
   },
   inactiveSlot: {
     flex: 1,
@@ -80,7 +107,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeSlot: {
-    flex: 1.7,
+    flex: 2,
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
@@ -90,11 +117,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 52,
-    borderRadius: 10,
+    borderRadius: 26,
     paddingHorizontal: 20,
     overflow: 'hidden',
   },
   pillActive: {
+    width: '100%',
     backgroundColor: '#F9EF08',
   },
   label: {
