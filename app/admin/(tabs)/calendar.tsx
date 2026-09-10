@@ -1,4 +1,5 @@
-import DayAgenda, { STATUS_STYLE } from '@/components/ui/admin/calendar/DayAgenda';
+import { bookingStatusStyle } from '@/components/ui/admin/bookingStatusStyle';
+import DayAgenda from '@/components/ui/admin/calendar/DayAgenda';
 import { auth, db } from '@/firebase/firebase';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { Ionicons } from '@expo/vector-icons';
@@ -279,7 +280,7 @@ export default function AdminCalendarScreen() {
                                 width: 5,
                                 height: 5,
                                 borderRadius: 2.5,
-                                backgroundColor: STATUS_STYLE[status]?.bg ?? '#E0E0E0',
+                                backgroundColor: bookingStatusStyle(status).dot,
                               }}
                             />
                           ))}

@@ -34,20 +34,17 @@ export interface AppointmentDetailsProps {
 }
 
 const getVehicleIcon = (vehicleType?: string) => {
-  switch (vehicleType?.toLowerCase()) {
-    case 'sedan':
-      return require('../../../assets/images/sedan.png');
-    case 'suv':
-      return require('../../../assets/images/suv.png');
-    case 'pickup':
-      return require('../../../assets/images/pickup.png');
-    case 'motorcycle-small':
-      return require('../../../assets/images/motosmall.png');
-    case 'motorcycle-large':
-      return require('../../../assets/images/motobig.png');
-    default:
-      return require('../../../assets/images/sedan.png');
+  // Tolerates both the vtype slug ('motorcycle-large') and the display string ('Motorcycle (L)')
+  // since callers pass whichever they have on hand.
+  const t = vehicleType?.toLowerCase() ?? '';
+  if (t.includes('motorcycle') || t.includes('moto')) {
+    return t.includes('large') || t.includes('(l)')
+      ? require('../../../assets/images/motobig.png')
+      : require('../../../assets/images/motosmall.png');
   }
+  if (t.includes('suv')) return require('../../../assets/images/suv.png');
+  if (t.includes('pickup')) return require('../../../assets/images/pickup.png');
+  return require('../../../assets/images/sedan.png');
 };
 
 // Converts date from MM-DD-YYYY to "December 6, 2025" format

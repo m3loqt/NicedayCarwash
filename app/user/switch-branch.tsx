@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { isBranchVisibleToCustomer } from '@/lib/branch';
 import { getSwitchableBranches, moveBookingToBranch } from '@/lib/branchSwitch';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { formatDistance, getCurrentLocation, haversineMeters } from '@/lib/location';
@@ -44,7 +45,7 @@ export default function SwitchBranchScreen() {
             const snap = await get(ref(db, `Branches/${id}/profile`));
             if (!snap.exists()) return null;
             const profile = snap.val();
-            if (!profile?.name) return null;
+            if (!isBranchVisibleToCustomer(profile)) return null;
             const lat = Number(profile.latitude);
             const lng = Number(profile.longitude);
             return {

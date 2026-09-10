@@ -207,15 +207,20 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
     );
   }
 
+  // A pending booking whose fee was never paid never reached the branch - it's "awaiting
+  // payment", not "awaiting confirmation". Exclude it from every customer-facing list here
+  // (booking-success owns the Pay Again retry; the server expires it after 24h).
+  const realBookings = bookings.filter((b) => !(b.status === 'pending' && b.isPaid !== true));
+
   const sections = (GROUPS[activeTab] ?? [])
     .map((group) => ({
       label: group.label,
-      items: bookings.filter((b) => b.status === group.status),
+      items: realBookings.filter((b) => b.status === group.status),
     }))
     .filter((section) => section.items.length > 0);
 
   const isEmpty = sections.length === 0;
-  const hasAnyBookings = bookings.length > 0;
+  const hasAnyBookings = realBookings.length > 0;
 
   // "Book your first wash" only fits a user who has never booked at all - a returning user
   // just looking at an empty Ongoing or History tab gets copy that matches what's actually

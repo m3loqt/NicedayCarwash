@@ -11,6 +11,9 @@ interface RawBooking {
   amountDue: number;
   timeSlot: { time: string; appointmentDate: string };
   completedAt?: string;
+  createdAt?: string;
+  vehicleName?: string;
+  plateNumber?: string;
 }
 
 export interface PeriodBucket {
@@ -18,6 +21,15 @@ export interface PeriodBucket {
   bookingsCount: number;
   completedCount: number;
   cancelledCount: number;
+}
+
+export interface RecentBooking {
+  appointmentId: string;
+  vehicleName: string;
+  plateNumber: string;
+  time: string;
+  status: Status;
+  amountDue: number;
 }
 
 export interface BranchAnalytics {
@@ -28,6 +40,8 @@ export interface BranchAnalytics {
   weeklyBuckets: PeriodBucket[];
   /** Last 6 calendar months, oldest -> newest. */
   monthlyBuckets: PeriodBucket[];
+  /** Newest first, capped - for the "Recent bookings" list. */
+  recentBookings: RecentBooking[];
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -72,6 +86,9 @@ export function useBranchAnalytics(branchId: string | null): BranchAnalytics {
               amountDue: Number(data.amountDue) || 0,
               timeSlot: data.timeSlot || { time: '', appointmentDate: '' },
               completedAt: data.completedAt,
+              createdAt: data.createdAt,
+              vehicleName: data.vehicleDetails?.vehicleName || '',
+              plateNumber: data.vehicleDetails?.plateNumber || '',
             });
           });
         });
@@ -154,11 +171,33 @@ export function useBranchAnalytics(branchId: string | null): BranchAnalytics {
       monthlyBuckets.push(sumDays(days));
     }
 
+    // --- Recent bookings (newest first) - "recency" is the completion time if finished,
+    // otherwise when the booking was created, so an active wash still surfaces near the top. ---
+    const recencyOf = (b: RawBooking): number => {
+      const t = b.completedAt || b.createdAt;
+      const parsed = t ? new Date(t).getTime() : NaN;
+      if (!isNaN(parsed)) return parsed;
+      const d = resolveBookingDate(b);
+      return d ? d.getTime() : 0;
+    };
+    const recentBookings: RecentBooking[] = [...bookings]
+      .sort((a, b) => recencyOf(b) - recencyOf(a))
+      .slice(0, 6)
+      .map((b) => ({
+        appointmentId: b.appointmentId,
+        vehicleName: b.vehicleName || 'Vehicle',
+        plateNumber: b.plateNumber || '',
+        time: b.timeSlot?.time || '',
+        status: b.status,
+        amountDue: b.amountDue,
+      }));
+
     return {
       loading,
       dailyBuckets,
       weeklyBuckets,
       monthlyBuckets,
+      recentBookings,
     };
   }, [bookings, loading]);
 }

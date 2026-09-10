@@ -1,4 +1,4 @@
-import { logError, logWarn } from '@/lib/logger';
+import { logWarn } from '@/lib/logger';
 import * as Location from 'expo-location';
 
 export async function getCurrentLocation(): Promise<{ latitude: number; longitude: number } | null> {
@@ -28,7 +28,12 @@ export async function getCurrentLocation(): Promise<{ latitude: number; longitud
       longitude: location.coords.longitude,
     };
   } catch (e) {
-    logError('location.getCurrentLocation', e, { context: 'Failed to get device location' });
+    // No fix available - GPS off, no signal, location services disabled, or an emulator with
+    // no location set. All expected; callers already fall back to a no-location experience, so
+    // this is a warning, not an error (an ERROR here also trips the dev-mode red LogBox).
+    logWarn('location.getCurrentLocation', 'Could not get a device location fix', {
+      code: (e as { code?: string })?.code,
+    });
     return null;
   }
 }

@@ -1,5 +1,6 @@
 import { useAlert } from "@/hooks/use-alert";
 import { logError } from "@/lib/logger";
+import { normalizeForSearch } from "@/lib/textMatch";
 import { AddonCardsSkeleton, ServiceCardsSkeleton } from "@/components/ui/user/UserScreenSkeleton";
 import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, onValue, ref } from "firebase/database";
@@ -122,6 +123,8 @@ const ADDON_VEHICLE_CLASSES: Record<string, VehicleClass[]> = {
   'Engine Wash': ['sedan', 'suv', 'pickup'],
   'Under Chassis Wash': ['sedan', 'suv', 'pickup'],
   'Engine Detailing': ['sedan', 'suv', 'pickup'],
+  'Seat Cover Installation': ['sedan', 'suv', 'pickup'],
+  'Armor All (Body & Dashboard)': ['sedan', 'suv', 'pickup'],
 };
 
 const isAddonAvailableForVehicleClass = (addon: Addon, vehicleClass: VehicleClass): boolean => {
@@ -571,12 +574,23 @@ export default function ServicesStep({
     });
   };
 
+  const vehicleClass = getVehicleClass(selectedVehicle.vtype);
+
   // A price of exactly 0 means the catalog doesn't offer that service for this vehicle type
   // (e.g. "Motorcycle Wax" has sedan/suv/pickup: 0, and the car wash plans have motorcycle: 0)
   // rather than the service genuinely being free - filter those out instead of showing ₱0.00.
   const availableServices = services.filter((s) => getPriceForVehicle(s) > 0);
-  const vehicleClass = getVehicleClass(selectedVehicle.vtype);
-  const availableAddons = addons.filter((a) => isAddonAvailableForVehicleClass(a, vehicleClass));
+
+  // A few items ("Motorcycle Wax (S/L)") sit in both the services and add-ons catalogs. For a
+  // vehicle that can book one as a plan, it IS the plan - there's no separate motorcycle wash to
+  // add wax onto - so the service card wins and the item is dropped from the add-on list, never
+  // the other way round (doing it the other way hid a motorcycle's only plans entirely).
+  const serviceNames = new Set(availableServices.map((s) => normalizeForSearch(s.name)));
+  const availableAddons = addons.filter(
+    (a) =>
+      isAddonAvailableForVehicleClass(a, vehicleClass) &&
+      !serviceNames.has(normalizeForSearch(a.name)),
+  );
 
   return (
     <View className="flex-1 bg-[#FAFAFA]">
@@ -657,6 +671,9 @@ export default function ServicesStep({
         )}
 
         {/* ------------------- ADD ONS ------------------- */}
+        {/* Hidden entirely for a vehicle with no applicable add-ons (e.g. motorcycles) */}
+        {(addonsLoading || availableAddons.length > 0) && (
+        <>
         <Text className="text-xl font-semibold mt-6 mb-3 px-4">
           Add ons <Text className="text-gray-500">(Optional)</Text>
         </Text>
@@ -707,6 +724,8 @@ export default function ServicesStep({
             );
           })}
         </ScrollView>
+        )}
+        </>
         )}
 
         {/* ------------------- DATE & TIME ------------------- */}

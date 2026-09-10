@@ -1,5 +1,7 @@
 import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import { isBranchArchived } from '@/lib/branch';
 import { logError, logWarn } from '@/lib/logger';
+import { matchesSearch } from '@/lib/textMatch';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
@@ -99,12 +101,7 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
       setFilteredBranches(branches);
       return;
     }
-    setFilteredBranches(
-      branches.filter(b =>
-        b.name.toLowerCase().includes(q.toLowerCase()) ||
-        b.address.toLowerCase().includes(q.toLowerCase())
-      )
-    );
+    setFilteredBranches(branches.filter(b => matchesSearch(`${b.name} ${b.address}`, q)));
   };
 
   const handleBranchPress = async (branch: Branch) => {
@@ -143,7 +140,7 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
         snapshot.forEach(branchSnap => {
           const branchId = branchSnap.key;
           const profile = branchSnap.child('profile').val();
-          if (profile && !profile.archivedAt) {
+          if (profile && !isBranchArchived(profile)) {
             const lat = Number(profile.latitude);
             const lng = Number(profile.longitude);
             if (!isFinite(lat) || !isFinite(lng)) return;

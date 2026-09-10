@@ -11,8 +11,20 @@ interface Service {
   sedan: number;
   suv: number;
   pickup: number;
+  motorcycle: number;
   isAvailable?: boolean;
 }
+
+// Only the vehicle classes this service is actually priced for - so a motorcycle-only service
+// shows "Motorcycle ₱140" instead of "Sedan ₱0 · SUV ₱0 · Pickup ₱0".
+const priceLabel = (s: Service): string => {
+  const parts: string[] = [];
+  if (s.sedan > 0) parts.push(`Sedan ₱${s.sedan}`);
+  if (s.suv > 0) parts.push(`SUV ₱${s.suv}`);
+  if (s.pickup > 0) parts.push(`Pickup ₱${s.pickup}`);
+  if (s.motorcycle > 0) parts.push(`Motorcycle ₱${s.motorcycle}`);
+  return parts.length ? parts.join(' · ') : 'No price set';
+};
 
 interface ServicesProps {
   branchId?: string | null;
@@ -67,6 +79,7 @@ export default function Services({ branchId: propBranchId, refreshKey }: Service
                 sedan: val.sedanPrice || 0,
                 suv: val.suvPrice || 0,
                 pickup: val.pickupPrice || 0,
+                motorcycle: val.motorcyclePrice || 0,
                 isAvailable: val.isAvailable !== undefined ? val.isAvailable : true,
               });
               addedIds.add(id);
@@ -88,6 +101,7 @@ export default function Services({ branchId: propBranchId, refreshKey }: Service
               sedan: prices.sedan ?? 0,
               suv: prices.suv ?? 0,
               pickup: prices.pickup ?? 0,
+              motorcycle: prices.motorcycle ?? 0,
               isAvailable,
             });
             addedIds.add(id);
@@ -152,7 +166,7 @@ export default function Services({ branchId: propBranchId, refreshKey }: Service
               {item.name}
             </Text>
             <Text className="text-gray-500 text-xs mt-0.5" style={{ fontFamily: "Inter_400Regular" }}>
-              Sedan ₱{item.sedan} · SUV ₱{item.suv} · Pickup ₱{item.pickup}
+              {priceLabel(item)}
             </Text>
           </View>
           <Switch

@@ -78,7 +78,8 @@ export const getSwitchableBranches = onCall(async (request) => {
 
   const candidateIds: string[] = [];
   branchesSnap.forEach((child) => {
-    if (child.key && child.key !== booking.branchId) candidateIds.push(child.key);
+    const archived = child.child("profile/archivedAt").exists();
+    if (child.key && child.key !== booking.branchId && !archived) candidateIds.push(child.key);
     return false;
   });
 

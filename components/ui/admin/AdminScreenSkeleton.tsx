@@ -127,28 +127,22 @@ export function ServicesSkeleton() {
   );
 }
 
-/** Skeleton for the Overview/analytics screen: hero, KPI row, and chart cards */
+/** Skeleton for the Overview screen body (below the fixed photo header): revenue card, two
+ *  count cards, recent-bookings list. */
 export function AnalyticsSkeleton() {
   const pulse = useSkeletonPulse();
   return (
-    <View className="flex-1 bg-white px-6">
-      <View className="pt-4 pb-4">
-        <SkeletonBar width="45%" height={32} animatedValue={pulse} />
+    <View className="bg-[#FAFAFA] px-4 pt-4">
+      {/* Revenue card */}
+      <SkeletonBar width="100%" height={150} style={{ borderRadius: 16, marginBottom: 12 }} animatedValue={pulse} />
+      {/* Two count cards */}
+      <View className="flex-row gap-3 mb-3">
+        <SkeletonBar width="100%" height={104} style={{ flex: 1, borderRadius: 16 }} animatedValue={pulse} />
+        <SkeletonBar width="100%" height={104} style={{ flex: 1, borderRadius: 16 }} animatedValue={pulse} />
       </View>
-      <View className="mb-5">
-        <SkeletonBar width="40%" height={14} style={{ marginBottom: 8 }} animatedValue={pulse} />
-        <SkeletonBar width="60%" height={34} animatedValue={pulse} />
-      </View>
-      <View className="flex-row gap-2 mb-5">
-        <SkeletonBar width="100%" height={72} style={{ flex: 1, borderRadius: 16 }} animatedValue={pulse} />
-        <SkeletonBar width="100%" height={72} style={{ flex: 1, borderRadius: 16 }} animatedValue={pulse} />
-        <SkeletonBar width="100%" height={72} style={{ flex: 1, borderRadius: 16 }} animatedValue={pulse} />
-      </View>
-      <View className="gap-4">
-        <SkeletonBar width="100%" height={190} style={{ borderRadius: 16 }} animatedValue={pulse} />
-        <SkeletonBar width="100%" height={100} style={{ borderRadius: 16 }} animatedValue={pulse} />
-        <SkeletonBar width="100%" height={140} style={{ borderRadius: 16 }} animatedValue={pulse} />
-      </View>
+      {/* Recent bookings */}
+      <SkeletonBar width="42%" height={15} style={{ marginBottom: 8, marginLeft: 4 }} animatedValue={pulse} />
+      <SkeletonBar width="100%" height={190} style={{ borderRadius: 16 }} animatedValue={pulse} />
     </View>
   );
 }

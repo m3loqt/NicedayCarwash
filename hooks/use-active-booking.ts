@@ -48,6 +48,9 @@ export function useActiveBooking(): { booking: ActiveBooking | null; loading: bo
               ? data.status
               : undefined;
           if (!status) return;
+          // An unpaid pending booking never reached the branch (booking fee abandoned). It's
+          // "awaiting payment", not a live appointment - don't surface it as an active booking.
+          if (status === 'pending' && data?.isPaid !== true) return;
           if (!best || STATUS_PRIORITY[status] > STATUS_PRIORITY[best.status]) {
             best = {
               appointmentId: bookingSnap.key || data.appointmentId,

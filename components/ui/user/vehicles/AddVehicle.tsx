@@ -3,10 +3,9 @@ import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import { get, getDatabase, ref, set } from 'firebase/database';
-import { useState } from 'react';
+import { getDatabase, onValue, ref, set } from 'firebase/database';
+import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   ImageSourcePropType,
@@ -40,46 +39,58 @@ export default function AddVehicle() {
   const [plateNumber, setPlateNumber] = useState('');
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const handleSave = async () => {
+  // Existing plate keys, kept live from the local cache so the duplicate check is instant and
+  // the Save button never has to wait on the network. `null` until the first snapshot lands.
+  const existingPlatesRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const userId = getAuth().currentUser?.uid;
+    if (!userId) return;
+    const listRef = ref(getDatabase(), `users/${userId}/Vehicle Information`);
+    const unsub = onValue(listRef, (snap) => {
+      const plates = new Set<string>();
+      snap.forEach((child) => {
+        if (child.key) plates.add(child.key);
+        return false;
+      });
+      existingPlatesRef.current = plates;
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSave = () => {
     if (!vehicleName.trim() || !plateNumber.trim() || !selectedType) {
       Alert.alert('Error', 'Please fill all fields and select a vehicle type.');
       return;
     }
 
-    try {
-      setLoading(true);
-      const auth = getAuth();
-      const userId = auth.currentUser?.uid;
-      if (!userId) {
-        Alert.alert('Error', 'User not authenticated.');
-        return;
-      }
-
-      const db = getDatabase();
-      const normalizedPlate = plateNumber.toUpperCase();
-      const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${normalizedPlate}`);
-
-      const snapshot = await get(vehicleRef);
-      if (snapshot.exists()) {
-        Alert.alert('Error', `Vehicle with plate number ${normalizedPlate} already exists.`);
-        return;
-      }
-
-      await set(vehicleRef, {
-        vname: vehicleName,
-        vplateNumber: normalizedPlate,
-        vtype: selectedType,
-      });
-
-      setShowSuccess(true);
-    } catch (err) {
-      logError('AddVehicle.handleSave', err, { context: 'Failed to add vehicle' });
-      Alert.alert('Error', 'Failed to add vehicle.');
-    } finally {
-      setLoading(false);
+    const userId = getAuth().currentUser?.uid;
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated.');
+      return;
     }
+
+    const db = getDatabase();
+    const normalizedPlate = plateNumber.trim().toUpperCase();
+
+    // Instant, in-memory duplicate check (skipped only if the list hasn't synced yet - the plate
+    // is the write key, so a later re-add just updates that entry rather than duplicating it).
+    if (existingPlatesRef.current?.has(normalizedPlate)) {
+      Alert.alert('Already added', `You already have a vehicle with plate ${normalizedPlate}. You can edit it from your vehicles list.`);
+      return;
+    }
+
+    const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${normalizedPlate}`);
+    // Optimistic: the RTDB SDK applies this to the local cache synchronously, so the vehicles
+    // list (a live listener) shows it right away and this screen can confirm without waiting for
+    // the server ACK. The write finishes syncing in the background when the network allows.
+    set(vehicleRef, {
+      vname: vehicleName.trim(),
+      vplateNumber: normalizedPlate,
+      vtype: selectedType,
+    }).catch((err) => logError('AddVehicle.handleSave.set', err, { context: 'Vehicle write failed to sync' }));
+
+    setShowSuccess(true);
   };
 
   if (showSuccess) {
@@ -89,14 +100,6 @@ export default function AddVehicle() {
         onContinue={() => router.back()}
         iconType="success"
       />
-    );
-  }
-
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-[#FAFAFA] justify-center items-center">
-        <ActivityIndicator size="small" color="#1A1A1A" />
-      </SafeAreaView>
     );
   }
 
@@ -183,7 +186,7 @@ export default function AddVehicle() {
       {/* Save button */}
       <View className="px-5 pb-8 pt-3 bg-[#FAFAFA]">
         <TouchableOpacity
-          className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+          className="bg-[#F9EF08] rounded-2xl py-4 items-center justify-center min-h-[52px]"
           onPress={handleSave}
           activeOpacity={0.85}
         >

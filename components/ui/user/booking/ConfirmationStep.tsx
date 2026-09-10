@@ -7,8 +7,8 @@ import { payBookingFeeWithMaya } from '@/lib/mayaPayment';
 import { sanitizePlainText } from '@/lib/sanitize';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import { getDatabase, ref, set } from 'firebase/database';
-import { useState } from 'react';
+import { get, getDatabase, ref, remove, set } from 'firebase/database';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface ServiceOrAddon {
@@ -17,6 +17,7 @@ interface ServiceOrAddon {
   sedan?: number;
   suv?: number;
   pickup?: number;
+  motorcycle?: number;
   price?: number;
   estimatedTime?: number;
 }
@@ -48,7 +49,10 @@ const getClassificationName = (vtype?: string): string => {
 
 const getPriceForClassification = (item: ServiceOrAddon, classification?: string): number => {
   if (item.price) return item.price;
-  switch (classification?.toLowerCase()) {
+  const c = classification?.toLowerCase() ?? '';
+  // vtype is 'motorcycle-small' / 'motorcycle-large'; classification strings may just say 'motorcycle'
+  if (c.startsWith('motorcycle')) return item.motorcycle || 0;
+  switch (c) {
     case 'sedan': return item.sedan || 0;
     case 'suv': return item.suv || 0;
     case 'pickup': return item.pickup || 0;
@@ -112,6 +116,32 @@ export default function ConfirmationStep({
   const { showAlert, AlertComponent } = useAlert();
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState('');
+
+  // A booking that's been written to the DB but hasn't yet reached the booking-success screen.
+  // If the user backs out of a hung payment before then, the unmount cleanup below removes the
+  // orphaned "pending" hold so it never lingers in their history or the active-booking bar.
+  const pendingCleanupRef = useRef<
+    { appointmentId: string; datePath: string; branchId: string; userId: string } | null
+  >(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      const pending = pendingCleanupRef.current;
+      if (!pending) return;
+      const db = getDatabase();
+      const { appointmentId, datePath, branchId, userId } = pending;
+      // Only tear down a still-unpaid hold - if the webhook confirmed payment after we
+      // unmounted (paid on Maya, then killed the app), leave the booking alone.
+      get(ref(db, `Reservations/ReservationsByUser/${userId}/${datePath}/${appointmentId}/isPaid`))
+        .then((snap) => {
+          if (snap.val() === true) return;
+          remove(ref(db, `Reservations/ReservationsByUser/${userId}/${datePath}/${appointmentId}`)).catch(() => {});
+          remove(ref(db, `Notifications/ByBranch/${branchId}/pendingBookings/${appointmentId}`)).catch(() => {});
+        })
+        .catch(() => {});
+    };
+  }, []);
 
   const generateAppointmentId = () =>
     `ND-${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`;
@@ -220,6 +250,9 @@ export default function ConfirmationStep({
         branchName: branch.name,
         createdAt: bookingData.createdAt,
       });
+      // From here on, if the screen unmounts before we hand off to booking-success, the hold
+      // above is orphaned - mark it for teardown.
+      pendingCleanupRef.current = { appointmentId, datePath, branchId: branch.id, userId };
 
       let paymentStatus: 'paid' | 'unconfirmed' | 'error' = 'unconfirmed';
       try {
@@ -229,6 +262,13 @@ export default function ConfirmationStep({
         paymentStatus = 'error';
       }
 
+      // The user backed out of a hung payment - don't yank them to booking-success; the unmount
+      // cleanup has already torn down the orphaned hold.
+      if (!mountedRef.current) return;
+
+      // Reached the hand-off - booking-success owns the booking now (it offers "Pay Again" for
+      // the unpaid/error states), so it must not be torn down when this screen unmounts.
+      pendingCleanupRef.current = null;
       setSubmitting(false);
       onDone?.();
       router.replace({ pathname: '/user/booking-success', params: { appointmentId, paymentStatus, dateKey: datePath } } as any);
@@ -308,7 +348,7 @@ export default function ConfirmationStep({
 
           {/* Disclaimer */}
           <Text className="text-[11px] text-[#C4C4C4] italic text-center">
-            Final duration will depend on the vehicle's size and condition.
+            Final duration will depend on the vehicle&apos;s size and condition.
           </Text>
 
         </View>

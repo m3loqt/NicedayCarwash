@@ -1,4 +1,5 @@
 import { formatDistance, getCurrentLocation, haversineMeters } from '@/lib/location';
+import { matchesSearch } from '@/lib/textMatch';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { get, onValue, ref } from 'firebase/database';
@@ -100,11 +101,9 @@ export default function HomeHeader() {
   }, []);
 
   const matchedBranches = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = searchQuery.trim();
     if (!q) return [];
-    const matches = branches.filter(
-      (b) => b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q)
-    );
+    const matches = branches.filter((b) => matchesSearch(`${b.name} ${b.address}`, q));
     if (userLocation) {
       matches.sort((a, b) => {
         const distA = a.latitude !== undefined && a.longitude !== undefined

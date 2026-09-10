@@ -1,80 +1,51 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
 
 const INK = '#1A1A1A';
-const MUTED = '#999999';
-const GOOD = '#1D8A55';
-const BAD = '#C23B3B';
+const MUTED = '#8A8A8A';
+const GOOD = '#1D7A4C';
+const BAD = '#C0392B';
 
 interface StatTileProps {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
-  /** Signed percent (or point) delta vs the previous period. Omit when there's no comparable prior period. */
+  /** Signed delta vs the previous period. Omit/null when there's no comparable prior period. */
   delta?: number | null;
+  /** "" for a raw count, "%" (default) for a rate, "pts" for a percentage-point change. */
   deltaSuffix?: string;
-  /** Whether an increase in this metric is good for the business (controls delta color). */
-  upIsGood?: boolean;
+  /** For metrics where an increase is the bad outcome (e.g. cancellations). */
+  alarmOnRise?: boolean;
 }
 
-// Deliberately quieter than TotalSalesCard - same layered-gradient-plus-watermark technique for
-// depth, but in the app's neutral greys instead of brand yellow, and no sparkline, so these read
-// as supporting context rather than competing with the hero card for attention.
-export default function StatTile({ icon, label, value, delta, deltaSuffix = '%', upIsGood = true }: StatTileProps) {
+// White card on the grey page, matching the rest of the screen. No icon or watermark - the label
+// says what the number is.
+export default function StatTile({ label, value, delta, deltaSuffix = '%', alarmOnRise = false }: StatTileProps) {
   const hasDelta = delta !== null && delta !== undefined;
-  const isUp = hasDelta && (delta as number) > 0;
-  const isFlat = hasDelta && delta === 0;
-  const isGood = hasDelta && (isUp ? upIsGood : !upIsGood);
-  const deltaColor = isFlat ? MUTED : isGood ? GOOD : BAD;
-  // Ionicons pairs "x-outline" (used for the small chip) with a filled "x" watermark variant.
-  const watermarkIcon = (icon.endsWith('-outline') ? icon.slice(0, -8) : icon) as typeof icon;
+  const d = (delta as number) || 0;
+  const rising = hasDelta && d > 0;
+  const falling = hasDelta && d < 0;
+  const isGoodMove = alarmOnRise ? falling : rising;
+  const isBadMove = alarmOnRise ? rising : falling;
+  const color = isGoodMove ? GOOD : isBadMove ? BAD : MUTED;
 
   return (
-    <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
-      <Ionicons
-        name={watermarkIcon}
-        size={62}
-        color="rgba(210,197,10,0.4)"
-        style={{ position: 'absolute', right: -12, bottom: -12, transform: [{ rotate: '-8deg' }] }}
-      />
-
-      <View style={{ padding: 14 }}>
-        <View
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 9,
-            backgroundColor: 'rgba(0,0,0,0.05)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 8,
-          }}
-        >
-          <Ionicons name={icon} size={13} color="#7A7A7A" />
-        </View>
-
-        <Text style={{ fontSize: 11, color: MUTED, marginBottom: 4 }} numberOfLines={1}>
+    <View style={{ flex: 1, borderRadius: 16, backgroundColor: '#FFFFFF', padding: 16 }}>
+      {/* Fixed slots (label 2 lines, delta 1 line) so tiles in a row keep the same height whether
+          or not each has a wrapping label or a comparison figure. */}
+      <View style={{ height: 32 }}>
+        <Text style={{ fontSize: 12, color: MUTED, lineHeight: 16 }} numberOfLines={2}>
           {label}
         </Text>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: INK }} numberOfLines={1}>
-          {value}
-        </Text>
-
-        <View style={{ marginTop: 6, height: 14 }}>
-          {hasDelta ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name={isFlat ? 'remove' : isUp ? 'arrow-up' : 'arrow-down'} size={11} color={deltaColor} />
-              <Text style={{ fontSize: 11, fontWeight: '600', color: deltaColor, marginLeft: 2 }} numberOfLines={1}>
-                {Math.abs(delta as number)}
-                {deltaSuffix}
-              </Text>
-            </View>
-          ) : (
-            <Text style={{ fontSize: 10, color: '#C4C4C4' }} numberOfLines={1}>
-              No data yet
-            </Text>
-          )}
-        </View>
+      </View>
+      <Text style={{ fontSize: 26, fontWeight: '700', color: INK, marginTop: 4 }} numberOfLines={1}>
+        {value}
+      </Text>
+      <View style={{ height: 16, marginTop: 5 }}>
+        {hasDelta ? (
+          <Text style={{ fontSize: 11, fontWeight: '600', color }} numberOfLines={1}>
+            {rising ? '▲' : falling ? '▼' : '—'} {Math.abs(d)}
+            {deltaSuffix} <Text style={{ color: MUTED, fontWeight: '400' }}>vs prev</Text>
+          </Text>
+        ) : null}
       </View>
     </View>
   );

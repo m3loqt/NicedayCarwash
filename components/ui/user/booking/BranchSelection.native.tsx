@@ -1,6 +1,9 @@
+import RemoteImage from '@/components/ui/common/RemoteImage';
 import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import { isBranchArchived } from '@/lib/branch';
 import { formatDistance, getCurrentLocation, haversineMeters } from '@/lib/location';
 import { logError, logWarn } from '@/lib/logger';
+import { matchesSearch } from '@/lib/textMatch';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -17,6 +20,7 @@ import {
   View
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { captureRef } from 'react-native-view-shot';
 import BookingFlow from './BookingFlow';
 import BranchDetailsModal from './BranchDetailsModal';
 
@@ -51,6 +55,58 @@ interface BranchSelectionProps {
   initialQueryNonce?: string;
 }
 
+// react-native-maps 1.20 on the New Architecture rasterizes a custom marker by drawing its view
+// onto a Canvas, and inside that path nested views / flexbox / a plain <Text> collapse or don't
+// paint (the label beside the pin came out as the stray "|" the map used to show). So the label
+// isn't a live marker view at all - each pin's icon+name is rendered once off-screen (where
+// normal layout works), captured to a PNG with react-native-view-shot, and handed to the marker
+// through its `image` prop, which takes a ready bitmap and skips the broken view path entirely.
+const MARKER_W = 150;
+const MARKER_H = 30;
+const MARKER_ICON = 24;
+const MARKER_GAP = 5;
+const MARKER_ICON_CX = MARKER_ICON / 2;
+const MARKER_PILL_MAX_W = MARKER_W - MARKER_ICON - MARKER_GAP;
+
+// Every branch is "Niceday <locality>" - on a map full of Niceday pins the prefix is noise, so
+// the label shows just the locality.
+const markerLabelText = (name: string): string =>
+  name.replace(/^\s*niceday\s+/i, '').trim() || name.trim();
+
+// The off-screen label that gets captured to a bitmap: fixed 150x30 box (so every marker shares
+// one anchor), icon flush left, locality on a white pill, the rest transparent.
+function BranchLabelContent({ name }: { name: string }) {
+  return (
+    <View style={{ width: MARKER_W, height: MARKER_H, flexDirection: 'row', alignItems: 'center' }}>
+      <Image
+        source={require('../../../../assets/images/nd_appicon.png')}
+        style={{ width: MARKER_ICON, height: MARKER_ICON, borderRadius: MARKER_ICON / 2 }}
+        resizeMode="cover"
+      />
+      <View
+        style={{
+          marginLeft: MARKER_GAP,
+          maxWidth: MARKER_PILL_MAX_W,
+          backgroundColor: '#FFFFFF',
+          borderRadius: 6,
+          borderWidth: 1,
+          borderColor: 'rgba(0,0,0,0.16)',
+          paddingHorizontal: 7,
+          paddingVertical: 2.5,
+        }}
+      >
+        <Text
+          numberOfLines={1}
+          allowFontScaling={false}
+          style={{ fontSize: 10.5, lineHeight: 14, fontWeight: '700', color: '#1A1A1A' }}
+        >
+          {markerLabelText(name)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export default function BranchSelection({ onBranchSelect, initialQuery, initialQueryNonce }: BranchSelectionProps = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -61,16 +117,53 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [branchesLoading, setBranchesLoading] = useState(true);
   const [showPinLabels, setShowPinLabels] = useState(false);
+  // branchId -> data-uri PNG of that pin's icon+name label (see BranchLabelContent)
+  const [labelImages, setLabelImages] = useState<Record<string, string>>({});
 
   const mapRef = useRef(null);
   const searchAnimTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAnimatedBranchId = useRef<string | null>(null);
+  const labelShotRefs = useRef<Record<string, View | null>>({});
 
   useEffect(() => {
     return () => {
       if (searchAnimTimeout.current) clearTimeout(searchAnimTimeout.current);
     };
   }, []);
+
+  // Capture each branch's label to a bitmap once the hidden views below have laid out. Keyed off
+  // the id+name list so it re-runs when branches load or are renamed, not on every render.
+  const labelSignature = branches.map((b) => `${b.id}:${b.name}`).join('|');
+  useEffect(() => {
+    if (!branches.length) return;
+    let cancelled = false;
+
+    const captureAll = async () => {
+      const next: Record<string, string> = {};
+      for (const b of branches) {
+        const node = labelShotRefs.current[b.id];
+        if (!node) continue;
+        try {
+          next[b.id] = await captureRef(node, { format: 'png', quality: 1, result: 'data-uri' });
+        } catch (err) {
+          logWarn('BranchSelectionNative.captureLabel', 'Could not rasterize a pin label', {
+            branchId: b.id,
+          });
+        }
+      }
+      if (!cancelled && Object.keys(next).length) setLabelImages(next);
+    };
+
+    // First pass after layout settles, a second after the bundled icon has surely decoded.
+    const t1 = setTimeout(captureAll, 180);
+    const t2 = setTimeout(captureAll, 700);
+    return () => {
+      cancelled = true;
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelSignature]);
 
   // Checking if a branch has available timeslots - takes data already present in the single
   // `Branches` snapshot the listener below reads (TimeSlots and profile.schedule are both
@@ -128,14 +221,10 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
 
 const handleSearch = (q: string) => {
   setSearchQuery(q);
-  const query = q.trim().toLowerCase();
+  const query = q.trim();
 
   const filtered = query
-    ? branches.filter(
-        (b) =>
-          b.name.toLowerCase().includes(query) ||
-          b.address.toLowerCase().includes(query)
-      )
+    ? branches.filter((b) => matchesSearch(`${b.name} ${b.address}`, query))
     : branches;
   setFilteredBranches(filtered);
 
@@ -212,7 +301,7 @@ const handleSearch = (q: string) => {
         const branchId = branchSnap.key;
         const profile = branchSnap.child('profile').val();
 
-        if (profile && !profile.archivedAt) {
+        if (profile && !isBranchArchived(profile)) {
           // Converting coordinates to numbers and validating they are finite
           const lat = Number(profile.latitude);
           const lng = Number(profile.longitude);
@@ -349,7 +438,9 @@ const handleSearch = (q: string) => {
           style={{ flex: 1 }}
           provider={PROVIDER_GOOGLE}
           initialRegion={getRegion()}
-          onRegionChangeComplete={(region) => setShowPinLabels(region.latitudeDelta < LABEL_ZOOM_DELTA_THRESHOLD)}
+          onRegionChangeComplete={(region) =>
+            setShowPinLabels(region.latitudeDelta < LABEL_ZOOM_DELTA_THRESHOLD)
+          }
           showsUserLocation
           showsMyLocationButton
         >
@@ -361,108 +452,63 @@ const handleSearch = (q: string) => {
             return null;
           }
 
-          const iconBoxWidth = 32;
+          const labelUri = labelImages[branch.id];
 
-          // Icon-only when zoomed out - packed-together pins would otherwise overlap
-          // their labels into unreadable clutter, and the label's extra width would
-          // also widen the marker's tap target into neighboring pins.
-          if (!showPinLabels) {
+          // Zoomed in with a rasterized label ready: hand it to the marker as a bitmap. The
+          // anchor keeps the icon (flush left in that 150px-wide image) on the coordinate.
+          if (showPinLabels && labelUri) {
             return (
               <Marker
                 key={branch.id}
                 coordinate={{ latitude: lat, longitude: lng }}
                 onPress={() => handleMarkerPress(branch)}
-                anchor={{ x: 0.5, y: 0.5 }}
-              >
-                <View
-                  style={{
-                    width: iconBoxWidth,
-                    height: 32,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Image
-                    source={require('../../../../assets/images/nd_appicon.png')}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                    }}
-                    resizeMode="cover"
-                  />
-                </View>
-              </Marker>
+                image={{ uri: labelUri }}
+                anchor={{ x: MARKER_ICON_CX / MARKER_W, y: 0.5 }}
+              />
             );
           }
 
-          // react-native-maps rasterizes custom marker content on Android bound to its
-          // measured box, so absolutely-positioned overflow gets clipped - the label needs
-          // real layout space, with `anchor` compensating so the pin still sits on the coordinate.
-          const markerWidth = 190;
-
+          // Otherwise an icon-only pin - when zoomed out (labels would overlap into clutter) or
+          // for the brief moment before the label bitmap is captured.
           return (
             <Marker
               key={branch.id}
               coordinate={{ latitude: lat, longitude: lng }}
               onPress={() => handleMarkerPress(branch)}
-              anchor={{ x: (iconBoxWidth / 2) / markerWidth, y: 0.5 }}
+              anchor={{ x: 0.5, y: 0.5 }}
             >
               <View
-                collapsable={false}
-                style={{
-                  width: markerWidth,
-                  height: 32,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
+                style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}
               >
-                <View
-                  style={{
-                    width: iconBoxWidth,
-                    height: 32,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Image
-                    source={require('../../../../assets/images/nd_appicon.png')}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                    }}
-                    resizeMode="cover"
-                  />
-                </View>
-                <Text
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  allowFontScaling={false}
-                  style={{
-                    marginLeft: 4,
-                    // Fixed (not max) width - `maxWidth` needs Android to measure the text's
-                    // intrinsic content size, which was racing with react-native-maps' marker
-                    // snapshot and rendering the label at ~0 width. Font scaling disabled too,
-                    // since otherwise the device's system text-scale setting would make the
-                    // actual rendered glyph size (and thus what needs to fit this fixed box)
-                    // unpredictable at measurement time.
-                    width: markerWidth - iconBoxWidth - 4,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: '#1A1A1A',
-                    textShadowColor: 'rgba(255,255,255,0.9)',
-                    textShadowOffset: { width: 0, height: 0 },
-                    textShadowRadius: 3,
-                  }}
-                >
-                  {branch.name}
-                </Text>
+                <Image
+                  source={require('../../../../assets/images/nd_appicon.png')}
+                  style={{ width: 28, height: 28, borderRadius: 14 }}
+                  resizeMode="cover"
+                />
               </View>
             </Marker>
           );
         })}
         </MapView>
+
+        {/* Off-screen label rig - each branch's icon+name is laid out here (normal layout works
+            off the map) and captured to a bitmap for the marker `image` prop above. */}
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', left: 0, top: 0, opacity: 0 }}
+        >
+          {branches.map((branch) => (
+            <View
+              key={branch.id}
+              collapsable={false}
+              ref={(node) => {
+                labelShotRefs.current[branch.id] = node;
+              }}
+            >
+              <BranchLabelContent name={branch.name} />
+            </View>
+          ))}
+        </View>
 
         {branchesLoading && (
           <View
@@ -524,13 +570,11 @@ const handleSearch = (q: string) => {
                       activeOpacity={0.8}
                       onPress={() => handleListPress(branch)}
                     >
-                      <View className="w-[60px] h-[60px] rounded-xl overflow-hidden bg-white mr-4">
-                        <Image
-                          source={branch.imageUrl ? { uri: branch.imageUrl } : require('../../../../assets/images/branch1.jpg')}
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
-                        />
-                      </View>
+                      <RemoteImage
+                        uri={branch.imageUrl}
+                        fallback={require('../../../../assets/images/branch1.jpg')}
+                        style={{ width: 60, height: 60, borderRadius: 12, marginRight: 16 }}
+                      />
                       <View className="flex-1">
                         <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
                           {branch.name}

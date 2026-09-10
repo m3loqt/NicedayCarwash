@@ -1,9 +1,11 @@
+import RemoteImage from '@/components/ui/common/RemoteImage';
 import { BranchesSliderSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import { isBranchVisibleToCustomer } from '@/lib/branch';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { onValue, ref } from 'firebase/database';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { db } from '../../../../firebase/firebase';
 import { formatDistance, getCurrentLocation, haversineMeters } from '../../../../lib/location';
 
@@ -34,7 +36,7 @@ export default function BranchesSlider() {
       const list: Branch[] = [];
       snapshot.forEach((child) => {
         const profile = child.child('profile').val();
-        if (profile && profile.name && !profile.archivedAt) {
+        if (isBranchVisibleToCustomer(profile)) {
           const lat = Number(profile.latitude);
           const lng = Number(profile.longitude);
           list.push({
@@ -128,14 +130,11 @@ export default function BranchesSlider() {
               activeOpacity={0.82}
             >
               {/* Image */}
-              <View className="rounded-lg overflow-hidden">
-                <Image
-                  source={branch.imageUrl ? { uri: branch.imageUrl } : BRANCH_IMAGES[index % BRANCH_IMAGES.length]}
-                  className="w-full"
-                  style={{ height: 115 }}
-                  resizeMode="cover"
-                />
-              </View>
+              <RemoteImage
+                uri={branch.imageUrl}
+                fallback={BRANCH_IMAGES[index % BRANCH_IMAGES.length]}
+                style={{ height: 115, borderRadius: 8 }}
+              />
 
               {/* Content */}
               <View className="pt-2.5">

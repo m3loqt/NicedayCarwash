@@ -2,6 +2,7 @@ import { TAB_BAR_BOTTOM_MARGIN, TAB_BAR_HEIGHT } from '@/hooks/use-tab-bar-heigh
 import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useEffect } from 'react';
 import {
   LayoutAnimation,
   type LayoutAnimationConfig,
@@ -38,8 +39,18 @@ const TAB_LAYOUT_ANIMATION: LayoutAnimationConfig = {
 };
 
 export default function CustomTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
-  const { hidden } = useTabBarVisibility();
-  if (hidden) return null;
+  const { hidden, showTabBar } = useTabBarVisibility();
+
+  // The booking flow (which lives on the Book tab) is the only thing that calls hideTabBar().
+  // So the bar may only ever be hidden while Book is the focused tab - anywhere else, a lingering
+  // `hidden` is stale (e.g. the Android back button tore the overlay down before its cleanup ran,
+  // or navigation moved away while it stayed mounted). Force it visible and self-heal the flag.
+  const activeRoute = state.routes[state.index]?.name;
+  useEffect(() => {
+    if (activeRoute !== 'book' && hidden) showTabBar();
+  }, [activeRoute, hidden, showTabBar]);
+
+  if (hidden && activeRoute === 'book') return null;
 
   return (
     <View style={[styles.wrapper, { marginBottom: insets.bottom + TAB_BAR_BOTTOM_MARGIN }]} pointerEvents="box-none">

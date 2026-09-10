@@ -3,14 +3,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
+import RemoteImage from '@/components/ui/common/RemoteImage';
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   Modal,
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -126,62 +127,43 @@ export default function BranchDetailsModal({
         >
           {branch && (
             <>
-              {/* Full-bleed photo header with the name + address over a dark gradient */}
-              <View style={{ height: 176 }}>
-                <Image
-                  source={
-                    branch.imageUrl
-                      ? { uri: branch.imageUrl }
-                      : require('../../../../assets/images/branch1.jpg')
-                  }
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-                <LinearGradient
-                  colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.82)']}
-                  locations={[0, 0.28, 0.55, 1]}
-                  style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
-                />
+              {/* Drag handle */}
+              <View className="items-center pt-3 pb-1">
+                <View className="w-9 h-1 rounded-full bg-[#E0E0E0]" />
+              </View>
 
-                {/* Drag handle */}
-                <View className="absolute top-2.5 self-center w-9 h-1 rounded-full bg-white/70" />
+              {/* Inset rounded photo header with the name + address over a dark gradient */}
+              <View style={{ paddingHorizontal: 12, paddingTop: 6 }}>
+                <View style={{ height: 156, borderRadius: 18, overflow: 'hidden' }}>
+                  <RemoteImage
+                    uri={branch.imageUrl}
+                    fallback={require('../../../../assets/images/branch1.jpg')}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.82)']}
+                    locations={[0, 0.3, 0.55, 1]}
+                    style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
+                  />
 
-                {/* Close */}
-                <TouchableOpacity
-                  onPress={onClose}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/35 items-center justify-center"
-                >
-                  <Ionicons name="close" size={18} color="#FFFFFF" />
-                </TouchableOpacity>
+                  {/* Close */}
+                  <TouchableOpacity
+                    onPress={onClose}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/35 items-center justify-center"
+                  >
+                    <Ionicons name="close" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
 
-                {/* Status badge */}
-                <View
-                  className={`absolute top-3 left-4 rounded-full px-2.5 py-1 ${
-                    branch.status === 'Closed' ? 'bg-black/45' : 'bg-[#16A34A]'
-                  }`}
-                >
-                  <Text className="text-[10px] font-inter-bold tracking-wide text-white uppercase">
-                    {branch.status}
-                  </Text>
-                </View>
-
-                {/* Name + address */}
-                <View className="absolute left-5 right-5 bottom-4">
-                  <Text className="text-[20px] font-inter-bold text-white" numberOfLines={1}>
-                    {branch.name}
-                  </Text>
-                  <View className="flex-row items-start mt-1">
-                    <Ionicons
-                      name="location-outline"
-                      size={13}
-                      color="rgba(255,255,255,0.85)"
-                      style={{ marginTop: 2 }}
-                    />
+                  {/* Name + address */}
+                  <View className="absolute left-4 right-4 bottom-3.5">
+                    <Text className="text-[20px] font-inter-bold text-white" numberOfLines={1}>
+                      {branch.name}
+                    </Text>
                     <Text
-                      className="text-[12px] font-inter-regular ml-1 flex-1"
+                      className="text-[12px] font-inter-regular mt-1"
                       style={{ color: 'rgba(255,255,255,0.85)' }}
-                      numberOfLines={2}
+                      numberOfLines={1}
                     >
                       {branch.address}
                     </Text>
@@ -195,13 +177,19 @@ export default function BranchDetailsModal({
                 bounces={false}
                 contentContainerStyle={{ padding: 20, paddingBottom: 8 }}
               >
-                {/* Info card */}
-                <View className="bg-[#FAFAFA] rounded-2xl p-4" style={{ gap: 14 }}>
-                  <InfoRow icon="call-outline" label="Contact number" value={branch.phone || 'Not available'} />
+                {/* Info - plain rows, no card */}
+                <View style={{ gap: 16 }}>
+                  <View className="flex-row">
+                    <View className="flex-1">
+                      <InfoRow icon="call-outline" label="Contact number" value={branch.phone || 'Not available'} />
+                    </View>
+                    {distanceText ? (
+                      <View className="flex-1">
+                        <InfoRow icon="navigate-outline" label="Distance from you" value={distanceText} />
+                      </View>
+                    ) : null}
+                  </View>
                   <InfoRow icon="time-outline" label="Open hours" value={branch.hours || 'Not available'} />
-                  {distanceText ? (
-                    <InfoRow icon="navigate-outline" label="Distance from you" value={distanceText} />
-                  ) : null}
                 </View>
 
                 {/* Services */}

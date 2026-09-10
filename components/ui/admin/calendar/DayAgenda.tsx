@@ -1,3 +1,4 @@
+import { bookingStatusStyle } from '@/components/ui/admin/bookingStatusStyle';
 import PullToRefresh from '@/components/ui/common/PullToRefresh';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -10,14 +11,6 @@ const STATUS_TO_TAB: Record<string, string> = {
   ongoing: 'ongoing',
   completed: 'history',
   cancelled: 'history',
-};
-
-export const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  pending:   { bg: '#F5A623', text: '#5C3A00', label: 'Pending' },
-  accepted:  { bg: '#34D399', text: '#fff',    label: 'Confirmed' },
-  ongoing:   { bg: '#60A5FA', text: '#fff',    label: 'Ongoing' },
-  completed: { bg: '#9CA3AF', text: '#fff',    label: 'Completed' },
-  cancelled: { bg: '#F87171', text: '#fff',    label: 'Cancelled' },
 };
 
 interface DayAgendaBooking {
@@ -82,7 +75,7 @@ export default function DayAgenda({ date, bookings, onRefresh }: DayAgendaProps)
           </View>
         ) : (
           bookings.map((booking) => {
-            const s = STATUS_STYLE[booking.status] ?? { bg: '#E0E0E0', text: '#666', label: booking.status };
+            const s = bookingStatusStyle(booking.status);
             const tab = STATUS_TO_TAB[booking.status] ?? 'pending';
             return (
               <TouchableOpacity
@@ -104,8 +97,8 @@ export default function DayAgenda({ date, bookings, onRefresh }: DayAgendaProps)
                   >
                     {booking.vehicleDetails?.vehicleName || 'Vehicle'}
                   </Text>
-                  <View style={{ backgroundColor: s.bg, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: s.text }}>
+                  <View style={{ backgroundColor: s.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: s.fg }}>
                       {s.label}
                     </Text>
                   </View>

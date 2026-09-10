@@ -3,7 +3,7 @@ import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddVehicleInline from './AddVehicleInline';
 import ChooseVehicleStep from './ChooseVehicleStep';
@@ -41,6 +41,18 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
     hideTabBar();
     return () => showTabBar();
   }, [hideTabBar, showTabBar]);
+
+  // The Android hardware back button must walk this overlay's own steps (and close it at
+  // step 1) instead of bubbling to the tab navigator - otherwise the flow stays mounted with
+  // the tab bar hidden while the user is dumped onto another tab.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (step === 1) onClose();
+      else setStep((s) => Math.max(1, s - 1));
+      return true;
+    });
+    return () => sub.remove();
+  }, [step, onClose]);
 
   // Exit early if no branch is provided
   if (!branch) {
@@ -145,7 +157,13 @@ const handleNext = (data?: any, vehicleOverride?: any) => {
           totalEstimatedTime={totalEstimatedTime}
           paymentMethod={paymentMethod}
           onBack={handleBack}
-          onDone={() => router.replace('/user/(tabs)/history')}
+          onDone={() => {
+            // Tear the overlay down (restores the tab bar via this effect's cleanup, and stops a
+            // stale step-3 flow lingering on the Book tab) before switching tabs.
+            showTabBar();
+            onClose();
+            router.replace('/user/(tabs)/history');
+          }}
         />
       )}
 

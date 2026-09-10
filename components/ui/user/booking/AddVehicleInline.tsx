@@ -2,10 +2,9 @@ import { useAlert } from '@/hooks/use-alert';
 import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
-import { get, getDatabase, ref, set } from 'firebase/database';
+import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Modal,
   ScrollView,
@@ -46,7 +45,6 @@ export default function AddVehicleInline({
   const [plateNumber, setPlateNumber] = useState('');
   const [selectedClassification, setSelectedClassification] = useState<VehicleClassification | null>(null);
   const [showClassificationModal, setShowClassificationModal] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const getVehicleIcon = (type: string) => {
     switch (type) {
@@ -70,47 +68,37 @@ export default function AddVehicleInline({
     setShowClassificationModal(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!vehicleName.trim() || !plateNumber.trim() || !selectedClassification) {
       alert('Error', 'Please fill all fields and select a vehicle classification.');
       return;
     }
 
-    try {
-      setLoading(true);
-      const auth = getAuth();
-      const userId = auth.currentUser?.uid;
-      if (!userId) {
-        alert('Error', 'User not authenticated.');
-        return;
-      }
-
-      const db = getDatabase();
-      const normalizedPlate = plateNumber.toUpperCase();
-      const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${normalizedPlate}`);
-
-      const snapshot = await get(vehicleRef);
-      if (snapshot.exists()) {
-        alert('Error', `Vehicle with plate number ${normalizedPlate} already exists.`);
-        return;
-      }
-
-      const payload = {
-        vname: vehicleName,
-        vplateNumber: normalizedPlate,
-        vtype: selectedClassification.id
-      };
-
-      await set(vehicleRef, payload);
-
-      onSaved(payload);
-      onClose();
-    } catch (err) {
-      logError('AddVehicleInline.handleSave', err, { context: 'Failed to add vehicle' });
-      alert('Error', 'Failed to add vehicle.');
-    } finally {
-      setLoading(false);
+    const userId = getAuth().currentUser?.uid;
+    if (!userId) {
+      alert('Error', 'User not authenticated.');
+      return;
     }
+
+    const db = getDatabase();
+    const normalizedPlate = plateNumber.toUpperCase();
+    const vehicleRef = ref(db, `users/${userId}/Vehicle Information/${normalizedPlate}`);
+
+    const payload = {
+      vname: vehicleName,
+      vplateNumber: normalizedPlate,
+      vtype: selectedClassification.id,
+    };
+
+    // Optimistic write - the RTDB SDK applies it to the local cache synchronously so the flow
+    // can continue immediately instead of blocking the booking on a server round-trip. Re-adding
+    // a plate already saved just updates that entry (the plate is the write key).
+    set(vehicleRef, payload).catch((err) =>
+      logError('AddVehicleInline.handleSave', err, { context: 'Vehicle write failed to sync' })
+    );
+
+    onSaved(payload);
+    onClose();
   };
 
   return (
@@ -195,13 +183,9 @@ export default function AddVehicleInline({
           <TouchableOpacity
             className="bg-[#F9EF08] py-4 rounded-xl items-center mb-3"
             onPress={handleSave}
-            disabled={loading}
+            activeOpacity={0.85}
           >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="text-white font-semibold text-lg">Save Vehicle</Text>
-            )}
+            <Text className="text-[#1A1A00] font-semibold text-lg">Save Vehicle</Text>
           </TouchableOpacity>
 
           <TouchableOpacity className="items-center" onPress={onClose}>

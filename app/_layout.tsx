@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import 'nativewind';
 import { useEffect } from 'react';
+import { Text as RNText, TextInput as RNTextInput } from 'react-native';
 import 'react-native-reanimated';
 import '../global.css';
 import {
@@ -30,6 +31,15 @@ import { ensureAndroidNotificationChannel, handleNotificationResponse } from '@/
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Render text at the sizes the UI was designed for, regardless of the device's font-size /
+// display-size setting. Some Android devices (Samsung especially) ship with a larger default
+// that pushed fixed-height content - e.g. the supervisor Overview sign-out button - off-screen.
+// `maxFontSizeMultiplier` still lets a small OS bump through without breaking layouts.
+for (const Component of [RNText, RNTextInput] as unknown as { defaultProps?: Record<string, unknown> }[]) {
+  Component.defaultProps = Component.defaultProps || {};
+  Component.defaultProps.allowFontScaling = false;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

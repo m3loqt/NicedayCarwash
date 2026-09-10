@@ -1,28 +1,42 @@
 import { AnalyticsSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
+import RemoteImage from '@/components/ui/common/RemoteImage';
 import {
+  RecentBookings,
   StatTile,
   TotalSalesCard,
   useBranchAnalytics,
 } from '@/components/ui/admin/analytics';
 import SignOutModal from '@/components/ui/SignOutModal';
 import { auth, db } from '@/firebase/firebase';
+import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { logError } from '@/lib/logger';
 import { registerForPushNotificationsAsync } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Notifications from 'expo-notifications';
 import { get, ref } from 'firebase/database';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Linking, Platform, ScrollView, StatusBar, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Dimensions,
+  Linking,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Fallback for a branch that hasn't had a real photo uploaded on the web yet - same generic
-// placeholders BranchesSlider.tsx and BranchDetailsModal.tsx fall back to, just picked
-// deterministically per branchId (see placeholderBranchImage below) instead of by list position,
-// since there's no list to index into on a single-branch admin account.
+// Deterministic placeholder for a branch with no uploaded photo yet - same set the customer app
+// falls back to, picked by branchId so the same branch always shows the same one.
 const BRANCH_IMAGES = [
   require('../../../assets/images/branch1.jpg'),
   require('../../../assets/images/branch2.jpg'),
@@ -31,14 +45,14 @@ const BRANCH_IMAGES = [
 
 type Period = 'daily' | 'weekly' | 'monthly';
 const PERIOD_OPTIONS: { key: Period; label: string }[] = [
-  { key: 'daily', label: 'Daily' },
-  { key: 'weekly', label: 'Weekly' },
-  { key: 'monthly', label: 'Monthly' },
+  { key: 'daily', label: 'Day' },
+  { key: 'weekly', label: 'Week' },
+  { key: 'monthly', label: 'Month' },
 ];
-const PERIOD_COPY: Record<Period, { current: string; previousLabel: string }> = {
-  daily: { current: 'today', previousLabel: 'Yesterday' },
-  weekly: { current: 'this week', previousLabel: 'Prior week' },
-  monthly: { current: 'this month', previousLabel: 'Last month' },
+const PERIOD_COPY: Record<Period, { current: string; previous: string }> = {
+  daily: { current: 'today', previous: 'yesterday' },
+  weekly: { current: 'this week', previous: 'last week' },
+  monthly: { current: 'this month', previous: 'last month' },
 };
 
 const formatPeso = (n: number): string => `₱${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -48,19 +62,29 @@ const pctDelta = (curr: number, prev: number): number | null => {
   return Math.round(((curr - prev) / prev) * 1000) / 10;
 };
 
+const todayLabel = (): string =>
+  new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+
 function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
   return (
-    <View className="flex-row bg-white border border-[#EEEEEE] rounded-full p-1">
+    <View style={{ flexDirection: 'row', backgroundColor: '#F0F0F0', borderRadius: 999, padding: 2 }}>
       {PERIOD_OPTIONS.map((opt) => {
         const active = opt.key === value;
         return (
           <TouchableOpacity
             key={opt.key}
             onPress={() => onChange(opt.key)}
-            activeOpacity={0.7}
-            className={`px-3 py-1.5 rounded-full ${active ? 'bg-[#F9EF08]' : ''}`}
+            activeOpacity={0.8}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 5,
+              borderRadius: 999,
+              backgroundColor: active ? '#FFFFFF' : 'transparent',
+            }}
           >
-            <Text className={`text-xs font-semibold ${active ? 'text-[#1A1A00]' : 'text-[#999]'}`}>{opt.label}</Text>
+            <Text style={{ fontSize: 12, fontWeight: active ? '700' : '500', color: active ? '#1A1A1A' : '#8A8A8A' }}>
+              {opt.label}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -71,15 +95,25 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
 export default function AdminOverviewScreen() {
   const insets = useSafeAreaInsets();
   const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight ?? 0) : insets.top;
+  const tabBarClearance = useTabBarClearance();
+  // Cap the fixed cover image so on a short viewport the scroll area below can't collapse to the
+  // point the sign-out row is unreachable.
+  const headerHeight = Math.min(184, Dimensions.get('window').height * 0.24);
 
-  // The other admin tabs stay mounted in the background and each declare their own dark-content
-  // <StatusBar>, which - since RN's <StatusBar> shares one native module across every mounted
-  // instance - can silently re-stomp this screen's light-content the next time one of them
-  // re-renders (e.g. a live Firebase listener firing). Setting it imperatively on focus/blur
-  // instead of only declaratively is what actually keeps it correct while this tab is active.
+  // The cover photo scrolls with the content. Status-bar icons are light while the photo is
+  // under them, and flip to dark once it has scrolled away and the grey page is behind them.
+  const [darkIcons, setDarkIcons] = useState(false);
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const shouldBeDark = e.nativeEvent.contentOffset.y > headerHeight * 0.55;
+    setDarkIcons((cur) => (cur === shouldBeDark ? cur : shouldBeDark));
+  };
+  const barStyle: 'dark-content' | 'light-content' = darkIcons ? 'dark-content' : 'light-content';
+  // RN's <StatusBar> shares one native module across mounted tabs, so re-assert on focus.
+  const barStyleRef = useRef(barStyle);
+  barStyleRef.current = barStyle;
   useFocusEffect(
     useCallback(() => {
-      StatusBar.setBarStyle('light-content');
+      StatusBar.setBarStyle(barStyleRef.current);
       return () => StatusBar.setBarStyle('dark-content');
     }, [])
   );
@@ -90,16 +124,12 @@ export default function AdminOverviewScreen() {
   const [branchImageUrl, setBranchImageUrl] = useState<string | null>(null);
   const [branchLoading, setBranchLoading] = useState(true);
 
-  // Stable per branch (not random/list-position based, since this screen only ever shows one
-  // branch) so the same branch doesn't appear to change photos between app opens. Only used as
-  // a fallback for branches without a real uploaded photo (branchImageUrl) yet.
   const placeholderBranchImage = useMemo(() => {
     if (!branchId) return BRANCH_IMAGES[0];
     let hash = 0;
     for (let i = 0; i < branchId.length; i++) hash = (hash * 31 + branchId.charCodeAt(i)) >>> 0;
     return BRANCH_IMAGES[hash % BRANCH_IMAGES.length];
   }, [branchId]);
-  const branchImage = branchImageUrl ? { uri: branchImageUrl } : placeholderBranchImage;
 
   useEffect(() => {
     const fetchAdminBranch = async () => {
@@ -135,11 +165,8 @@ export default function AdminOverviewScreen() {
   const analytics = useBranchAnalytics(branchId);
   const loading = branchLoading || analytics.loading;
 
-  // Mirrors user/(tabs)/profile.tsx's toggle exactly - reflects the actual OS permission rather
-  // than a stored preference, since that's the only thing that determines whether a push can
-  // reach this device. registerForPushNotificationsAsync() already fires on every login
-  // (app/index.tsx's routeSignedInUser, staff included) - this is for granting it up front, or
-  // just checking/re-confirming status.
+  // Reflects the actual OS permission rather than a stored preference - that's the only thing
+  // that determines whether a push can reach this device.
   const [notificationsGranted, setNotificationsGranted] = useState<boolean | null>(null);
   const refreshPermissionStatus = useCallback(async () => {
     const { status } = await Notifications.getPermissionsAsync();
@@ -151,13 +178,8 @@ export default function AdminOverviewScreen() {
 
   const handleToggleNotifications = async () => {
     if (notificationsGranted) {
-      // Runtime permission cannot be revoked from within the app - send the user to system
-      // settings, where they can turn it off for this app specifically.
-      if (Platform.OS === 'ios') {
-        Linking.openURL('app-settings:');
-      } else {
-        Linking.openSettings();
-      }
+      if (Platform.OS === 'ios') Linking.openURL('app-settings:');
+      else Linking.openSettings();
       return;
     }
     await registerForPushNotificationsAsync();
@@ -186,167 +208,202 @@ export default function AdminOverviewScreen() {
   };
 
   const [period, setPeriod] = useState<Period>('weekly');
-  // The KPI row below is bound to this same bucket set - switching the period here now moves
-  // every number on the page together instead of the tiles silently staying on a fixed 7-day
-  // window while Revenue changes underneath them.
   const buckets =
     period === 'daily' ? analytics.dailyBuckets : period === 'monthly' ? analytics.monthlyBuckets : analytics.weeklyBuckets;
   const EMPTY_BUCKET = { revenue: 0, bookingsCount: 0, completedCount: 0, cancelledCount: 0 };
   const currentBucket = buckets[buckets.length - 1] ?? EMPTY_BUCKET;
   const previousBucket = buckets[buckets.length - 2] ?? EMPTY_BUCKET;
 
-  const currentValue = currentBucket.revenue;
-  const previousValue = previousBucket.revenue;
-  const seriesDelta = pctDelta(currentValue, previousValue);
+  const revenueDelta = pctDelta(currentBucket.revenue, previousBucket.revenue);
+  // Whole-number change for the two count cards (a % swing off a tiny base is noise).
+  const countChange = (curr: number, prev: number): number | null => (curr === prev ? null : curr - prev);
+  const successDelta = countChange(currentBucket.completedCount, previousBucket.completedCount);
+  const cancelledDelta = countChange(currentBucket.cancelledCount, previousBucket.cancelledCount);
 
-  const bookingsDelta = pctDelta(currentBucket.bookingsCount, previousBucket.bookingsCount);
-
-  const rate = (b: typeof currentBucket): number | null =>
-    b.completedCount + b.cancelledCount > 0
-      ? Math.round((b.completedCount / (b.completedCount + b.cancelledCount)) * 1000) / 10
-      : null;
-  const currentCompletionRate = rate(currentBucket);
-  const previousCompletionRate = rate(previousBucket);
-  const completionRateDelta =
-    currentCompletionRate !== null && previousCompletionRate !== null
-      ? Math.round((currentCompletionRate - previousCompletionRate) * 10) / 10
-      : null;
-
-  const ticket = (b: typeof currentBucket): number | null =>
-    b.completedCount > 0 ? Math.round((b.revenue / b.completedCount) * 100) / 100 : null;
-  const currentAvgTicket = ticket(currentBucket);
-  const previousAvgTicket = ticket(previousBucket);
-  const avgTicketDelta =
-    currentAvgTicket !== null && previousAvgTicket !== null ? pctDelta(currentAvgTicket, previousAvgTicket) : null;
+  const notifSwitch = (
+    <Switch
+      value={!!notificationsGranted}
+      onValueChange={handleToggleNotifications}
+      trackColor={{ false: '#E5E5E5', true: '#F9EF08' }}
+      thumbColor="#FFFFFF"
+    />
+  );
 
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
-      <StatusBar barStyle="light-content" backgroundColor="transparent" />
+    <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+      <StatusBar barStyle={barStyle} translucent backgroundColor="transparent" />
 
-      {/* Header: the branch's photo as a cover image, bleeding under the status bar, with a
-          dark gradient at the bottom carrying the name + address in light text over it. A thin
-          scrim at the very top keeps the status bar icons legible over a bright photo. */}
-      <View style={{ height: 200 + topPadding }}>
-        <Image source={branchImage} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-        <LinearGradient
-          colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.85)']}
-          locations={[0, 0.22, 0.55, 1]}
-          style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
-        />
-        <View style={{ position: 'absolute', left: 20, right: 20, bottom: 18 }}>
-          <Text className="text-[26px] font-bold text-white" numberOfLines={1}>
-            {branchName || 'Overview'}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: tabBarClearance }}
+      >
+        {/* Full-bleed branch cover - scrolls with the content. Name + address bottom-left over a
+            dark gradient; today's date top-right. */}
+        <View style={{ height: headerHeight + topPadding }}>
+          <RemoteImage
+            uri={branchImageUrl}
+            fallback={placeholderBranchImage}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.82)']}
+            locations={[0, 0.28, 0.6, 1]}
+            style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
+          />
+          <Text
+            style={{
+              position: 'absolute',
+              top: topPadding + 10,
+              right: 20,
+              fontSize: 12,
+              fontWeight: '600',
+              color: 'rgba(255,255,255,0.9)',
+            }}
+          >
+            {todayLabel()}
           </Text>
-          {!!branchAddress && (
-            <View className="flex-row items-center mt-1">
-              <Ionicons name="location-outline" size={13} color="rgba(255,255,255,0.85)" />
-              <Text
-                className="text-[12px] ml-1 flex-1"
-                style={{ color: 'rgba(255,255,255,0.85)' }}
-                numberOfLines={1}
-              >
-                {branchAddress}
+          <View style={{ position: 'absolute', left: 20, right: 20, bottom: 16 }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF' }} numberOfLines={1}>
+              {branchName || 'Overview'}
+            </Text>
+            {!!branchAddress && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.85)" />
+                <Text
+                  style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginLeft: 4, flex: 1 }}
+                  numberOfLines={1}
+                >
+                  {branchAddress}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {loading ? (
+          <AnalyticsSkeleton />
+        ) : (
+          <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 12 }}>
+          {branchId ? (
+            <>
+              {/* Revenue card */}
+              <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18 }}>
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#1A1A1A' }}>Revenue</Text>
+                  <PeriodToggle value={period} onChange={setPeriod} />
+                </View>
+                <TotalSalesCard
+                  periodNoun={PERIOD_COPY[period].current}
+                  value={formatPeso(currentBucket.revenue)}
+                  delta={revenueDelta}
+                  comparison={`${formatPeso(previousBucket.revenue)} ${PERIOD_COPY[period].previous}`}
+                  series={buckets.slice(-7).map((b) => b.revenue)}
+                />
+              </View>
+
+              {/* Two count cards */}
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <StatTile
+                  label="Successful bookings"
+                  value={String(currentBucket.completedCount)}
+                  delta={successDelta}
+                  deltaSuffix=""
+                />
+                <StatTile
+                  label="Cancelled"
+                  value={String(currentBucket.cancelledCount)}
+                  delta={cancelledDelta}
+                  deltaSuffix=""
+                  alarmOnRise
+                />
+              </View>
+
+              {/* Recent bookings - heading + See all on the page, list in the card below */}
+              <View style={{ marginTop: 4 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 4,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#1A1A1A' }}>Recent bookings</Text>
+                  <TouchableOpacity onPress={() => router.push('/admin/(tabs)/bookings')} hitSlop={8}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#8A8A8A' }}>See all</Text>
+                  </TouchableOpacity>
+                </View>
+                <RecentBookings bookings={analytics.recentBookings} />
+              </View>
+            </>
+          ) : (
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A1A' }}>No branch assigned yet</Text>
+              <Text style={{ fontSize: 13, color: '#8A8A8A', marginTop: 4 }}>
+                A superadmin needs to assign your account to a branch before figures show here.
               </Text>
             </View>
           )}
-        </View>
-      </View>
 
-      <View className="flex-1 bg-[#FAFAFA]">
-        {loading ? (
-          <AnalyticsSkeleton />
-        ) : !branchId ? (
-          <View className="flex-1 items-center justify-center px-10">
-            <Ionicons name="stats-chart-outline" size={36} color="#E0E0E0" />
-            <Text className="text-sm text-[#BDBDBD] mt-2.5 text-center">
-              No branch assigned to this account yet.
-            </Text>
-          </View>
-        ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 32, gap: 18 }}
+          {/* Push notifications */}
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              paddingHorizontal: 18,
+              paddingVertical: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
           >
-            {/* Revenue: hero sales card, switchable by period */}
-            <View>
-              <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-base font-bold text-[#1A1A1A]">Revenue</Text>
-                <PeriodToggle value={period} onChange={setPeriod} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
+              <Ionicons name="notifications-outline" size={18} color="#8A8A8A" />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={{ fontSize: 14, color: '#1A1A1A' }}>New booking alerts</Text>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 1 }}>
+                  Get a push when a customer books
+                </Text>
               </View>
-              <TotalSalesCard
-                currentLabel={PERIOD_COPY[period].current}
-                currentValueLabel={formatPeso(currentValue)}
-                previousLabel={PERIOD_COPY[period].previousLabel}
-                previousValueLabel={formatPeso(previousValue)}
-                delta={seriesDelta}
-              />
             </View>
+            {notifSwitch}
+          </View>
 
-            {/* KPI row - supporting context, bound to the same period as Revenue above */}
-            <View className="flex-row" style={{ gap: 10 }}>
-              <StatTile
-                icon="calendar-outline"
-                label="Bookings"
-                value={String(currentBucket.bookingsCount)}
-                delta={bookingsDelta}
-                upIsGood
-              />
-              <StatTile
-                icon="checkmark-circle-outline"
-                label="Completion rate"
-                value={currentCompletionRate === null ? '—' : `${currentCompletionRate}%`}
-                delta={completionRateDelta}
-                deltaSuffix="pp"
-                upIsGood
-              />
-              <StatTile
-                icon="pricetag-outline"
-                label="Avg. ticket"
-                value={currentAvgTicket === null ? '—' : formatPeso(currentAvgTicket)}
-                delta={avgTicketDelta}
-                upIsGood
-              />
+          {/* Sign out */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              paddingHorizontal: 18,
+              paddingVertical: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+            activeOpacity={0.7}
+            onPress={() => setSignOutModalVisible(true)}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="log-out-outline" size={18} color="#8A8A8A" />
+              <Text style={{ fontSize: 14, color: '#1A1A1A', marginLeft: 12 }}>Sign out</Text>
             </View>
-
-            {/* Push notifications */}
-            <View className="bg-white rounded-2xl px-5 py-4 flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1 mr-3">
-                <Ionicons name="notifications-outline" size={18} color="#999" />
-                <View className="ml-3 flex-1">
-                  <Text className="text-[15px] text-[#1A1A1A]">Push Notifications</Text>
-                  <Text className="text-[12px] text-[#999] mt-0.5">Get notified when a new booking comes in</Text>
-                </View>
-              </View>
-              <Switch
-                value={!!notificationsGranted}
-                onValueChange={handleToggleNotifications}
-                trackColor={{ false: '#E5E5E5', true: '#F9EF08' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            {/* Sign out */}
-            <TouchableOpacity
-              className="bg-white rounded-2xl px-5 py-4 flex-row items-center justify-between"
-              onPress={() => setSignOutModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="log-out-outline" size={18} color="#999" />
-                <Text className="text-[15px] text-[#1A1A1A] ml-3">Sign out</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-            </TouchableOpacity>
-          </ScrollView>
+            <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+          </TouchableOpacity>
+          </View>
         )}
+      </ScrollView>
 
-        <SignOutModal
-          visible={signOutModalVisible}
-          onClose={() => setSignOutModalVisible(false)}
-          onConfirm={handleSignOutConfirm}
-          loading={signingOut}
-        />
-      </View>
+      <SignOutModal
+        visible={signOutModalVisible}
+        onClose={() => setSignOutModalVisible(false)}
+        onConfirm={handleSignOutConfirm}
+        loading={signingOut}
+      />
     </View>
   );
 }
