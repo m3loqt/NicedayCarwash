@@ -16,7 +16,7 @@ import {
   mayaSandboxSecretKey,
 } from "./maya";
 import { performRefund } from "./refunds";
-import { checkBranchCapacity, parseDateTime } from "./capacity";
+import { checkBranchCapacity, parseDateTime, parseStoredTimestamp } from "./capacity";
 import { sendPushOnNewNotification, notifyBranchStaffOfNewBooking } from "./pushNotifications";
 import { getSwitchableBranches, moveBookingToBranch } from "./branchSwitch";
 
@@ -538,11 +538,12 @@ export const expirePendingBookings = onSchedule(
 const REMINDER_LEAD_MS = 30 * 60 * 1000;
 
 // Nudges a customer shortly before their confirmed appointment - partly a nice touch, partly a
-// practical no-show reducer (Confirmed -> Ongoing now has zero manual gate, see
-// autoStartTodayBookings in AppointmentsList.tsx, so a customer who simply forgot is the main
-// failure mode worth heading off). `reminderSentAt` on the booking is the dedupe guard against
-// re-sending on every 5-minute tick; only "accepted" bookings qualify - a still-pending one
-// hasn't even been confirmed by the branch yet, so reminding about it would be premature.
+// practical no-show reducer (a supervisor can start the wash early via the "Start Wash" button,
+// but Confirmed -> Ongoing otherwise still waits on the scheduled time, see
+// autoStartAcceptedBookings below, so a customer who simply forgot is the main failure mode worth
+// heading off). `reminderSentAt` on the booking is the dedupe guard against re-sending on every
+// 5-minute tick; only "accepted" bookings qualify - a still-pending one hasn't even been
+// confirmed by the branch yet, so reminding about it would be premature.
 export const sendAppointmentReminders = onSchedule(
   { schedule: "every 5 minutes" },
   async () => {
@@ -583,6 +584,182 @@ export const sendAppointmentReminders = onSchedule(
               });
             })().catch((err) => {
               logger.error("Failed to send appointment reminder", { branchId, appointmentId: booking.appointmentId, err });
+            })
+          );
+          return false;
+        });
+        return false;
+      });
+      return false;
+    });
+
+    await Promise.all(tasks);
+  }
+);
+
+// Confirmed -> Ongoing's reliable path: a supervisor present can tap "Start Wash" on
+// AppointmentCard.tsx for an instant, precise transition (also the way an early arrival gets
+// captured). This sweep is the fallback that guarantees the booking still moves even when nobody
+// taps it - the exact gap QA hit ("stuck in confirmed, had to move it manually"), and the same
+// reason expirePendingBookings above replaced the old client-only auto-decline. Only ever touches
+// bookings still at "accepted", so it can never fight a wash a supervisor already started by hand
+// (or the client's own best-effort AppointmentsList.tsx#autoStartTodayBookings, kept as an
+// instant-on-screen-load nicety layered on top of this).
+export const autoStartAcceptedBookings = onSchedule(
+  { schedule: "every 5 minutes" },
+  async () => {
+    const db = admin.database();
+    const branchesSnap = await db.ref("Reservations/ReservationsByBranch").get();
+    if (!branchesSnap.exists()) return;
+
+    const now = Date.now();
+    const tasks: Promise<void>[] = [];
+
+    branchesSnap.forEach((branchSnap) => {
+      const branchId = branchSnap.key as string;
+
+      branchSnap.forEach((dateSnap) => {
+        const dateKey = dateSnap.key as string;
+
+        dateSnap.forEach((bookingSnap) => {
+          const booking = bookingSnap.val();
+          if (!booking || booking.status !== "accepted") return false;
+
+          const appointmentAt = parseDateTime(booking.timeSlot?.appointmentDate, booking.timeSlot?.time).getTime();
+          if (now < appointmentAt) return false;
+
+          tasks.push(
+            (async () => {
+              const startedAt = new Date().toISOString();
+              await db
+                .ref(`Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingSnap.key}`)
+                .update({ status: "ongoing", startedAt });
+
+              if (booking.userId) {
+                await db
+                  .ref(`Reservations/ReservationsByUser/${booking.userId}/${dateKey}/${bookingSnap.key}`)
+                  .update({ status: "ongoing", startedAt });
+
+                // This fires purely because the clock reached the scheduled time - not because a
+                // supervisor confirmed the vehicle showed up - so the copy can't claim the wash
+                // itself has started, only that the appointment time has (mirrors the copy the
+                // client's own fallback trigger already uses).
+                await notifyUser(booking.userId, branchId, {
+                  title: "Your Appointment Time Has Arrived",
+                  body: `Your scheduled time at ${booking.branchName || "the branch"} has arrived. We'll have your bay ready shortly!`,
+                  appointmentId: booking.appointmentId,
+                  date: booking.timeSlot?.appointmentDate,
+                  type: "ongoing",
+                  read: false,
+                  createdAt: startedAt,
+                });
+              }
+            })().catch((err) => {
+              logger.error("Failed to auto-start booking", { branchId, appointmentId: booking.appointmentId, err });
+            })
+          );
+          return false;
+        });
+        return false;
+      });
+      return false;
+    });
+
+    await Promise.all(tasks);
+  }
+);
+
+// How long after a wash starts we assume it's actually done if nobody tapped Complete - the
+// booking's own estimated duration plus this cushion, so a supervisor who's just slow to tap the
+// button doesn't get their in-progress wash force-completed underneath them.
+const AUTO_COMPLETE_BUFFER_MS = 20 * 60 * 1000;
+
+// Ongoing -> Completed has the same reliability gap Confirmed -> Ongoing had: on a day nobody
+// with admin access is physically at the branch (see the "not accepting reservations, walk-ins
+// only" branch toggle), a wash a supervisor started before leaving - or that autoStartAcceptedBookings
+// itself started - would otherwise sit "ongoing" forever with nothing to close it out. This sweep
+// force-completes it once its own estimated duration plus a generous cushion has clearly elapsed,
+// releasing its bay the same way handleCompleteConfirm does client-side. A supervisor who IS
+// present should still just tap Complete for an accurate completedAt - this only ever fires after
+// they've had a wide window to do that themselves.
+export const autoCompleteOngoingBookings = onSchedule(
+  { schedule: "every 10 minutes" },
+  async () => {
+    const db = admin.database();
+    const branchesSnap = await db.ref("Reservations/ReservationsByBranch").get();
+    if (!branchesSnap.exists()) return;
+
+    const now = Date.now();
+    const tasks: Promise<void>[] = [];
+
+    branchesSnap.forEach((branchSnap) => {
+      const branchId = branchSnap.key as string;
+
+      branchSnap.forEach((dateSnap) => {
+        const dateKey = dateSnap.key as string;
+
+        dateSnap.forEach((bookingSnap) => {
+          const booking = bookingSnap.val();
+          if (!booking || booking.status !== "ongoing" || !booking.startedAt) return false;
+
+          const estimatedMinutes =
+            parseFloat(String(booking.timeSlot?.estCompletion || "0").replace(/[^\d.]/g, "")) || 0;
+          const startedAtMs = parseStoredTimestamp(booking.startedAt);
+          if (!Number.isFinite(startedAtMs)) return false;
+
+          const expectedDoneAt = startedAtMs + estimatedMinutes * 60000 + AUTO_COMPLETE_BUFFER_MS;
+          if (now < expectedDoneAt) return false;
+
+          tasks.push(
+            (async () => {
+              const completedAt = new Date().toISOString();
+              const branchBookingPath = `Reservations/ReservationsByBranch/${branchId}/${dateKey}/${bookingSnap.key}`;
+
+              let bayNumber = booking.bayNumber;
+              if (!bayNumber) {
+                const occupancySnap = await db
+                  .ref(`Branches/${branchId}/BayOccupancy/${dateKey}/${booking.appointmentId}`)
+                  .get();
+                bayNumber = occupancySnap.val()?.bayNumber;
+              }
+
+              const updates: Record<string, unknown> = {
+                [`${branchBookingPath}/status`]: "completed",
+                [`${branchBookingPath}/completedAt`]: completedAt,
+              };
+
+              if (booking.userId) {
+                const userBookingPath = `Reservations/ReservationsByUser/${booking.userId}/${dateKey}/${bookingSnap.key}`;
+                updates[`${userBookingPath}/status`] = "completed";
+                updates[`${userBookingPath}/completedAt`] = completedAt;
+              }
+
+              if (bayNumber) {
+                updates[`Branches/${branchId}/Bays/${bayNumber}/currentAppointmentId`] = null;
+                updates[`Branches/${branchId}/Bays/${bayNumber}/occupiedUntil`] = null;
+                updates[`Branches/${branchId}/Bays/${bayNumber}/lastUpdated`] = completedAt;
+                updates[`Branches/${branchId}/BayOccupancy/${dateKey}/${booking.appointmentId}/status`] = "completed";
+                updates[`Branches/${branchId}/BayOccupancy/${dateKey}/${booking.appointmentId}/completedAt`] = completedAt;
+              }
+
+              // Single multi-path update so a dropped connection can't leave ReservationsByBranch,
+              // ReservationsByUser, Bays, and BayOccupancy disagreeing with each other - same
+              // reasoning as the client's own handleCompleteConfirm.
+              await db.ref().update(updates);
+
+              if (booking.userId) {
+                await notifyUser(booking.userId, branchId, {
+                  title: "Car Wash Complete!",
+                  body: `Your vehicle is clean and ready. Appointment ${booking.appointmentId} has been completed.`,
+                  appointmentId: booking.appointmentId,
+                  date: booking.timeSlot?.appointmentDate,
+                  type: "completed",
+                  read: false,
+                  createdAt: completedAt,
+                });
+              }
+            })().catch((err) => {
+              logger.error("Failed to auto-complete booking", { branchId, appointmentId: booking.appointmentId, err });
             })
           );
           return false;

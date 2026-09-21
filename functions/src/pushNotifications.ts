@@ -18,7 +18,8 @@ async function sendExpoPush(
     const response = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ to: token, title, body, sound: "default", data }),
+      // Expo's Android default is "normal" priority, which FCM may defer for idle/killed apps.
+      body: JSON.stringify({ to: token, title, body, sound: "default", priority: "high", data }),
     });
     result = await response.json().catch(() => null);
     if (!response.ok) {
@@ -27,6 +28,22 @@ async function sendExpoPush(
   } catch (err) {
     logger.error("Expo push send threw", { userId, err });
     return;
+  }
+
+  // Expo returns HTTP 200 even when the individual ticket failed (bad FCM/APNs credentials,
+  // message too big, rate limited, etc.) - only `!response.ok` above was being logged, so every
+  // per-ticket failure other than DeviceNotRegistered was previously silently discarded here.
+  if (result?.data?.status === "error") {
+    logger.error("Expo push ticket returned an error", {
+      userId,
+      expoMessage: result.data.message,
+      details: result.data.details,
+    });
+  }
+
+  // The ticket id is what Expo's getReceipts API needs to report the real FCM/APNs outcome.
+  if (result?.data?.status === "ok") {
+    logger.info("Expo push ticket accepted", { userId, ticketId: result.data.id });
   }
 
   // Token is permanently invalid (uninstalled app, etc.) - clear it so we stop retrying.

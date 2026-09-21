@@ -5,6 +5,18 @@ export interface CapacityCheckResult {
   reason?: string;
 }
 
+// The whole app (bookings created client-side, branch schedules, "today") runs on Philippines
+// wall-clock time, but Cloud Functions Gen2 containers run with TZ=UTC regardless of deployed
+// region - so `new Date(year, month-1, day, hours, minutes)` here was silently treating "8:00 AM"
+// as 8:00 AM UTC (= 4:00 PM Manila), an 8-hour skew against the real appointment time. Every
+// caller that compares the result against Date.now() (expirePendingBookings' appointment-buffer
+// check, sendAppointmentReminders, autoStartAcceptedBookings, autoCompleteOngoingBookings) needs
+// the real UTC instant of that Manila wall-clock moment, so this builds it explicitly instead of
+// relying on the server process's local timezone. (checkBranchCapacity only ever diffs two
+// parseDateTime results against each other, so it was never affected by this - a constant offset
+// cancels out of a relative comparison.)
+const MANILA_UTC_OFFSET_MS = 8 * 60 * 60 * 1000;
+
 // Mirrors ConfirmationStep/AppointmentsList's own date-time parsing (MM-DD-YYYY + "8:00 AM" etc.)
 // Kept local rather than shared - this runs server-side, those run client-side. Exported for
 // expirePendingBookings (index.ts), which needs the same MM-DD-YYYY + "8:00 AM" parsing to check
@@ -36,7 +48,22 @@ export function parseDateTime(appointmentDate: string, time: string): Date {
     }
   }
 
-  return new Date(year, month - 1, day, hours, minutes);
+  return new Date(Date.UTC(year, month - 1, day, hours, minutes) - MANILA_UTC_OFFSET_MS);
+}
+
+// `startedAt`/`completedAt` on a booking may have been written by this server (a real UTC ISO
+// string, ending in "Z") or by the client's own toLocalISOString (AppointmentsList.tsx) - which
+// formats Philippines wall-clock components with no timezone suffix at all, since the device
+// itself is already in that timezone. Treat anything without a trailing offset as Manila local
+// time so both origins compare correctly against real elapsed time.
+export function parseStoredTimestamp(value: string): number {
+  if (!value) return NaN;
+  if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(value)) return new Date(value).getTime();
+
+  const [datePart, timePart = "00:00:00"] = value.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hh, mm, ss] = timePart.split(":").map((n) => parseFloat(n));
+  return Date.UTC(year, (month || 1) - 1, day || 1, hh || 0, mm || 0, Math.floor(ss || 0)) - MANILA_UTC_OFFSET_MS;
 }
 
 function countUsableBays(baysData: any): number {
