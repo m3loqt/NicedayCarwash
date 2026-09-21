@@ -12,9 +12,11 @@ import { get, onValue, push, ref, set, update } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppointmentCard from './AppointmentCard';
 import CancelReasonModal, { CancelReason } from './CancelReasonModal';
 import CompleteConfirmationModal from './CompleteConfirmationModal';
+import CorrectVehicleModal from './CorrectVehicleModal';
 import SuccessModal from './SuccessModal';
 
 // Every reason reachable through CancelReasonModal is branch-caused, so refund-eligible by
@@ -472,6 +474,7 @@ const updateBayStatus = async (
 export default function AppointmentsList({ activeTab, searchQuery }: AppointmentsListProps) {
   const { alert, AlertComponent } = useAlert();
   const tabBarClearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<string | null>(null);
@@ -498,6 +501,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [customerName, setCustomerName] = useState<string>('');
   const [customerPhone, setCustomerPhone] = useState<string>('');
+  const [correctVehicleBooking, setCorrectVehicleBooking] = useState<Booking | null>(null);
   
   // State for Success Modal
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -1131,6 +1135,49 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
     }
   };
 
+  // The primary, precise Confirmed -> Ongoing trigger: a supervisor taps this the moment the
+  // vehicle actually shows up (including early arrivals the scheduled-time-only autoStartTodayBookings/
+  // functions/src/index.ts#autoStartAcceptedBookings fallback wouldn't catch until the slot's own
+  // time arrived).
+  const handleStartWash = async (booking: Booking) => {
+    if (!branchId) return;
+    if (!canRunAdminMutation('start-wash')) return;
+
+    try {
+      const startedAtTimestamp = toLocalISOString(new Date());
+      const updates: Record<string, any> = {
+        [`Reservations/ReservationsByBranch/${branchId}/${booking.dateKey}/${booking.key}/status`]: 'ongoing',
+        [`Reservations/ReservationsByBranch/${branchId}/${booking.dateKey}/${booking.key}/startedAt`]: startedAtTimestamp,
+      };
+
+      const userId = booking.userId || '';
+      if (userId) {
+        const userBookingPath = `Reservations/ReservationsByUser/${userId}/${booking.dateKey}/${booking.key}`;
+        updates[`${userBookingPath}/status`] = 'ongoing';
+        updates[`${userBookingPath}/startedAt`] = startedAtTimestamp;
+
+        const startedNotification = {
+          title: 'Your Wash Has Started',
+          body: `We've started washing your vehicle at ${booking.branchName || 'the branch'}.`,
+          appointmentId: booking.appointmentId,
+          date: booking.timeSlot?.appointmentDate,
+          type: 'ongoing',
+          read: false,
+          createdAt: startedAtTimestamp,
+        };
+        const branchNotifKey = push(ref(db, `Notifications/ByBranch/${branchId}/userNotifications/${userId}`)).key;
+        const userNotifKey = push(ref(db, `Notifications/ByUser/${userId}`)).key;
+        updates[`Notifications/ByBranch/${branchId}/userNotifications/${userId}/${branchNotifKey}`] = startedNotification;
+        updates[`Notifications/ByUser/${userId}/${userNotifKey}`] = startedNotification;
+      }
+
+      await update(ref(db), updates);
+    } catch (error) {
+      logError('AppointmentsList.handleStartWash', error, { context: 'Error starting wash' });
+      alert('Error', 'Failed to start wash. Please try again.');
+    }
+  };
+
   const handleBaySelect = (bayNumber: number) => {
     setSelectedBay(bayNumber);
   };
@@ -1752,6 +1799,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       onCancel={() => handleCancel(booking)}
       onComplete={() => handleComplete(booking)}
       onNoShow={() => handleMarkNoShow(booking)}
+      onStartWash={() => handleStartWash(booking)}
       onViewMore={() => handleViewMore(booking)}
     />
   );
@@ -1904,8 +1952,23 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             handleCloseDetailsModal();
             handleMarkNoShow(selectedBooking);
           }}
+          onStartWash={() => {
+            handleCloseDetailsModal();
+            handleStartWash(selectedBooking);
+          }}
+          onCorrectVehicle={() => {
+            handleCloseDetailsModal();
+            setCorrectVehicleBooking(selectedBooking);
+          }}
         />
       )}
+
+      <CorrectVehicleModal
+        visible={!!correctVehicleBooking}
+        branchId={branchId}
+        booking={correctVehicleBooking}
+        onClose={() => setCorrectVehicleBooking(null)}
+      />
 
       {/* Branded Success Modal */}
       <SuccessModal
@@ -1934,7 +1997,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               backgroundColor: '#FFFFFF',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
-              paddingBottom: 36,
+              paddingBottom: insets.bottom + 36,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: -3 },
               shadowOpacity: 0.08,

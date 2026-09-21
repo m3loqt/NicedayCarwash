@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Modal, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface TimeSlotOptionsModalProps {
   visible: boolean;
@@ -20,6 +21,7 @@ export default function TimeSlotOptionsModal({
   onDelete,
   onEdit,
 }: TimeSlotOptionsModalProps) {
+  const insets = useSafeAreaInsets();
   const isAvailable = currentStatus === "available";
   const confirmText = isAvailable ? "Set unavailable" : "Set available";
 
@@ -36,7 +38,7 @@ export default function TimeSlotOptionsModal({
     >
       <View className="flex-1 bg-black/40 justify-end">
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
-        <View className="bg-white rounded-t-xl px-5 pt-4 pb-8">
+        <View className="bg-white rounded-t-xl px-5 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
           <View className="items-center pb-2">
             <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
           </View>

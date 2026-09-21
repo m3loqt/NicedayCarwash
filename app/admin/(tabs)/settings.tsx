@@ -8,16 +8,17 @@ import {
 } from '@/components/ui/admin/analytics';
 import SignOutModal from '@/components/ui/SignOutModal';
 import { auth, db } from '@/firebase/firebase';
+import { useAlert } from '@/hooks/use-alert';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { logError } from '@/lib/logger';
-import { registerForPushNotificationsAsync } from '@/lib/pushNotifications';
+import { ANDROID_KEEP_OPEN_HINT, registerForPushNotificationsAsync } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
-import { get, ref } from 'firebase/database';
+import { get, ref, set } from 'firebase/database';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -93,6 +94,7 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
 }
 
 export default function AdminOverviewScreen() {
+  const { alert, AlertComponent } = useAlert();
   const insets = useSafeAreaInsets();
   const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight ?? 0) : insets.top;
   const tabBarClearance = useTabBarClearance();
@@ -123,6 +125,9 @@ export default function AdminOverviewScreen() {
   const [branchAddress, setBranchAddress] = useState<string | null>(null);
   const [branchImageUrl, setBranchImageUrl] = useState<string | null>(null);
   const [branchLoading, setBranchLoading] = useState(true);
+  // Defaults to accepting (undefined on a branch that predates this toggle behaves like true).
+  const [acceptingReservations, setAcceptingReservations] = useState(true);
+  const [savingAcceptingReservations, setSavingAcceptingReservations] = useState(false);
 
   const placeholderBranchImage = useMemo(() => {
     if (!branchId) return BRANCH_IMAGES[0];
@@ -152,6 +157,7 @@ export default function AdminOverviewScreen() {
               if (profile.name) setBranchName(profile.name);
               if (profile.address) setBranchAddress(profile.address);
               if (typeof profile.imageUrl === 'string') setBranchImageUrl(profile.imageUrl);
+              setAcceptingReservations(profile.acceptingReservations !== false);
             }
           }
         }
@@ -184,6 +190,40 @@ export default function AdminOverviewScreen() {
     }
     await registerForPushNotificationsAsync();
     await refreshPermissionStatus();
+  };
+
+  // Day-off / no-supervisor-on-site fallback: pausing this keeps the branch listed to customers
+  // (see BranchSelection.native.tsx) but blocks new online reservations while still reading as
+  // open for walk-ins - a washer alone can't be deputized as a stand-in supervisor to manage
+  // bookings, so this is the mitigation instead. Confirming only on the way to OFF - that's the
+  // direction with a real customer-facing consequence; switching back ON is always safe.
+  const commitAcceptingReservations = async (next: boolean) => {
+    if (!branchId) return;
+    setSavingAcceptingReservations(true);
+    try {
+      await set(ref(db, `Branches/${branchId}/profile/acceptingReservations`), next);
+      setAcceptingReservations(next);
+    } catch (error) {
+      logError('AdminOverview.commitAcceptingReservations', error, { context: 'Failed to update acceptingReservations' });
+      alert('Error', 'Failed to update reservation status. Please try again.');
+    } finally {
+      setSavingAcceptingReservations(false);
+    }
+  };
+
+  const handleToggleAcceptingReservations = (next: boolean) => {
+    if (!next) {
+      alert(
+        'Stop taking new reservations?',
+        'Customers will still see this branch and can walk in, but won’t be able to book a time slot online until you turn this back on.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Stop reservations', style: 'destructive', onPress: () => commitAcceptingReservations(false) },
+        ]
+      );
+      return;
+    }
+    commitAcceptingReservations(true);
   };
 
   const [signOutModalVisible, setSignOutModalVisible] = useState(false);
@@ -350,6 +390,40 @@ export default function AdminOverviewScreen() {
             </View>
           )}
 
+          {/* Accepting reservations - day-off / no-supervisor-on-site fallback */}
+          {branchId && (
+            <View
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 16,
+                paddingHorizontal: 18,
+                paddingVertical: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
+                <Ionicons name="calendar-outline" size={18} color="#8A8A8A" />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <Text style={{ fontSize: 14, color: '#1A1A1A' }}>Accepting reservations</Text>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 1 }}>
+                    {acceptingReservations
+                      ? 'Customers can book online'
+                      : 'Online booking paused - walk-ins only'}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={acceptingReservations}
+                onValueChange={handleToggleAcceptingReservations}
+                disabled={savingAcceptingReservations}
+                trackColor={{ false: '#E5E5E5', true: '#F9EF08' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          )}
+
           {/* Push notifications */}
           <View
             style={{
@@ -369,6 +443,11 @@ export default function AdminOverviewScreen() {
                 <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 1 }}>
                   Get a push when a customer books
                 </Text>
+                {Platform.OS === 'android' && (
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 4 }}>
+                    {ANDROID_KEEP_OPEN_HINT}
+                  </Text>
+                )}
               </View>
             </View>
             {notifSwitch}
@@ -404,6 +483,7 @@ export default function AdminOverviewScreen() {
         onConfirm={handleSignOutConfirm}
         loading={signingOut}
       />
+      {AlertComponent}
     </View>
   );
 }

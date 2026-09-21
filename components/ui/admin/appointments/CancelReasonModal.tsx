@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type CancelReason = 'Washer Unavailable' | 'Service Unavailable' | 'Power Interruption' | 'No Capacity';
 
@@ -25,6 +26,7 @@ export default function CancelReasonModal({
   onClose,
   onFinish,
 }: CancelReasonModalProps) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={visible}
@@ -87,7 +89,7 @@ export default function CancelReasonModal({
           </View>
 
           {/* Confirm button */}
-          <View className="px-5 pb-10 pt-2">
+          <View className="px-5 pt-2" style={{ paddingBottom: insets.bottom + 40 }}>
             <TouchableOpacity
               className={`rounded-2xl py-4 items-center ${
                 selectedReason ? 'bg-[#F9EF08]' : 'bg-[#F5F5F5]'

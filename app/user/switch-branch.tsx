@@ -9,7 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SwitchableBranch {
   id: string;
@@ -20,6 +20,7 @@ interface SwitchableBranch {
 }
 
 export default function SwitchBranchScreen() {
+  const insets = useSafeAreaInsets();
   const { appointmentId, date } = useLocalSearchParams<{ appointmentId: string; date: string }>();
   const { showAlert, AlertComponent } = useAlert();
   const [loading, setLoading] = useState(true);
@@ -148,7 +149,7 @@ export default function SwitchBranchScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView className="px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        <ScrollView className="px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
           <Text className="text-[12px] text-[#999] mb-3">
             These branches have room for your selected date and time - tap one to move your booking there.
           </Text>

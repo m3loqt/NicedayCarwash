@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleCard from './VehicleCard';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
 
@@ -42,6 +43,7 @@ const vehicleLabels: Record<string, string> = {
 export default function VehiclesList() {
   const { alert, AlertComponent } = useAlert();
   const tabBarClearance = useTabBarClearance();
+  const insets = useSafeAreaInsets();
   const [vehicles, setVehicles] = useState<VehicleProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
@@ -176,7 +178,7 @@ export default function VehiclesList() {
             activeOpacity={1}
             onPress={() => setSelectedVehicle(null)}
           />
-          <View className="bg-white rounded-t-xl px-5 pb-10 pt-3">
+          <View className="bg-white rounded-t-xl px-5 pt-3" style={{ paddingBottom: insets.bottom + 40 }}>
             {/* Handle bar */}
             <View className="items-center mb-5">
               <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />

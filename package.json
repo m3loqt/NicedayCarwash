@@ -9,6 +9,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "test:rules": "firebase emulators:exec --only database \"npm --prefix firebase/rules-tests test\"",
+    "notify:test": "node ./scripts/send-test-notification.js",
     "build:preview:android": "eas build --profile preview --platform android",
     "build:production:android": "eas build --profile production --platform android",
     "build:production:ios": "eas build --profile production --platform ios"

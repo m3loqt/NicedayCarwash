@@ -1,10 +1,10 @@
-import { registerForPushNotificationsAsync } from '@/lib/pushNotifications';
+import { ANDROID_KEEP_OPEN_HINT, registerForPushNotificationsAsync } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, ref, update } from 'firebase/database';
 import { useState } from 'react';
-import { ActivityIndicator, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EnableNotificationsScreen() {
@@ -65,6 +65,23 @@ export default function EnableNotificationsScreen() {
             Maybe Later
           </Text>
         </TouchableOpacity>
+
+        {Platform.OS === 'android' && (
+          <View className="mt-8 items-center" style={{ maxWidth: 280 }}>
+            <Text className="text-[12px] font-inter-regular tracking-tight text-[#999] text-center">
+              {ANDROID_KEEP_OPEN_HINT}
+            </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openSettings()}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="mt-1.5"
+            >
+              <Text className="text-[12px] font-inter-medium tracking-tight text-[#666]">
+                Open app settings
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );

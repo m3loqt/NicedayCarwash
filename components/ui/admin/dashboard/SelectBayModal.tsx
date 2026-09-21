@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BaySelectionGrid, { Bay } from './BaySelectionGrid';
 
 interface SelectBayModalProps {
@@ -21,6 +22,7 @@ export default function SelectBayModal({
   onFinish,
   loading = false,
 }: SelectBayModalProps) {
+  const insets = useSafeAreaInsets();
   const transformedBays: Bay[] = bays.map((bay) => ({
     ...bay,
     status: selectedBay === bay.number ? 'selected' : bay.status,
@@ -73,7 +75,7 @@ export default function SelectBayModal({
           </ScrollView>
 
           {/* Confirm Button */}
-          <View className="px-5 pb-8 pt-1">
+          <View className="px-5 pt-1" style={{ paddingBottom: insets.bottom + 32 }}>
             <TouchableOpacity
               className={`rounded-2xl py-4 items-center ${selectedBay !== null ? 'bg-[#F9EF08]' : 'bg-[#F5F5F5]'}`}
               onPress={onFinish}

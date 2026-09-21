@@ -1,5 +1,6 @@
 import RemoteImage from '@/components/ui/common/RemoteImage';
 import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
+import { useAlert } from '@/hooks/use-alert';
 import { isBranchArchived } from '@/lib/branch';
 import { formatDistance, getCurrentLocation, haversineMeters } from '@/lib/location';
 import { logError, logWarn } from '@/lib/logger';
@@ -39,6 +40,11 @@ interface Branch {
   phone: string;
   hours: string;
   status: 'Open' | 'Closed';
+  // Supervisor-toggleable "day off" fallback - false means new online reservations are paused
+  // for this branch (walk-in customers are still served on-site), see AdminOverviewScreen's
+  // toggle writing Branches/{id}/profile/acceptingReservations. Defaults to true (accepting) so
+  // branches that predate this field behave exactly as before.
+  acceptingReservations: boolean;
   coordinates: {
     latitude: number;
     longitude: number;
@@ -108,6 +114,7 @@ function BranchLabelContent({ name }: { name: string }) {
 }
 
 export default function BranchSelection({ onBranchSelect, initialQuery, initialQueryNonce }: BranchSelectionProps = {}) {
+  const { alert, AlertComponent } = useAlert();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
@@ -321,6 +328,7 @@ const handleSearch = (q: string) => {
               phone: profile.contact_number,
               hours: profile.schedule,
               status: profile.status ?? 'Open', // optional
+              acceptingReservations: profile.acceptingReservations !== false,
               coordinates: {
                 latitude: lat,
                 longitude: lng,
@@ -379,7 +387,14 @@ const handleSearch = (q: string) => {
     }
   };
 
+  const NOT_ACCEPTING_MESSAGE =
+    'This branch is not accepting online reservations right now, but is still open for walk-in customers.';
+
   const handleListPress = (branch: Branch) => {
+    if (!branch.acceptingReservations) {
+      alert('Walk-ins Only', NOT_ACCEPTING_MESSAGE);
+      return;
+    }
     setBookingBranch(branch);
     onBranchSelect?.(branch);
     setShowBookingFlow(true);
@@ -387,6 +402,10 @@ const handleSearch = (q: string) => {
 
   const handleSelectBranch = () => {
     if (!bookingBranch) return;
+    if (!bookingBranch.acceptingReservations) {
+      alert('Walk-ins Only', NOT_ACCEPTING_MESSAGE);
+      return;
+    }
     onBranchSelect?.(bookingBranch);
     setShowBookingFlow(true);
     setSelectedBranch(null);
@@ -576,9 +595,16 @@ const handleSearch = (q: string) => {
                         style={{ width: 60, height: 60, borderRadius: 12, marginRight: 16 }}
                       />
                       <View className="flex-1">
-                        <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
-                          {branch.name}
-                        </Text>
+                        <View className="flex-row items-center">
+                          <Text className="text-[16px] font-bold text-[#1A1A1A]" numberOfLines={1}>
+                            {branch.name}
+                          </Text>
+                          {!branch.acceptingReservations && (
+                            <View className="ml-2 bg-[#FFFBEB] border border-[#FDE68A] rounded-full px-2 py-0.5">
+                              <Text className="text-[10px] font-inter-semibold text-[#92400E]">Walk-ins only</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text className="text-[13px] text-[#999] mt-0.5" numberOfLines={1}>
                           {branch.address}
                         </Text>
@@ -627,6 +653,8 @@ const handleSearch = (q: string) => {
           }}
         />
       )}
+
+      {AlertComponent}
     </View>
   );
 }

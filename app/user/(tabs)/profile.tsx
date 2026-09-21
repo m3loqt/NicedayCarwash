@@ -1,7 +1,7 @@
 import SignOutModal from '@/components/ui/SignOutModal';
 import { useAlert } from '@/hooks/use-alert';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
-import { registerForPushNotificationsAsync } from '@/lib/pushNotifications';
+import { ANDROID_KEEP_OPEN_HINT, registerForPushNotificationsAsync } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
@@ -157,6 +157,11 @@ export default function UserProfileScreen() {
                   <Text className="text-[12px] font-inter-regular tracking-tight text-[#999] mt-0.5">
                     Get notified about your booking status
                   </Text>
+                  {Platform.OS === 'android' && (
+                    <Text className="text-[12px] font-inter-regular tracking-tight text-[#999] mt-1">
+                      {ANDROID_KEEP_OPEN_HINT}
+                    </Text>
+                  )}
                 </View>
               </View>
               <Switch

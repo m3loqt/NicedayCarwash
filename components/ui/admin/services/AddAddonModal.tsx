@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export interface AddonFormData {
   name: string;
@@ -27,6 +28,7 @@ interface AddAddonModalProps {
 }
 
 export default function AddAddonModal({ visible, onClose, onAdd }: AddAddonModalProps) {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [estimatedTime, setEstimatedTime] = useState("");
@@ -78,7 +80,7 @@ export default function AddAddonModal({ visible, onClose, onAdd }: AddAddonModal
         className="flex-1 bg-black/50 justify-end"
       >
         <Pressable className="flex-1" onPress={handleClose} />
-        <View className="bg-white rounded-t-xl px-5 pt-5 pb-8">
+        <View className="bg-white rounded-t-xl px-5 pt-5" style={{ paddingBottom: insets.bottom + 32 }}>
           <View className="flex-row items-center justify-between mb-5">
             <Text className="text-xl font-bold text-[#1A1A1A]">Add Add-on</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

@@ -9,7 +9,7 @@ import { getAuth } from 'firebase/auth';
 import { get, getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 
 interface ReceiptItem {
@@ -113,6 +113,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 }
 
 export default function EReceiptScreen() {
+  const insets = useSafeAreaInsets();
   const { appointmentId, date } = useLocalSearchParams<{ appointmentId: string; date: string }>();
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [branchPhone, setBranchPhone] = useState('');
@@ -240,7 +241,7 @@ export default function EReceiptScreen() {
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
           {/* FAFAFA backdrop is captured along with the ticket so the scalloped notches (cut
               to match this exact color) still read correctly in the downloaded/shared image. */}

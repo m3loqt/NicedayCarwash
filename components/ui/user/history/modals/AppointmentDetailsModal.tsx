@@ -2,6 +2,7 @@ import { formatDuration } from '@/lib/duration';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Image, Linking, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AppointmentDetailsModalProps {
   visible: boolean;
@@ -30,6 +31,8 @@ interface AppointmentDetailsModalProps {
   onCancel?: () => void;
   onComplete?: () => void;
   onNoShow?: () => void;
+  onStartWash?: () => void;
+  onCorrectVehicle?: () => void;
 }
 
 const formatDate = (dateString?: string): string => {
@@ -95,7 +98,10 @@ export default function AppointmentDetailsModal({
   onCancel,
   onComplete,
   onNoShow,
+  onStartWash,
+  onCorrectVehicle,
 }: AppointmentDetailsModalProps) {
+  const insets = useSafeAreaInsets();
   // `estimatedCompletion` is a duration in MINUTES (see lib/duration.ts).
   const estCompletionLabel = formatDuration(estimatedCompletion);
 
@@ -200,11 +206,23 @@ export default function AppointmentDetailsModal({
             {(vehicleName || plateNumber) && (
               <>
                 <View className="px-5 py-3 flex-row items-center justify-between">
-                  <Text className="text-[13px] text-[#666]">
-                    <Text className="text-[#999]">Vehicle Name: </Text>
-                    {vehicleName || '-'}
-                  </Text>
-                  <Text className="text-[13px] text-[#999]">{plateNumber} {classification}</Text>
+                  <View className="flex-1 mr-2">
+                    <Text className="text-[13px] text-[#666]">
+                      <Text className="text-[#999]">Vehicle Name: </Text>
+                      {vehicleName || '-'}
+                    </Text>
+                    <Text className="text-[13px] text-[#999] mt-0.5">{plateNumber} {classification}</Text>
+                  </View>
+                  {isAdminView && status === 'accepted' && onCorrectVehicle && (
+                    <TouchableOpacity
+                      onPress={onCorrectVehicle}
+                      className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-full px-2.5 py-1.5"
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="pencil-outline" size={12} color="#1A1A1A" />
+                      <Text className="text-[11px] font-semibold text-[#1A1A1A] ml-1">Correct</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Divider />
               </>
@@ -285,7 +303,10 @@ export default function AppointmentDetailsModal({
           {isAdminView && (status === 'pending' || status === 'accepted' || status === 'ongoing') && (
             <>
               <Divider />
-              <View className="px-5 py-4 flex-row gap-3 bg-white">
+              <View
+                className="px-5 pt-4 flex-row gap-3 bg-white"
+                style={{ paddingBottom: insets.bottom + 16 }}
+              >
                 {status === 'pending' ? (
                   <>
                     <TouchableOpacity
@@ -308,35 +329,19 @@ export default function AppointmentDetailsModal({
                     </TouchableOpacity>
                   </>
                 ) : status === 'accepted' ? (
-                  // Deliberately just Cancel, not Start Wash/No-Show - the "no buttons in
-                  // Confirmed" decision was about removing the wash-starting tap (client: extra
-                  // friction), not about removing the ability to cancel a booking before its time
-                  // arrives. A customer calling ahead to cancel needs a path that doesn't require
-                  // waiting for the auto-trigger to move this to Ongoing first.
-                  <TouchableOpacity
-                    className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
-                    onPress={onCancel}
-                    activeOpacity={0.85}
-                  >
-                    <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
-                      Cancel
-                    </Text>
-                  </TouchableOpacity>
-                ) : status === 'ongoing' ? (
-                  // Ongoing is where every real decision lives now, not just Complete. Confirmed
-                  // carries no Start Wash (client decision - the scheduled time alone triggers the
-                  // move here), so "Ongoing" no longer reliably means a human confirmed the car
-                  // showed up - it just means the clock passed the scheduled time. No-Show has to
-                  // live here rather than on Confirmed, since by the time anyone's looking at
-                  // this, that's exactly the question in play.
+                  // Start Wash is the primary manual trigger into Ongoing (a scheduled server
+                  // sweep - functions/src/index.ts#autoStartAcceptedBookings - is just the
+                  // fallback for when nobody's there to tap it). No-Show lives here, not on
+                  // Ongoing, since "did the car show up" is exactly the question in play while a
+                  // booking is still Confirmed.
                   <>
                     <TouchableOpacity
                       className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
-                      onPress={onComplete}
+                      onPress={onStartWash}
                       activeOpacity={0.85}
                     >
-                      <Text className="text-[14px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
-                        Complete
+                      <Text className="text-[13px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
+                        Start Wash
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -358,6 +363,29 @@ export default function AppointmentDetailsModal({
                       </Text>
                     </TouchableOpacity>
                   </>
+                ) : status === 'ongoing' ? (
+                  // No-Show doesn't belong here anymore - once a wash is Ongoing, the vehicle is
+                  // by definition present. Cancel stays available for a genuine mid-wash abort.
+                  <>
+                    <TouchableOpacity
+                      className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
+                      onPress={onComplete}
+                      activeOpacity={0.85}
+                    >
+                      <Text className="text-[14px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
+                        Complete
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
+                      onPress={onCancel}
+                      activeOpacity={0.85}
+                    >
+                      <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                  </>
                 ) : null}
               </View>
             </>
@@ -367,7 +395,7 @@ export default function AppointmentDetailsModal({
           {!isAdminView && status && status !== 'cancelled' && (
             <>
               <Divider />
-              <View className="px-5 pt-4 pb-7 bg-white">
+              <View className="px-5 pt-4 bg-white" style={{ paddingBottom: insets.bottom + 28 }}>
                 <TouchableOpacity
                   className="bg-[#F9EF08] rounded-2xl py-3.5 items-center"
                   onPress={() => {

@@ -184,7 +184,7 @@ export default function AddVehicle() {
       </ScrollView>
 
       {/* Save button */}
-      <View className="px-5 pb-8 pt-3 bg-[#FAFAFA]">
+      <View className="px-5 pt-3 bg-[#FAFAFA]" style={{ paddingBottom: insets.bottom + 32 }}>
         <TouchableOpacity
           className="bg-[#F9EF08] rounded-2xl py-4 items-center justify-center min-h-[52px]"
           onPress={handleSave}

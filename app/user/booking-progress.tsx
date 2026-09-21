@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type BookingStatus = 'pending' | 'accepted' | 'ongoing' | 'completed' | 'cancelled';
 
@@ -99,6 +99,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default function BookingProgressScreen() {
+  const insets = useSafeAreaInsets();
   const { appointmentId, date } = useLocalSearchParams<{ appointmentId: string; date: string }>();
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -189,7 +190,7 @@ export default function BookingProgressScreen() {
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         <View className="px-6">
           <Text className="text-[16px] font-bold text-[#1A1A1A] mb-3">
             Appointment #{booking.appointmentId}

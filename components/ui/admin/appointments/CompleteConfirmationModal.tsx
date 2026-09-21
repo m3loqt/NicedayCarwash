@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface CompleteConfirmationModalProps {
   visible: boolean;
@@ -12,6 +13,7 @@ export default function CompleteConfirmationModal({
   onClose,
   onConfirm,
 }: CompleteConfirmationModalProps) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={visible}
@@ -52,7 +54,7 @@ export default function CompleteConfirmationModal({
           </View>
 
           {/* Buttons */}
-          <View className="px-5 pb-10 flex-row gap-3">
+          <View className="px-5 flex-row gap-3" style={{ paddingBottom: insets.bottom + 40 }}>
             <TouchableOpacity
               className="flex-1 bg-[#F5F5F5] rounded-2xl py-4 items-center"
               onPress={onClose}

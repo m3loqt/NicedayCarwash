@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "673329660984-amsl5r263ak3254qjjcecvq4cidl2b28.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.app.nicedaycarwash",
+            "certificate_hash": "f0671e2f091ff64c19568bd5b2b9df4cc61bb4a6"
+          }
+        },
+        {
           "client_id": "673329660984-ihk343cncsftsdh5ns9cjp2uj9es41ua.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

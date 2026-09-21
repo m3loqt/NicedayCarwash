@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SuccessModalProps {
   visible: boolean;
@@ -48,6 +49,7 @@ const formatMessageWithBold = (message: string): React.ReactNode => {
 };
 
 export default function SuccessModal({ visible, message, onClose }: SuccessModalProps) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={visible}
@@ -79,7 +81,7 @@ export default function SuccessModal({ visible, message, onClose }: SuccessModal
           </View>
 
           {/* Close button */}
-          <View className="px-5 pb-10 pt-2">
+          <View className="px-5 pt-2" style={{ paddingBottom: insets.bottom + 40 }}>
             <TouchableOpacity
               className="bg-[#F9EF08] rounded-2xl py-4 items-center"
               onPress={onClose}

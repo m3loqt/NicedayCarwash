@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
 
 interface Service {
@@ -145,6 +146,7 @@ export default function ServicesStep({
   onNext: (data: any) => void;
 }) {
   const { showAlert, AlertComponent } = useAlert();
+  const insets = useSafeAreaInsets();
   const [services, setServices] = useState<Service[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
@@ -873,7 +875,7 @@ export default function ServicesStep({
         </View>
 
         {/* NEXT BUTTON */}
-        <View className="px-4 pt-4 pb-8">
+        <View className="px-4 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
           <TouchableOpacity
             className="bg-[#F9EF08] rounded-2xl py-4 items-center"
             onPress={handleNext}

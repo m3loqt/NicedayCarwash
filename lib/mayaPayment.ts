@@ -60,21 +60,20 @@ export async function payBookingFeeWithMaya(
 
   const { promise, armGraceTimeout } = watchPaymentConfirmation(userId, dateKey, appointmentId);
 
-  // No deep-link auto-return - the user closes/backs out of this tab manually (paymentReturn
-  // tells them to). openBrowserAsync only actually blocks until that happens on iOS; on Android
-  // it resolves the instant the Custom Tab opens (`{ type: 'opened' }`, per expo-web-browser -
-  // NOT when it closes), well before the user has finished paying, so it can't be used to know
-  // when the user is actually done. AppState going back to 'active' can, on both platforms - on
-  // iOS the app never actually backgrounds for the in-app Safari sheet, so this fires
-  // immediately there, matching the previous behavior.
-  await WebBrowser.openBrowserAsync(data.redirectUrl);
+  // No deep-link auto-return - the user closes this tab manually (paymentReturn tells them to).
+  // iOS blocks here until it closes; Android resolves with `opened` as soon as the tab launches.
+  const browserResult = await WebBrowser.openBrowserAsync(data.redirectUrl);
 
   let sub: { remove: () => void } | null = null;
-  if (AppState.currentState === 'active') {
+  if (browserResult.type !== WebBrowser.WebBrowserResultType.OPENED) {
     armGraceTimeout();
   } else {
+    // AppState is still 'active' right after the tab launches, so arming now times out a user
+    // who is mid-payment in another app (e.g. scanning a QR Ph code) - wait for them to return.
+    let wentAway = AppState.currentState !== 'active';
     sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') armGraceTimeout();
+      if (state !== 'active') wentAway = true;
+      else if (wentAway) armGraceTimeout();
     });
   }
 

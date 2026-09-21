@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Dimensions, Modal, Platform, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ export default function DateSelectionModal({
   loadBranchSchedule,
   onUnavailableDate,
 }: DateSelectionModalProps) {
+  const insets = useSafeAreaInsets();
   // Calendar utility functions
   const getMonthName = (date: Date): string => {
     const months = [
@@ -109,7 +111,7 @@ export default function DateSelectionModal({
         <View
           className="bg-white rounded-t-2xl px-5 pt-5 border-t border-l border-r border-gray-200"
           style={{
-            paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+            paddingBottom: insets.bottom + 20,
             maxHeight: Dimensions.get('window').height * 0.6,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -2 },

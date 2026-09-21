@@ -10,6 +10,7 @@ import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, remove, set } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ServiceOrAddon {
   id: string;
@@ -114,6 +115,7 @@ export default function ConfirmationStep({
   onDone,
 }: ConfirmationStepProps) {
   const { showAlert, AlertComponent } = useAlert();
+  const insets = useSafeAreaInsets();
   const [submitting, setSubmitting] = useState(false);
   const [note, setNote] = useState('');
 
@@ -356,7 +358,10 @@ export default function ConfirmationStep({
       </ScrollView>
 
       {/* Confirm Button */}
-      <View className="absolute bottom-0 left-0 right-0 px-4 pb-8 pt-3 bg-white border-t border-[#F5F5F5]">
+      <View
+        className="absolute bottom-0 left-0 right-0 px-4 pt-3 bg-white border-t border-[#F5F5F5]"
+        style={{ paddingBottom: insets.bottom + 32 }}
+      >
         <TouchableOpacity
           className="bg-[#F9EF08] rounded-2xl py-4 items-center"
           onPress={handleConfirm}

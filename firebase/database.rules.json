@@ -34,13 +34,16 @@
           ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))",
           "schedule": {
             ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+          },
+          "acceptingReservations": {
+            ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
           }
         },
         "Services": {
-          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
         },
         "AddOns": {
-          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || (root.child('users/' + auth.uid + '/role').val() === 'admin' && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
         },
         "TimeSlots": {
           ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'superadmin' || ((root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'supervisor') && root.child('users/' + auth.uid + '/branchId').val() === $branchId))"
@@ -202,7 +205,7 @@
                   ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
                 },
                 "type": {
-                  ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'accepted' || newData.val() === 'completed' || newData.val() === 'cancelled' || newData.val() === 'pending'))"
+                  ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'accepted' || newData.val() === 'completed' || newData.val() === 'cancelled' || newData.val() === 'pending' || newData.val() === 'ongoing' || newData.val() === 'reminder'))"
                 },
                 "read": {
                   ".validate": "!newData.exists() || newData.isBoolean()"
@@ -233,7 +236,7 @@
               ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 128)"
             },
             "type": {
-              ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'accepted' || newData.val() === 'completed' || newData.val() === 'cancelled' || newData.val() === 'pending'))"
+              ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'accepted' || newData.val() === 'completed' || newData.val() === 'cancelled' || newData.val() === 'pending' || newData.val() === 'ongoing' || newData.val() === 'reminder'))"
             },
             "read": {
               ".validate": "!newData.exists() || newData.isBoolean()"

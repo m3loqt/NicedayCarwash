@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ScheduleUnavailableModalProps {
   visible: boolean;
@@ -13,6 +14,7 @@ export default function ScheduleUnavailableModal({
   branchSchedule,
   onClose,
 }: ScheduleUnavailableModalProps) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={visible}
@@ -56,7 +58,7 @@ export default function ScheduleUnavailableModal({
           </View>
 
           {/* Button */}
-          <View className="px-5 pb-10 pt-3">
+          <View className="px-5 pt-3" style={{ paddingBottom: insets.bottom + 40 }}>
             <TouchableOpacity
               className="bg-[#F9EF08] rounded-2xl py-4 items-center"
               onPress={onClose}

@@ -25,6 +25,7 @@ interface Branch {
   hours: string;
   distance: string;
   status: 'Open' | 'Closed';
+  acceptingReservations: boolean;
   coordinates: {
     latitude: number;
     longitude: number;
@@ -155,6 +156,7 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
               phone: profile.contact_number,
               hours: profile.schedule,
               status: profile.status ?? 'Open',
+              acceptingReservations: profile.acceptingReservations !== false,
               distance: distanceText,
               coordinates: { latitude: lat, longitude: lng },
             });
@@ -273,6 +275,7 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
         branch={selectedBranch}
         onClose={() => setSelectedBranch(null)}
         onMakeOrder={() => {
+          if (!selectedBranch?.acceptingReservations) return;
           setBookingBranch(selectedBranch);
           setSelectedBranch(null);
           setShowBookingFlow(true);

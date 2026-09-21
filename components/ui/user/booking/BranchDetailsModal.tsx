@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height } = Dimensions.get('window');
 
@@ -26,6 +26,7 @@ interface Branch {
   phone: string;
   hours: string;
   status: 'Open' | 'Closed';
+  acceptingReservations: boolean;
   coordinates: {
     latitude: number;
     longitude: number;
@@ -86,6 +87,7 @@ export default function BranchDetailsModal({
   onClose,
   onMakeOrder,
 }: BranchDetailsModalProps) {
+  const insets = useSafeAreaInsets();
   const [services, setServices] = useState<BranchServiceSummary[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
 
@@ -177,6 +179,15 @@ export default function BranchDetailsModal({
                 bounces={false}
                 contentContainerStyle={{ padding: 20, paddingBottom: 8 }}
               >
+                {!branch.acceptingReservations && (
+                  <View className="flex-row items-start bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl px-3.5 py-3 mb-4">
+                    <Ionicons name="information-circle" size={18} color="#B45309" style={{ marginTop: 1 }} />
+                    <Text className="ml-2 flex-1 text-[12px] font-inter-medium text-[#92400E]" style={{ lineHeight: 17 }}>
+                      Not accepting online reservations right now - still open for walk-in customers.
+                    </Text>
+                  </View>
+                )}
+
                 {/* Info - plain rows, no card */}
                 <View style={{ gap: 16 }}>
                   <View className="flex-row">
@@ -232,15 +243,21 @@ export default function BranchDetailsModal({
               {/* CTA */}
               <View
                 className="px-5 pt-3 border-t border-[#F0F0F0]"
-                style={{ paddingBottom: Platform.OS === 'ios' ? 32 : 18 }}
+                style={{ paddingBottom: insets.bottom + 18 }}
               >
-                <TouchableOpacity
-                  className="bg-[#F9EF08] py-4 rounded-2xl items-center"
-                  onPress={onMakeOrder}
-                  activeOpacity={0.85}
-                >
-                  <Text className="text-[#1A1A00] text-[15px] font-inter-bold">Choose branch</Text>
-                </TouchableOpacity>
+                {branch.acceptingReservations ? (
+                  <TouchableOpacity
+                    className="bg-[#F9EF08] py-4 rounded-2xl items-center"
+                    onPress={onMakeOrder}
+                    activeOpacity={0.85}
+                  >
+                    <Text className="text-[#1A1A00] text-[15px] font-inter-bold">Choose branch</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View className="bg-[#F5F5F5] py-4 rounded-2xl items-center">
+                    <Text className="text-[#9CA3AF] text-[15px] font-inter-bold">Walk-ins only</Text>
+                  </View>
+                )}
               </View>
             </>
           )}

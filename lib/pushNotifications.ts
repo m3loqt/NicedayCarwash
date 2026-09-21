@@ -22,6 +22,11 @@ Notifications.setNotificationHandler({
 // popping as heads-up banners with sound.
 export const ANDROID_NOTIFICATION_CHANNEL_ID = 'default';
 
+// Some Android phones stop delivering pushes once the app is swiped out of recents, and no
+// app-side setting changes that - so users are told instead.
+export const ANDROID_KEEP_OPEN_HINT =
+  "To get alerts while the app is closed, don't swipe it away from your recent apps.";
+
 // Safe to call repeatedly - re-creating an existing channel just updates it. Call this
 // early (app start) so the channel exists before the first notification arrives, not only
 // after the user logs in.

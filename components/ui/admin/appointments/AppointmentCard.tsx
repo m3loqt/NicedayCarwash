@@ -75,6 +75,7 @@ interface AppointmentCardProps {
   onCancel?: () => void;
   onComplete?: () => void;
   onNoShow?: () => void;
+  onStartWash?: () => void;
   onViewMore?: () => void;
 }
 
@@ -92,6 +93,7 @@ export default function AppointmentCard({
   onCancel,
   onComplete,
   onNoShow,
+  onStartWash,
   onViewMore,
 }: AppointmentCardProps) {
   const formattedDate = formatDate(date);
@@ -151,33 +153,19 @@ export default function AppointmentCard({
           </TouchableOpacity>
         </View>
       ) : status === 'accepted' ? (
-        // Deliberately just Cancel, not Start Wash/No-Show - the "no buttons in Confirmed"
-        // decision was about removing the wash-starting tap (client: extra friction), not about
-        // removing the ability to cancel a booking before its time arrives. A customer calling
-        // ahead to cancel needs a path that doesn't require waiting for the auto-trigger to move
-        // this to Ongoing first.
-        <View className="flex-row">
-          <TouchableOpacity
-            className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
-            onPress={onCancel}
-            activeOpacity={0.85}
-          >
-            <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      ) : status === 'ongoing' ? (
-        // Ongoing is now where every real decision lives, not just Complete. Confirmed carries
-        // no Start Wash (client decision - the scheduled time alone triggers the move here), so
-        // "Ongoing" no longer reliably means a human confirmed the car showed up - it just means
-        // the clock passed the scheduled time. No-Show has to live here rather than on Confirmed,
-        // since by the time anyone's looking at this, that's exactly the question in play.
+        // Start Wash is the primary manual trigger into Ongoing (a scheduled server sweep is
+        // just the fallback for when nobody's there to tap it - see autoStartAcceptedBookings in
+        // functions/src/index.ts). No-Show lives here, not on Ongoing, because "did the car show
+        // up" is exactly the question in play while a booking is still Confirmed - by the time
+        // it's Ongoing, a human already answered that by tapping Start Wash (or arrived-and-was-
+        // washing is the reason the auto-fallback moved it there).
         <View className="flex-row items-center gap-2">
           <TouchableOpacity
             className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
-            onPress={onComplete}
+            onPress={onStartWash}
             activeOpacity={0.85}
           >
-            <Text className="text-[13px] font-bold text-[#1A1A00]">Complete</Text>
+            <Text className="text-[13px] font-bold text-[#1A1A00]">Start Wash</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="bg-[#FAFAFA] rounded-lg py-2.5 px-3 items-center"
@@ -192,6 +180,26 @@ export default function AppointmentCard({
             activeOpacity={0.85}
           >
             <Text className="text-[11px] font-semibold text-[#1A1A1A]">Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      ) : status === 'ongoing' ? (
+        // No-Show doesn't belong here anymore - once a wash is Ongoing, the vehicle is by
+        // definition present. Cancel stays available for a genuine mid-wash abort (bay breaks
+        // down, customer emergency); Complete is the normal path out.
+        <View className="flex-row gap-3">
+          <TouchableOpacity
+            className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
+            onPress={onComplete}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[13px] font-bold text-[#1A1A00]">Complete</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
+            onPress={onCancel}
+            activeOpacity={0.85}
+          >
+            <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancel</Text>
           </TouchableOpacity>
         </View>
       ) : null}

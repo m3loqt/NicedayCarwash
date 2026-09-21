@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AddTimeSlotModal({
   visible,
@@ -17,6 +18,7 @@ export default function AddTimeSlotModal({
   onClose: () => void;
   onAdd: (start: string, end: string) => void;
 }) {
+  const insets = useSafeAreaInsets();
   const times = [
     "5:00 AM", "6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM",
     "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
@@ -65,7 +67,7 @@ export default function AddTimeSlotModal({
     >
       <View className="flex-1 bg-black/40 justify-end">
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
-        <View className="bg-white rounded-t-xl px-5 pt-4 pb-8">
+        <View className="bg-white rounded-t-xl px-5 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
           <View className="items-center pb-2">
             <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
           </View>

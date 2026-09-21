@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleClassificationModal from '../vehicles/modals/VehicleClassificationModal';
 
 interface VehicleClassification {
@@ -41,6 +42,7 @@ export default function AddVehicleInline({
   onSaved: (vehicle: any) => void;
 }) {
   const { alert, AlertComponent } = useAlert();
+  const insets = useSafeAreaInsets();
   const [vehicleName, setVehicleName] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
   const [selectedClassification, setSelectedClassification] = useState<VehicleClassification | null>(null);
@@ -179,7 +181,10 @@ export default function AddVehicleInline({
         </ScrollView>
 
         {/* BOTTOM BUTTONS */}
-        <View className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200">
+        <View
+          className="absolute bottom-0 left-0 right-0 px-6 pt-6 bg-white border-t border-gray-200"
+          style={{ paddingBottom: insets.bottom + 24 }}
+        >
           <TouchableOpacity
             className="bg-[#F9EF08] py-4 rounded-xl items-center mb-3"
             onPress={handleSave}

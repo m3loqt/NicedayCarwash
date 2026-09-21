@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface AddBayModalProps {
   visible: boolean;
@@ -13,6 +14,7 @@ export default function AddBayModal({
   onClose,
   onAdd,
 }: AddBayModalProps) {
+  const insets = useSafeAreaInsets();
   const [bayId, setBayId] = useState("");
 
   const handleAdd = () => {
@@ -31,7 +33,7 @@ export default function AddBayModal({
     >
       <View className="flex-1 bg-black/40 justify-end">
         <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
-        <View className="bg-white rounded-t-xl px-5 pt-4 pb-8">
+        <View className="bg-white rounded-t-xl px-5 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
           <View className="items-center pb-2">
             <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
           </View>

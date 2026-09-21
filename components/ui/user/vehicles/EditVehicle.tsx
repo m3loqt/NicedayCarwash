@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleSuccessPanel from './VehicleSuccessPanel';
 
 interface VehicleType {
@@ -32,6 +32,7 @@ const vehicleTypes: VehicleType[] = [
 ];
 
 export default function EditVehicle() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams();
   const vehicleId = String(id);
 
@@ -194,7 +195,7 @@ export default function EditVehicle() {
       </ScrollView>
 
       {/* Save button */}
-      <View className="px-5 pb-8 pt-3 bg-[#FAFAFA]">
+      <View className="px-5 pt-3 bg-[#FAFAFA]" style={{ paddingBottom: insets.bottom + 32 }}>
         <TouchableOpacity
           className="bg-[#F9EF08] rounded-2xl py-4 items-center"
           onPress={handleSave}
