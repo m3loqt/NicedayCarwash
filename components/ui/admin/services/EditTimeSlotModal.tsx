@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
     Modal,
     Pressable,
     ScrollView,
     Text,
-    TouchableOpacity,
     View,
-} from "react-native";
+} from 'react-native';
 
 interface EditTimeSlotModalProps {
   visible: boolean;
@@ -73,13 +73,13 @@ export default function EditTimeSlotModal({
             <Text className="text-xl font-bold text-gray-900">
               Edit Time Slot
             </Text>
-            <TouchableOpacity onPress={onClose}>
+            <AppButton onPress={onClose}>
               <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           <View className="relative mb-6">
-            <TouchableOpacity
+            <AppButton
               onPress={() => setOpenDropdown(!openDropdown)}
               className="bg-[#FAFAFA] rounded-lg px-4 py-3 flex-row justify-between items-center"
             >
@@ -89,13 +89,13 @@ export default function EditTimeSlotModal({
                 size={20}
                 color="#555"
               />
-            </TouchableOpacity>
+            </AppButton>
 
             {openDropdown && (
               <View className="absolute left-0 right-0 top-14 bg-white rounded-lg shadow-lg z-20 max-h-48">
                 <ScrollView>
                   {times.map((t) => (
-                    <TouchableOpacity
+                    <AppButton
                       key={t}
                       onPress={() => {
                         setSelectedTime(t);
@@ -104,7 +104,7 @@ export default function EditTimeSlotModal({
                       className="px-4 py-3 border-b border-gray-200 last:border-0"
                     >
                       <Text className="text-gray-700">{t}</Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   ))}
                 </ScrollView>
               </View>
@@ -113,22 +113,22 @@ export default function EditTimeSlotModal({
 
           {/* BUTTONS */}
           <View className="flex-row gap-3">
-            <TouchableOpacity
+            <AppButton
               onPress={onClose}
               className="flex-1 bg-gray-300 py-3 rounded-full"
             >
               <Text className="text-center text-white font-bold text-lg">
                 Cancel
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AppButton>
+            <AppButton
               onPress={handleSave}
               className="flex-1 bg-[#F9EF08] py-3 rounded-full"
             >
               <Text className="text-center text-white font-bold text-lg">
                 Save
               </Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
         </Pressable>
       </Pressable>

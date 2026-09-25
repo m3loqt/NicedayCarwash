@@ -1,14 +1,15 @@
 import SignOutModal from '@/components/ui/SignOutModal';
 import { useAlert } from '@/hooks/use-alert';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
-import { ANDROID_KEEP_OPEN_HINT, registerForPushNotificationsAsync } from '@/lib/pushNotifications';
+import { registerForPushNotificationsAsync } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform, ScrollView, StatusBar, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Linking, Platform, ScrollView, StatusBar, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../../../firebase/firebase';
 
@@ -43,17 +44,16 @@ function MenuRow({
   isLast?: boolean;
 }) {
   return (
-    <TouchableOpacity
+    <AppButton
       className={`bg-white rounded-2xl px-5 py-5 flex-row items-center justify-between ${isLast ? '' : 'mb-1.5'}`}
       onPress={onPress}
-      activeOpacity={0.7}
     >
       <View className="flex-row items-center">
         <Ionicons name={icon} size={18} color="#999" />
         <Text className="text-[15px] font-inter-medium tracking-tight text-[#1A1A1A] ml-3">{label}</Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-    </TouchableOpacity>
+    </AppButton>
   );
 }
 
@@ -157,11 +157,6 @@ export default function UserProfileScreen() {
                   <Text className="text-[12px] font-inter-regular tracking-tight text-[#999] mt-0.5">
                     Get notified about your booking status
                   </Text>
-                  {Platform.OS === 'android' && (
-                    <Text className="text-[12px] font-inter-regular tracking-tight text-[#999] mt-1">
-                      {ANDROID_KEEP_OPEN_HINT}
-                    </Text>
-                  )}
                 </View>
               </View>
               <Switch
@@ -193,17 +188,16 @@ export default function UserProfileScreen() {
             ))}
 
             {/* Logout */}
-            <TouchableOpacity
+            <AppButton
               className="bg-white rounded-2xl px-5 py-5 flex-row items-center justify-between mt-6"
               onPress={handleSignOutPress}
-              activeOpacity={0.7}
             >
               <View className="flex-row items-center">
                 <Ionicons name="log-out-outline" size={18} color="#999" />
                 <Text className="text-[15px] font-inter-medium tracking-tight text-[#1A1A1A] ml-3">Logout</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-            </TouchableOpacity>
+            </AppButton>
 
             <Text className="text-center text-[11px] text-[#BDBDBD] mt-4">
               App version {Constants.expoConfig?.version ?? '1.0.0'}

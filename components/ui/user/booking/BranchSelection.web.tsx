@@ -6,12 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   Platform,
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View
 } from 'react-native';
 import BookingFlow from './BookingFlow';
@@ -220,7 +220,7 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
       ) : (
         <ScrollView className="flex-1 px-4">
             {filteredBranches.map(branch => (
-              <TouchableOpacity
+              <AppButton
                 key={branch.id}
                 className="bg-white rounded-xl p-4 mb-3 border border-[#E0E0E0]"
                 style={{
@@ -259,7 +259,7 @@ export default function BranchSelection({ onBranchSelect, initialQuery, initialQ
                     <Ionicons name="location" size={20} color="white" />
                   </View>
                 </View>
-              </TouchableOpacity>
+              </AppButton>
             ))}
             {filteredBranches.length === 0 && (
               <View className="items-center justify-center py-12">

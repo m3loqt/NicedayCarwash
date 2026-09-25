@@ -3,7 +3,8 @@ import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { BackHandler, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { BackHandler, StatusBar, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddVehicleInline from './AddVehicleInline';
 import ChooseVehicleStep from './ChooseVehicleStep';
@@ -96,13 +97,13 @@ const handleNext = (data?: any, vehicleOverride?: any) => {
       <View className="bg-white pb-0" style={{ paddingTop: insets.top + 16 }}>
         {/* Title row */}
         <View className="px-5 flex-row items-center mb-3">
-          <TouchableOpacity
+          <AppButton
             onPress={handleBack}
             className="mr-3"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
-          </TouchableOpacity>
+          </AppButton>
           <Text className="text-[20px] font-bold text-[#1A1A1A] mb-1 flex-1">
             {step === 1 ? 'Select vehicle' : step === 2 ? 'Select plan' : 'Review booking'}
           </Text>

@@ -5,13 +5,13 @@ import { AddonCardsSkeleton, ServiceCardsSkeleton } from "@/components/ui/user/U
 import { Ionicons } from "@expo/vector-icons";
 import { get, getDatabase, onValue, ref } from "firebase/database";
 import { useEffect, useState } from "react";
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   Image,
   ScrollView,
   Text,
-  TouchableOpacity,
   View
-} from "react-native";
+} from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
 
@@ -625,7 +625,7 @@ export default function ServicesStep({
             const price = getPriceForVehicle(s);
             const features = getServiceFeatures(s);
             return (
-              <TouchableOpacity
+              <AppButton
                 key={s.id}
                 onPress={() => toggleService(s)}
                 className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-64 ${
@@ -633,7 +633,6 @@ export default function ServicesStep({
                     ? 'bg-[#F9EF08] border border-[#F9EF08]'
                     : 'bg-white border border-transparent'
                 }`}
-                activeOpacity={0.8}
               >
                 {/* Name */}
                 <Text className="text-[15px] font-bold text-[#1A1A1A] mb-3">
@@ -666,7 +665,7 @@ export default function ServicesStep({
                     ₱{price}.00
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </AppButton>
             );
           })}
         </ScrollView>
@@ -691,7 +690,7 @@ export default function ServicesStep({
           {availableAddons.map((a) => {
             const selected = selectedAddons.some((x) => x.id === a.id);
             return (
-              <TouchableOpacity
+              <AppButton
                 key={a.id}
                 onPress={() => toggleAddon(a)}
                 className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-48 ${
@@ -699,7 +698,6 @@ export default function ServicesStep({
                     ? 'bg-[#F9EF08] border border-[#F9EF08]'
                     : 'bg-white border border-transparent'
                 }`}
-                activeOpacity={0.8}
               >
                 {/* Name */}
                 <Text className="text-[15px] font-bold text-[#1A1A1A]">
@@ -722,7 +720,7 @@ export default function ServicesStep({
                     ₱{a.price}.00
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </AppButton>
             );
           })}
         </ScrollView>
@@ -740,12 +738,12 @@ export default function ServicesStep({
           <Text className="text-[17px] font-bold text-[#1A1A1A] flex-1">
             {getMonthName(calendarMonth)} {calendarMonth.getFullYear()}
           </Text>
-          <TouchableOpacity onPress={() => navigateMonth('prev')} className="p-1 mr-2">
+          <AppButton onPress={() => navigateMonth('prev')} className="p-1 mr-2">
             <Ionicons name="arrow-back" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigateMonth('next')} className="p-1">
+          </AppButton>
+          <AppButton onPress={() => navigateMonth('next')} className="p-1">
             <Ionicons name="arrow-forward" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
+          </AppButton>
         </View>
 
         {/* Horizontal day scroller */}
@@ -767,7 +765,7 @@ export default function ServicesStep({
             const dayLabel = DAY_LABELS[date.getDay()];
 
             return (
-              <TouchableOpacity
+              <AppButton
                 key={date.toISOString()}
                 disabled={isDisabled}
                 onPress={async () => {
@@ -789,7 +787,6 @@ export default function ServicesStep({
                     ? 'bg-[#F9EF08] border-[#F9EF08]'
                     : 'bg-white border-transparent'
                 }`}
-                activeOpacity={0.8}
               >
                 <Text className={`text-[10px] font-semibold mb-1 ${
                   isSelected ? 'text-[#1A1A00]' : isDisabled ? 'text-[#C4C4C4]' : 'text-[#999]'
@@ -801,7 +798,7 @@ export default function ServicesStep({
                 }`}>
                   {date.getDate()}
                 </Text>
-              </TouchableOpacity>
+              </AppButton>
             );
           })}
         </ScrollView>
@@ -829,7 +826,7 @@ export default function ServicesStep({
           contentContainerStyle={{ paddingHorizontal: 16 }}
         >
           {timeSlots.map((t) => (
-            <TouchableOpacity
+            <AppButton
               key={t.time}
               onPress={() => setSelectedTimeSlot(t)}
               className={`mr-2 px-4 py-2.5 rounded-xl border ${
@@ -837,14 +834,13 @@ export default function ServicesStep({
                   ? 'bg-[#F9EF08] border-[#F9EF08]'
                   : 'bg-white border-transparent'
               }`}
-              activeOpacity={0.8}
             >
               <Text className={`text-[13px] font-medium ${
                 selectedTimeSlot?.time === t.time ? 'text-[#1A1A00]' : 'text-[#666]'
               }`}>
                 {t.time}
               </Text>
-            </TouchableOpacity>
+            </AppButton>
           ))}
         </ScrollView>
 
@@ -852,14 +848,11 @@ export default function ServicesStep({
         <Text className="text-xl font-semibold mt-6 mb-3 px-4">Payment Option</Text>
         <View className="px-4">
           {/* Maya - the only integrated payment method */}
-          <TouchableOpacity
+          <AppButton
             onPress={() => setPaymentMethod('Maya')}
-            className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 ${
-              paymentMethod === 'Maya'
-                ? 'bg-white border border-[#D4D4D4]'
-                : 'bg-white border border-transparent'
+            className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 border-2 ${
+              paymentMethod === 'Maya' ? 'bg-white border-[#F9EF08]' : 'bg-white border-[#EEEEEE]'
             }`}
-            activeOpacity={0.8}
           >
             <View className="flex-1">
               <Text className="text-[13px] font-semibold text-[#1A1A1A]">Maya</Text>
@@ -871,20 +864,25 @@ export default function ServicesStep({
               resizeMode="contain"
               className="ml-3"
             />
-          </TouchableOpacity>
+            <Ionicons
+              name={paymentMethod === 'Maya' ? 'checkmark-circle' : 'ellipse-outline'}
+              size={18}
+              color={paymentMethod === 'Maya' ? '#1A1A1A' : '#D4D4D4'}
+              style={{ marginLeft: 10 }}
+            />
+          </AppButton>
         </View>
 
         {/* NEXT BUTTON */}
         <View className="px-4 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
-          <TouchableOpacity
+          <AppButton
             className="bg-[#F9EF08] rounded-2xl py-4 items-center"
             onPress={handleNext}
-            activeOpacity={0.85}
           >
             <Text className="text-[15px] font-bold text-[#1A1A00]">
               Complete and Review
             </Text>
-          </TouchableOpacity>
+          </AppButton>
         </View>
       </ScrollView>
       {AlertComponent}

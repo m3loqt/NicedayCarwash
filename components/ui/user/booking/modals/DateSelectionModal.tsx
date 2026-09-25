@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Dimensions, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Dimensions, Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height } = Dimensions.get('window');
@@ -126,21 +127,21 @@ export default function DateSelectionModal({
           
           {/* Calendar Header with Month Navigation */}
           <View className="flex-row items-center justify-between mb-4">
-            <TouchableOpacity
+            <AppButton
               onPress={() => onMonthNavigate('prev')}
               className="p-2"
             >
               <Ionicons name="chevron-back" size={20} color="#333" />
-            </TouchableOpacity>
+            </AppButton>
             <Text className="text-lg font-semibold text-[#333]">
               {getMonthName(calendarMonth)} {calendarMonth.getFullYear()}
             </Text>
-            <TouchableOpacity
+            <AppButton
               onPress={() => onMonthNavigate('next')}
               className="p-2"
             >
               <Ionicons name="chevron-forward" size={20} color="#333" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           {/* Days of Week Header */}
@@ -167,7 +168,7 @@ export default function DateSelectionModal({
                     const isSelectable = isDateSelectable(date) && isCurrentMonthDay;
                     
                     return (
-                      <TouchableOpacity
+                      <AppButton
                         key={dayIndex}
                         className="flex-1 items-center justify-center py-2"
                         onPress={async () => {
@@ -215,7 +216,7 @@ export default function DateSelectionModal({
                             {date.getDate()}
                           </Text>
                         </View>
-                      </TouchableOpacity>
+                      </AppButton>
                     );
                   })}
                 </View>

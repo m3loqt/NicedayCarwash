@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import VehicleCard from '../vehicles/VehicleCard';
 
 interface VehicleProfile {
@@ -55,13 +56,12 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
         <Text className="text-[13px] text-[#999] text-center mb-6">
           Add a vehicle to your profile before booking a service.
         </Text>
-        <TouchableOpacity
+        <AppButton
           className="bg-[#F9EF08] rounded-2xl py-3.5 px-8 items-center"
-          activeOpacity={0.85}
           onPress={() => router.push('/user/add-vehicle')}
         >
           <Text className="text-[14px] font-bold text-[#1A1A00]">Add Vehicle</Text>
-        </TouchableOpacity>
+        </AppButton>
       </View>
     );
   }

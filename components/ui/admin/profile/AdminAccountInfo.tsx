@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Text, View } from 'react-native';
 
 interface AdminAccountInfoProps {
   firstName: string;
@@ -40,12 +41,12 @@ export default function AdminAccountInfo({
           <Text className="text-[13px] text-[#999] mt-0.5">{email}</Text>
         </View>
       </View>
-      <TouchableOpacity
+      <AppButton
         className="mt-4 bg-[#F9EF08] rounded-2xl py-3.5 items-center"
         onPress={onEditAccount}
       >
         <Text className="text-[14px] font-bold text-[#1A1A00]">Edit Account</Text>
-      </TouchableOpacity>
+      </AppButton>
     </View>
   );
 }

@@ -4,7 +4,8 @@ import {
 } from "@/hooks/use-tab-bar-height";
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { AppButton } from '@/components/ui/common/AppButton';
+import { StyleSheet, Text, View } from 'react-native';
 
 // Same outline glyph for both states - only color distinguishes active/inactive.
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -48,11 +49,10 @@ export default function AdminCustomTabBar({
           };
 
           return (
-            <TouchableOpacity
+            <AppButton
               key={route.key}
               onPress={onPress}
               style={focused ? styles.activeSlot : styles.inactiveSlot}
-              activeOpacity={0.8}
             >
               <View
                 key={focused ? "active" : "inactive"}
@@ -69,7 +69,7 @@ export default function AdminCustomTabBar({
                   </Text>
                 )}
               </View>
-            </TouchableOpacity>
+            </AppButton>
           );
         })}
       </View>

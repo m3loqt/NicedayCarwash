@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Modal, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SignOutModalProps {
@@ -24,7 +25,7 @@ export default function SignOutModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-black/40 justify-end">
-        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+        <Pressable className="flex-1" onPress={onClose} />
         <View className="bg-white rounded-t-xl px-5 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
           <View className="items-center pb-2">
             <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
@@ -33,15 +34,15 @@ export default function SignOutModal({
             <Text className="text-[17px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'Inter_700Bold' }}>
               Sign out
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <AppButton onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color="#999" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
           <Text className="text-[#666] text-sm mb-6" style={{ fontFamily: 'Inter_400Regular' }}>
             Are you sure you want to sign out?
           </Text>
           <View className="flex-row gap-3">
-            <TouchableOpacity
+            <AppButton
               className="flex-1 bg-[#FAFAFA] rounded-lg py-3 items-center"
               onPress={onClose}
               disabled={loading}
@@ -49,8 +50,8 @@ export default function SignOutModal({
               <Text className="text-[#1E1E1E] font-semibold" style={{ fontFamily: 'Inter_600SemiBold' }}>
                 Cancel
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AppButton>
+            <AppButton
               className="flex-1 bg-[#DC2626] rounded-lg py-3 items-center"
               onPress={onConfirm}
               disabled={loading}
@@ -58,7 +59,7 @@ export default function SignOutModal({
               <Text className="text-white font-bold" style={{ fontFamily: 'Inter_700Bold' }}>
                 {loading ? '...' : 'Sign out'}
               </Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
         </View>
       </View>

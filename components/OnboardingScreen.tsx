@@ -1,8 +1,8 @@
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   Image,
   StatusBar,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,15 +37,14 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
       {/* CTA */}
       <View className="px-6 pb-6">
-        <TouchableOpacity
+        <AppButton
           onPress={() => onComplete?.()}
           className="bg-[#F9EF08] rounded-full min-h-[52px] py-4 items-center justify-center"
-          activeOpacity={0.85}
         >
           <Text className="text-[15px] font-inter-bold tracking-tight text-[#1A1A00]">
             Get Started
           </Text>
-        </TouchableOpacity>
+        </AppButton>
       </View>
     </SafeAreaView>
   );

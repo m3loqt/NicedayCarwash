@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Modal, ScrollView, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BaySelectionGrid, { Bay } from './BaySelectionGrid';
 
@@ -36,7 +37,7 @@ export default function SelectBayModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-black/40 justify-end">
-        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+        <Pressable className="flex-1" onPress={onClose} />
 
         <View className="bg-white rounded-t-xl">
           {/* Handle */}
@@ -49,9 +50,9 @@ export default function SelectBayModal({
             <Text className="text-[17px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'Inter_700Bold' }}>
               Select a Bay
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <AppButton onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color="#999" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           <View className="h-[0.5px] bg-[#F0F0F0]" />
@@ -76,11 +77,10 @@ export default function SelectBayModal({
 
           {/* Confirm Button */}
           <View className="px-5 pt-1" style={{ paddingBottom: insets.bottom + 32 }}>
-            <TouchableOpacity
+            <AppButton
               className={`rounded-2xl py-4 items-center ${selectedBay !== null ? 'bg-[#F9EF08]' : 'bg-[#F5F5F5]'}`}
               onPress={onFinish}
               disabled={selectedBay === null}
-              activeOpacity={0.85}
             >
               <Text
                 className={`text-[14px] font-bold ${selectedBay !== null ? 'text-[#1A1A1A]' : 'text-[#BDBDBD]'}`}
@@ -88,7 +88,7 @@ export default function SelectBayModal({
               >
                 Confirm Bay {selectedBay !== null ? `${selectedBay}` : ''}
               </Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
         </View>
       </View>

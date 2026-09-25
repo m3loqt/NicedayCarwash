@@ -5,7 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { get, ref, set } from "firebase/database";
 import { useEffect, useState } from "react";
-import { Modal, Pressable, Text, TouchableOpacity, View } from "react-native";
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Modal, Pressable, Text, View } from 'react-native';
 
 interface AvailabilityModalProps {
   visible: boolean;
@@ -122,12 +123,12 @@ export default function AvailabilityModal({
           }}
         >
           {/* Close button in top right corner */}
-          <TouchableOpacity
+          <AppButton
             className="absolute top-4 right-4 z-10"
             onPress={onClose}
           >
             <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
+          </AppButton>
 
           {/* Title display */}
           <View className="items-center mb-6 mt-2">
@@ -140,7 +141,7 @@ export default function AvailabilityModal({
           <View className="mb-6">
             <Text className="text-gray-700 font-medium mb-2">Availability</Text>
 
-            <TouchableOpacity
+            <AppButton
               onPress={() => setDropdownOpen(!dropdownOpen)}
               className="rounded-lg px-4 py-3 flex-row justify-between items-center bg-white"
             >
@@ -150,13 +151,13 @@ export default function AvailabilityModal({
                 size={20}
                 color="#666"
               />
-            </TouchableOpacity>
+            </AppButton>
 
             {/* Dropdown items list */}
             {dropdownOpen && (
               <View className="mt-2 rounded-lg bg-white">
                 {["Available", "Unavailable"].map((option) => (
-                  <TouchableOpacity
+                  <AppButton
                     key={option}
                     onPress={() => {
                       setSelected(option === "Available");
@@ -165,14 +166,14 @@ export default function AvailabilityModal({
                     className="px-4 py-3 border-b border-gray-200 last:border-0"
                   >
                     <Text className="text-gray-800">{option}</Text>
-                  </TouchableOpacity>
+                  </AppButton>
                 ))}
               </View>
             )}
           </View>
 
           {/* Button */}
-          <TouchableOpacity
+          <AppButton
             onPress={handleSave}
             disabled={loading}
             className="bg-[#F9EF08] rounded-xl py-4 items-center"
@@ -180,7 +181,7 @@ export default function AvailabilityModal({
             <Text className="text-base font-semibold text-white" numberOfLines={1}>
               {loading ? "Saving..." : "Save"}
             </Text>
-          </TouchableOpacity>
+          </AppButton>
         </View>
       </BlurView>
     </Modal>

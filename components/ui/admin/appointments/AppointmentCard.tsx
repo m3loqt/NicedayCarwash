@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, ImageSourcePropType, Text, View } from 'react-native';
 
 // classification is the human-readable label stored on the booking (see ServicesStep.tsx's
 // getVehicleLabel - "Sedan", "SUV", "Pickup", "Motorcycle (S)", "Motorcycle (L)"), not the raw
@@ -105,9 +106,8 @@ export default function AppointmentCard({
   const hasActions = status === 'pending' || status === 'accepted' || status === 'ongoing';
 
   return (
-    <TouchableOpacity
+    <AppButton
       className={`bg-white rounded-2xl px-4 mx-5 mb-1.5 ${hasActions ? 'pt-2 pb-4' : 'py-4'}`}
-      activeOpacity={0.8}
       onPress={onViewMore}
     >
       {/* Vehicle icon + details row, mirroring the customer BookingCard layout */}
@@ -137,20 +137,18 @@ export default function AppointmentCard({
       {/* Action buttons */}
       {status === 'pending' ? (
         <View className="flex-row gap-3">
-          <TouchableOpacity
+          <AppButton
             className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
             onPress={onAccept}
-            activeOpacity={0.85}
           >
             <Text className="text-[13px] font-bold text-[#1A1A00]">Accept</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AppButton>
+          <AppButton
             className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
             onPress={onCancel}
-            activeOpacity={0.85}
           >
             <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancel</Text>
-          </TouchableOpacity>
+          </AppButton>
         </View>
       ) : status === 'accepted' ? (
         // Start Wash is the primary manual trigger into Ongoing (a scheduled server sweep is
@@ -160,50 +158,45 @@ export default function AppointmentCard({
         // it's Ongoing, a human already answered that by tapping Start Wash (or arrived-and-was-
         // washing is the reason the auto-fallback moved it there).
         <View className="flex-row items-center gap-2">
-          <TouchableOpacity
+          <AppButton
             className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
             onPress={onStartWash}
-            activeOpacity={0.85}
           >
             <Text className="text-[13px] font-bold text-[#1A1A00]">Start Wash</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AppButton>
+          <AppButton
             className="bg-[#FAFAFA] rounded-lg py-2.5 px-3 items-center"
             onPress={onNoShow}
-            activeOpacity={0.85}
           >
             <Text className="text-[11px] font-semibold text-[#1A1A1A]">No-Show</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AppButton>
+          <AppButton
             className="bg-[#FAFAFA] rounded-lg py-2.5 px-3 items-center"
             onPress={onCancel}
-            activeOpacity={0.85}
           >
             <Text className="text-[11px] font-semibold text-[#1A1A1A]">Cancel</Text>
-          </TouchableOpacity>
+          </AppButton>
         </View>
       ) : status === 'ongoing' ? (
         // No-Show doesn't belong here anymore - once a wash is Ongoing, the vehicle is by
         // definition present. Cancel stays available for a genuine mid-wash abort (bay breaks
         // down, customer emergency); Complete is the normal path out.
         <View className="flex-row gap-3">
-          <TouchableOpacity
+          <AppButton
             className="flex-1 bg-[#F9EF08] rounded-lg py-3 items-center"
             onPress={onComplete}
-            activeOpacity={0.85}
           >
             <Text className="text-[13px] font-bold text-[#1A1A00]">Complete</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AppButton>
+          <AppButton
             className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-lg py-3 items-center"
             onPress={onCancel}
-            activeOpacity={0.85}
           >
             <Text className="text-[13px] font-semibold text-[#1A1A1A]">Cancel</Text>
-          </TouchableOpacity>
+          </AppButton>
         </View>
       ) : null}
-    </TouchableOpacity>
+    </AppButton>
   );
 }
 

@@ -1,4 +1,5 @@
-import { Text, TouchableOpacity } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Text } from 'react-native';
 
 export type BayStatus = 'available' | 'unavailable' | 'selected';
 
@@ -25,11 +26,10 @@ export default function BayButton({ bayNumber, status, onPress }: BayButtonProps
     : 'text-[#1A1A1A]';
 
   return (
-    <TouchableOpacity
+    <AppButton
       className={`rounded-xl py-4 px-3 items-center justify-center ${bgColor}`}
       onPress={onPress}
       disabled={isUnavailable}
-      activeOpacity={isUnavailable ? 1 : 0.75}
     >
       <Text
         className={`text-[14px] font-bold ${textColor}`}
@@ -37,6 +37,6 @@ export default function BayButton({ bayNumber, status, onPress }: BayButtonProps
       >
         Bay {bayNumber}
       </Text>
-    </TouchableOpacity>
+    </AppButton>
   );
 }

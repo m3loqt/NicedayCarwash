@@ -2,7 +2,8 @@ import { CONTACT_INFO } from '@/constants/contact';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Linking, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Linking, ScrollView, StatusBar, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type TabKey = 'faq' | 'contact';
@@ -56,7 +57,11 @@ function FAQAccordion({ items }: { items: typeof FAQ_ITEMS }) {
   if (items.length === 0) {
     return (
       <View className="items-center py-16">
-        <Ionicons name="search-outline" size={40} color="#E0E0E0" />
+        <Image
+          source={require('../../assets/images/noresult.png')}
+          style={{ width: 160, height: 160 }}
+          resizeMode="contain"
+        />
         <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] mt-3">
           No results found
         </Text>
@@ -69,10 +74,9 @@ function FAQAccordion({ items }: { items: typeof FAQ_ITEMS }) {
       {items.map((item, index) => {
         const expanded = expandedIndex === index;
         return (
-          <TouchableOpacity
+          <AppButton
             key={item.question}
             className="bg-white rounded-2xl px-4 py-6 mb-1.5"
-            activeOpacity={0.8}
             onPress={() => setExpandedIndex(expanded ? null : index)}
           >
             <View className="flex-row items-center justify-between">
@@ -86,7 +90,7 @@ function FAQAccordion({ items }: { items: typeof FAQ_ITEMS }) {
                 {item.answer}
               </Text>
             )}
-          </TouchableOpacity>
+          </AppButton>
         );
       })}
     </>
@@ -107,9 +111,8 @@ function ContactRow({
   const hasValue = !!onPressValue;
 
   return (
-    <TouchableOpacity
+    <AppButton
       className="bg-white rounded-2xl px-4 py-4 mb-1.5 flex-row items-center"
-      activeOpacity={hasValue ? 0.7 : 1}
       onPress={onPressValue}
       disabled={!hasValue}
     >
@@ -126,7 +129,7 @@ function ContactRow({
         </Text>
       </View>
       {hasValue && <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />}
-    </TouchableOpacity>
+    </AppButton>
   );
 }
 
@@ -192,13 +195,13 @@ export default function HelpCenterScreen() {
 
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-4">
-        <TouchableOpacity
+        <AppButton
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="w-9 h-9 rounded-full border border-[#EEEEEE] items-center justify-center mr-3"
         >
           <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text className="text-[17px] font-inter-semibold tracking-tight text-[#1A1A1A]">Help Center</Text>
       </View>
 
@@ -221,12 +224,11 @@ export default function HelpCenterScreen() {
       {/* Tabs */}
       <View className="flex-row px-5 mb-2">
         {(['faq', 'contact'] as TabKey[]).map((tab) => (
-          <TouchableOpacity
+          <AppButton
             key={tab}
             className="flex-1 items-center pb-3"
             style={{ borderBottomWidth: 2, borderBottomColor: activeTab === tab ? '#F9EF08' : '#F0F0F0' }}
             onPress={() => setActiveTab(tab)}
-            activeOpacity={0.7}
           >
             <Text
               className={`text-[13.5px] tracking-tight ${
@@ -235,7 +237,7 @@ export default function HelpCenterScreen() {
             >
               {tab === 'faq' ? 'FAQ' : 'Contact Us'}
             </Text>
-          </TouchableOpacity>
+          </AppButton>
         ))}
       </View>
 

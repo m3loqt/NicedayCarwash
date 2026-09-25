@@ -3,13 +3,13 @@ import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useEffect } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   LayoutAnimation,
   type LayoutAnimationConfig,
   Platform,
   StyleSheet,
   Text,
-  TouchableOpacity,
   UIManager,
   View,
 } from 'react-native';
@@ -70,11 +70,10 @@ export default function CustomTabBar({ state, descriptors, navigation, insets }:
           };
 
           return (
-            <TouchableOpacity
+            <AppButton
               key={route.key}
               onPress={onPress}
               style={focused ? styles.activeSlot : styles.inactiveSlot}
-              activeOpacity={0.8}
             >
               <View style={[styles.pill, focused && styles.pillActive]}>
                 <Ionicons name={iconName} size={20} color={focused ? '#1A1A1A' : '#B0B0B0'} />
@@ -84,7 +83,7 @@ export default function CustomTabBar({ state, descriptors, navigation, insets }:
                   </Text>
                 )}
               </View>
-            </TouchableOpacity>
+            </AppButton>
           );
         })}
       </View>

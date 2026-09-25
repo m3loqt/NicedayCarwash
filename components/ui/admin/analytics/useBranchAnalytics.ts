@@ -30,6 +30,8 @@ export interface RecentBooking {
   time: string;
   status: Status;
   amountDue: number;
+  /** "YYYY-MM-DD" - which calendar day this booking counts against (see resolveBookingDate). */
+  dateKey: string;
 }
 
 export interface BranchAnalytics {
@@ -183,14 +185,20 @@ export function useBranchAnalytics(branchId: string | null): BranchAnalytics {
     const recentBookings: RecentBooking[] = [...bookings]
       .sort((a, b) => recencyOf(b) - recencyOf(a))
       .slice(0, 6)
-      .map((b) => ({
-        appointmentId: b.appointmentId,
-        vehicleName: b.vehicleName || 'Vehicle',
-        plateNumber: b.plateNumber || '',
-        time: b.timeSlot?.time || '',
-        status: b.status,
-        amountDue: b.amountDue,
-      }));
+      .map((b) => {
+        const resolvedDate = resolveBookingDate(b);
+        return {
+          appointmentId: b.appointmentId,
+          vehicleName: b.vehicleName || 'Vehicle',
+          plateNumber: b.plateNumber || '',
+          time: b.timeSlot?.time || '',
+          status: b.status,
+          amountDue: b.amountDue,
+          // Same field already read off the snapshot for bucketing above - just also kept
+          // per-booking here so the "Recent bookings" list can show which day, not just a time.
+          dateKey: resolvedDate ? toDateKey(resolvedDate) : '',
+        };
+      });
 
     return {
       loading,

@@ -1,7 +1,8 @@
 import { formatDuration } from '@/lib/duration';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Image, Linking, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Linking, Modal, ScrollView, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AppointmentDetailsModalProps {
@@ -114,7 +115,7 @@ export default function AppointmentDetailsModal({
     >
       <View className="flex-1 bg-black/40 justify-end">
         {/* Tap backdrop to close */}
-        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+        <Pressable className="flex-1" onPress={onClose} />
 
         {/* Sheet */}
         <View
@@ -129,12 +130,12 @@ export default function AppointmentDetailsModal({
           {/* Header */}
           <View className="flex-row items-center justify-between px-5 pb-3">
             <Text className="text-[17px] font-bold text-[#1A1A1A]">Appointment Details</Text>
-            <TouchableOpacity
+            <AppButton
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="close" size={22} color="#999" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           <Divider />
@@ -164,13 +165,12 @@ export default function AppointmentDetailsModal({
                     {customerPhone || 'No contact number on file'}
                   </Text>
                 </View>
-                <TouchableOpacity
+                <AppButton
                   disabled={!customerPhone}
                   onPress={() => customerPhone && Linking.openURL(`tel:${customerPhone.replace(/[^0-9+]/g, '')}`)}
                   className={`flex-row items-center px-3 py-2 rounded-full ${
                     customerPhone ? 'bg-[#F9EF08]' : 'bg-[#F5F5F5]'
                   }`}
-                  activeOpacity={0.8}
                 >
                   <Ionicons name="call" size={14} color={customerPhone ? '#1A1A00' : '#C4C4C4'} />
                   <Text
@@ -179,7 +179,7 @@ export default function AppointmentDetailsModal({
                   >
                     Call Customer
                   </Text>
-                </TouchableOpacity>
+                </AppButton>
               </View>
             ) : (
               <View className="px-5 py-3 flex-row items-center">
@@ -214,14 +214,14 @@ export default function AppointmentDetailsModal({
                     <Text className="text-[13px] text-[#999] mt-0.5">{plateNumber} {classification}</Text>
                   </View>
                   {isAdminView && status === 'accepted' && onCorrectVehicle && (
-                    <TouchableOpacity
+                    <AppButton
                       onPress={onCorrectVehicle}
                       className="flex-row items-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-full px-2.5 py-1.5"
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Ionicons name="pencil-outline" size={12} color="#1A1A1A" />
                       <Text className="text-[11px] font-semibold text-[#1A1A1A] ml-1">Correct</Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   )}
                 </View>
                 <Divider />
@@ -309,24 +309,22 @@ export default function AppointmentDetailsModal({
               >
                 {status === 'pending' ? (
                   <>
-                    <TouchableOpacity
+                    <AppButton
                       className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
                       onPress={onAccept}
-                      activeOpacity={0.85}
                     >
                       <Text className="text-[13px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
                         Accept
                       </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </AppButton>
+                    <AppButton
                       className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
                       onPress={onCancel}
-                      activeOpacity={0.85}
                     >
                       <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
                         Cancel
                       </Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   </>
                 ) : status === 'accepted' ? (
                   // Start Wash is the primary manual trigger into Ongoing (a scheduled server
@@ -335,56 +333,51 @@ export default function AppointmentDetailsModal({
                   // Ongoing, since "did the car show up" is exactly the question in play while a
                   // booking is still Confirmed.
                   <>
-                    <TouchableOpacity
+                    <AppButton
                       className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
                       onPress={onStartWash}
-                      activeOpacity={0.85}
                     >
                       <Text className="text-[13px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
                         Start Wash
                       </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </AppButton>
+                    <AppButton
                       className="bg-[#FAFAFA] rounded-2xl py-2.5 px-4 items-center"
                       onPress={onNoShow}
-                      activeOpacity={0.85}
                     >
                       <Text className="text-[12px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
                         No-Show
                       </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </AppButton>
+                    <AppButton
                       className="bg-[#FAFAFA] rounded-2xl py-2.5 px-4 items-center"
                       onPress={onCancel}
-                      activeOpacity={0.85}
                     >
                       <Text className="text-[12px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
                         Cancel
                       </Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   </>
                 ) : status === 'ongoing' ? (
                   // No-Show doesn't belong here anymore - once a wash is Ongoing, the vehicle is
                   // by definition present. Cancel stays available for a genuine mid-wash abort.
                   <>
-                    <TouchableOpacity
+                    <AppButton
                       className="flex-1 bg-[#F9EF08] rounded-2xl py-3 items-center"
                       onPress={onComplete}
-                      activeOpacity={0.85}
                     >
                       <Text className="text-[14px] font-bold text-[#1A1A00]" style={{ fontFamily: 'Inter_700Bold' }}>
                         Complete
                       </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </AppButton>
+                    <AppButton
                       className="flex-1 bg-[#FAFAFA] border border-[#EEEEEE] rounded-2xl py-3 items-center"
                       onPress={onCancel}
-                      activeOpacity={0.85}
                     >
                       <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'Inter_600SemiBold' }}>
                         Cancel
                       </Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   </>
                 ) : null}
               </View>
@@ -396,7 +389,7 @@ export default function AppointmentDetailsModal({
             <>
               <Divider />
               <View className="px-5 pt-4 bg-white" style={{ paddingBottom: insets.bottom + 28 }}>
-                <TouchableOpacity
+                <AppButton
                   className="bg-[#F9EF08] rounded-2xl py-3.5 items-center"
                   onPress={() => {
                     onClose();
@@ -405,14 +398,13 @@ export default function AppointmentDetailsModal({
                       params: { appointmentId, date },
                     });
                   }}
-                  activeOpacity={0.85}
                 >
                   <Text className="text-[14px] font-bold text-[#1A1A00]">View Booking Status</Text>
-                </TouchableOpacity>
+                </AppButton>
 
                 {/* Only while a branch hasn't acted on it yet - once accepted, the branch is locked in */}
                 {status === 'pending' && (
-                  <TouchableOpacity
+                  <AppButton
                     className="bg-white border border-[#EEEEEE] rounded-2xl py-3.5 items-center mt-2.5"
                     onPress={() => {
                       onClose();
@@ -421,10 +413,9 @@ export default function AppointmentDetailsModal({
                         params: { appointmentId, date },
                       });
                     }}
-                    activeOpacity={0.85}
                   >
                     <Text className="text-[14px] font-bold text-[#1A1A1A]">Look for Another Branch</Text>
-                  </TouchableOpacity>
+                  </AppButton>
                 )}
               </View>
             </>

@@ -8,7 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { get, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SwitchableBranch {
@@ -122,13 +123,13 @@ export default function SwitchBranchScreen() {
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center px-5 pt-2 pb-5">
-        <TouchableOpacity
+        <AppButton
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="w-9 h-9 rounded-full border border-[#EEEEEE] items-center justify-center"
         >
           <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text className="flex-1 text-center text-[17px] font-bold text-[#1A1A1A] mr-9">
           Switch Branch
         </Text>
@@ -163,11 +164,10 @@ export default function SwitchBranchScreen() {
             const isSwitching = switchingId === branch.id;
 
             return (
-              <TouchableOpacity
+              <AppButton
                 key={branch.id}
                 className="bg-white border border-[#EEEEEE] rounded-2xl px-4 py-4 mb-3 flex-row items-center"
                 onPress={() => handleSwitch(branch)}
-                activeOpacity={0.8}
                 disabled={!!switchingId}
               >
                 <View className="w-11 h-11 rounded-full bg-[#FAFAFA] items-center justify-center mr-3">
@@ -191,7 +191,7 @@ export default function SwitchBranchScreen() {
                     <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
                   </View>
                 )}
-              </TouchableOpacity>
+              </AppButton>
             );
           })}
         </ScrollView>

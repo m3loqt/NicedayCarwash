@@ -6,7 +6,8 @@ import { useTabBarClearance } from "@/hooks/use-tab-bar-height";
 import { logError } from "@/lib/logger";
 import { get, ref, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
-import { StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { AppButton } from '@/components/ui/common/AppButton';
+import { StatusBar, Text, View } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import AddBayModal from "../../../components/ui/admin/services/AddBayModal";
 import AddOns from "../../../components/ui/admin/services/AddOns";
@@ -81,11 +82,11 @@ export default function AdminServicesScreen() {
               <Text className="text-sm font-semibold text-gray-500" style={{ fontFamily: 'Inter_600SemiBold' }}>
                 Time slots
               </Text>
-              <TouchableOpacity onPress={() => setTimeModalVisible(true)}>
+              <AppButton onPress={() => setTimeModalVisible(true)}>
                 <Text className="text-sm font-bold text-[#1E1E1E]" style={{ fontFamily: 'Inter_700Bold' }}>
                   Add time slot
                 </Text>
-              </TouchableOpacity>
+              </AppButton>
             </View>
             <TimeSlots refreshKey={refreshKey} />
           </View>
@@ -96,11 +97,11 @@ export default function AdminServicesScreen() {
               <Text className="text-sm font-semibold text-gray-500" style={{ fontFamily: 'Inter_600SemiBold' }}>
                 Bays
               </Text>
-              <TouchableOpacity onPress={() => setBayModalVisible(true)}>
+              <AppButton onPress={() => setBayModalVisible(true)}>
                 <Text className="text-sm font-bold text-[#1E1E1E]" style={{ fontFamily: 'Inter_700Bold' }}>
                   Add bay
                 </Text>
-              </TouchableOpacity>
+              </AppButton>
             </View>
             <Bays refreshKey={refreshKey} />
           </View>

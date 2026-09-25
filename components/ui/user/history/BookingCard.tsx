@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Text, View } from 'react-native';
 
 const formatDate = (dateString: string): string => {
   const parts = dateString.split('-');
@@ -46,10 +47,9 @@ export default function BookingCard({
   onPress,
 }: BookingCardProps) {
   return (
-    <TouchableOpacity
+    <AppButton
       className="bg-white rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
       onPress={onPress}
-      activeOpacity={0.7}
     >
       {/* Branch image */}
       <Image
@@ -79,6 +79,6 @@ export default function BookingCard({
         </Text>
         <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
       </View>
-    </TouchableOpacity>
+    </AppButton>
   );
 }

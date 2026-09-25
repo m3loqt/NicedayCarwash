@@ -7,11 +7,11 @@ import { useAlert } from '@/hooks/use-alert';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logError } from '@/lib/logger';
-import { Ionicons } from '@expo/vector-icons';
 import { get, onValue, push, ref, set, update } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Animated, Dimensions, Image, Modal, ScrollView, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppointmentCard from './AppointmentCard';
 import CancelReasonModal, { CancelReason } from './CancelReasonModal';
@@ -1852,19 +1852,31 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
           )
         ) : (
           <View className="flex-1 justify-center items-center px-10">
-            <Ionicons name="calendar-outline" size={48} color="#E0E0E0" />
+            <Image
+              source={require('../../../../assets/images/empty.png')}
+              style={{ width: 160, height: 160 }}
+              resizeMode="contain"
+            />
             <Text className="text-[19px] font-bold text-[#1A1A1A] mt-4 mb-1.5 text-center">
-              {activeTab === 'history' ? 'No history yet' : `No ${activeTab} bookings found`}
+              {{
+                pending: 'No pending requests',
+                confirmed: 'No confirmed bookings',
+                ongoing: 'No ongoing washes',
+                history: 'No history yet',
+              }[activeTab]}
             </Text>
             <Text
               className="text-[13.5px] text-[#999] text-center leading-5"
-              style={{ maxWidth: 220 }}
+              style={{ maxWidth: 280 }}
             >
               {searchQuery
                 ? 'Try a different search term'
-                : activeTab === 'history'
-                ? 'Completed and cancelled bookings will appear here'
-                : `Your ${activeTab} bookings will appear here`}
+                : {
+                    pending: 'New booking requests will show up here',
+                    confirmed: 'Accepted bookings will appear here',
+                    ongoing: 'Bookings in progress will appear here',
+                    history: 'Completed and cancelled bookings will appear here',
+                  }[activeTab]}
             </Text>
           </View>
         )}
@@ -1986,9 +1998,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         onRequestClose={closeTimeSlotSheet}
       >
         <View style={{ flex: 1 }}>
-          <TouchableOpacity
+          <Pressable
             style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}
-            activeOpacity={1}
             onPress={closeTimeSlotSheet}
           />
           <Animated.View
@@ -2017,13 +2028,13 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
                   Time Slot Unavailable
                 </Text>
               </View>
-              <TouchableOpacity
+              <AppButton
                 onPress={closeTimeSlotSheet}
                 style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text style={{ fontSize: 16, color: '#666', fontWeight: '600' }}>✕</Text>
-              </TouchableOpacity>
+              </AppButton>
             </View>
 
             <View style={{ height: 1, backgroundColor: '#F0F0F0', marginHorizontal: 20, marginBottom: 20 }} />
@@ -2043,13 +2054,12 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
             {/* Close button */}
             <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-              <TouchableOpacity
+              <AppButton
                 onPress={closeTimeSlotSheet}
                 style={{ backgroundColor: '#F9EF08', borderRadius: 16, paddingVertical: 15, alignItems: 'center' }}
-                activeOpacity={0.85}
               >
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A00' }}>Got it</Text>
-              </TouchableOpacity>
+              </AppButton>
             </View>
           </Animated.View>
         </View>

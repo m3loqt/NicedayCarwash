@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { onValue, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Platform, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Platform, ScrollView, StatusBar, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../firebase/firebase';
 
@@ -91,9 +92,9 @@ export default function NotificationsScreen() {
     <View style={{ flex: 1, backgroundColor: '#FAFAFA', paddingTop: topPadding }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <AppButton onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={22} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#1A1A1A', marginRight: unreadCount > 0 ? 0 : 22 }}>
           Notifications
         </Text>
@@ -110,12 +111,11 @@ export default function NotificationsScreen() {
         {notifications.length === 0 ? (
           /* Empty state */
           <View style={{ alignItems: 'center', paddingTop: 100, paddingHorizontal: 40 }}>
-            <View style={{
-              width: 100, height: 100, borderRadius: 50,
-              backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', marginBottom: 24,
-            }}>
-              <Ionicons name="mail-outline" size={48} color="#BDBDBD" />
-            </View>
+            <Image
+              source={require('../../assets/images/nonotif.png')}
+              style={{ width: 160, height: 160, marginBottom: 16 }}
+              resizeMode="contain"
+            />
             <Text style={{ fontSize: 20, fontWeight: '700', color: '#1A1A1A', marginBottom: 8 }}>
               No notifications yet
             </Text>
@@ -174,9 +174,9 @@ function SectionHeader({
         {label}
       </Text>
       {showMarkRead && (
-        <TouchableOpacity onPress={onMarkRead} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <AppButton onPress={onMarkRead} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={{ fontSize: 12, color: '#999' }}>Mark all as read</Text>
-        </TouchableOpacity>
+        </AppButton>
       )}
     </View>
   );
@@ -186,8 +186,7 @@ function NotifCard({ notif, onPress }: { notif: Notification; onPress: (n: Notif
   const icon = TYPE_ICON[notif.type] ?? TYPE_ICON.accepted;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.75}
+    <AppButton
       onPress={() => onPress(notif)}
       style={{
         flexDirection: 'row',
@@ -226,6 +225,6 @@ function NotifCard({ notif, onPress }: { notif: Notification; onPress: (n: Notif
           {notif.body}
         </Text>
       </View>
-    </TouchableOpacity>
+    </AppButton>
   );
 }

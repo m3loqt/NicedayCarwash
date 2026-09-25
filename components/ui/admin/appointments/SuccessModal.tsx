@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Modal, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SuccessModalProps {
@@ -58,7 +58,7 @@ export default function SuccessModal({ visible, message, onClose }: SuccessModal
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-black/40 justify-end">
-        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+        <Pressable className="flex-1" onPress={onClose} />
 
         <View className="bg-white rounded-t-xl">
           {/* Handle */}
@@ -69,9 +69,11 @@ export default function SuccessModal({ visible, message, onClose }: SuccessModal
           {/* Body */}
           <View className="px-5 pt-6 pb-4 items-center">
             {/* Icon */}
-            <View className="w-14 h-14 rounded-full bg-[#F5F5F5] items-center justify-center mb-4">
-              <Ionicons name="checkmark" size={28} color="#1A1A1A" />
-            </View>
+            <Image
+              source={require('../../../../assets/images/universalsuccess.png')}
+              style={{ width: 160, height: 160, marginBottom: 16 }}
+              resizeMode="contain"
+            />
 
             <Text className="text-[20px] font-bold text-[#1A1A1A] mb-2">Done!</Text>
 
@@ -82,13 +84,12 @@ export default function SuccessModal({ visible, message, onClose }: SuccessModal
 
           {/* Close button */}
           <View className="px-5 pt-2" style={{ paddingBottom: insets.bottom + 40 }}>
-            <TouchableOpacity
+            <AppButton
               className="bg-[#F9EF08] rounded-2xl py-4 items-center"
               onPress={onClose}
-              activeOpacity={0.8}
             >
               <Text className="text-[14px] font-bold text-[#1A1A00]">Close</Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
         </View>
       </View>

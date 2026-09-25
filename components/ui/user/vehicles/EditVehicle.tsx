@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   ActivityIndicator,
   Image,
@@ -11,7 +12,6 @@ import {
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -118,13 +118,13 @@ export default function EditVehicle() {
     <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-6">
-        <TouchableOpacity
+        <AppButton
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="mr-3"
         >
           <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text className="text-xl font-bold text-[#1A1A1A]">Edit Vehicle</Text>
       </View>
 
@@ -141,14 +141,13 @@ export default function EditVehicle() {
             {vehicleTypes.map((type) => {
               const isSelected = selectedType === type.id;
               return (
-                <TouchableOpacity
+                <AppButton
                   key={type.id}
                   className={`items-center mr-2.5 rounded-2xl px-5 py-4 ${
                     isSelected ? 'border border-[#F9EF08] bg-[#FFFEF0]' : 'bg-white'
                   }`}
                   style={{ minWidth: 100 }}
                   onPress={() => setSelectedType(type.id)}
-                  activeOpacity={0.7}
                 >
                   <Image
                     source={type.image}
@@ -162,7 +161,7 @@ export default function EditVehicle() {
                   >
                     {type.label}
                   </Text>
-                </TouchableOpacity>
+                </AppButton>
               );
             })}
           </ScrollView>
@@ -196,13 +195,12 @@ export default function EditVehicle() {
 
       {/* Save button */}
       <View className="px-5 pt-3 bg-[#FAFAFA]" style={{ paddingBottom: insets.bottom + 32 }}>
-        <TouchableOpacity
+        <AppButton
           className="bg-[#F9EF08] rounded-2xl py-4 items-center"
           onPress={handleSave}
-          activeOpacity={0.85}
         >
           <Text className="text-[#1A1A00] text-[15px] font-bold">Save Changes</Text>
-        </TouchableOpacity>
+        </AppButton>
       </View>
     </SafeAreaView>
   );

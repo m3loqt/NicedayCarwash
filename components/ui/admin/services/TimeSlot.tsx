@@ -3,7 +3,8 @@ import { useAlert } from "@/hooks/use-alert";
 import { logError } from "@/lib/logger";
 import { get, onValue, ref, remove, set, update } from "firebase/database";
 import { useEffect, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ScrollView, Text, View } from 'react-native';
 import EditTimeSlotModal from "./EditTimeSlotModal";
 import TimeSlotOptionsModal from "./TimeSlotOptionsModal";
 
@@ -312,9 +313,8 @@ export default function TimeSlots({ refreshKey }: TimeSlotsProps = {}) {
       {timeSlots.map((item, index) => {
         const { period, numbers } = parseTimeDisplay(item.time);
         return (
-          <TouchableOpacity
+          <AppButton
             key={item.id}
-            activeOpacity={0.8}
             onPress={() => handleOpenOptions(item)}
             style={{
               width: 56,
@@ -340,7 +340,7 @@ export default function TimeSlots({ refreshKey }: TimeSlotsProps = {}) {
                 {numbers}
               </Text>
             </View>
-          </TouchableOpacity>
+          </AppButton>
         );
       })}
     </ScrollView>

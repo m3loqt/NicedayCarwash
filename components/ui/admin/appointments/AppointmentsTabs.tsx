@@ -1,4 +1,5 @@
-import { Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Text, View } from 'react-native';
 
 interface AppointmentsTabsProps {
   activeTab: string;
@@ -18,7 +19,7 @@ export default function AppointmentsTabs({ activeTab, onTabChange, counts }: App
   return (
     <View className="flex-row bg-white border-b border-gray-200">
       {tabs.map((tab) => (
-        <TouchableOpacity
+        <AppButton
           key={tab.id}
           className="flex-1 py-4 items-center"
           onPress={() => onTabChange(tab.id)}
@@ -46,7 +47,7 @@ export default function AppointmentsTabs({ activeTab, onTabChange, counts }: App
           {activeTab === tab.id && (
             <View className="absolute bottom-0 left-0 right-0 h-1 bg-[#F9EF08] rounded-t-full" />
           )}
-        </TouchableOpacity>
+        </AppButton>
       ))}
     </View>
   );

@@ -1,12 +1,15 @@
 import { useAlert } from "@/hooks/use-alert";
 import { consumeClientRateLimit } from "@/lib/clientRateLimit";
 import { payBookingFeeWithMaya } from "@/lib/mayaPayment";
+import { PUSH_HINT_PENDING_KEY } from "@/lib/pushNotifications";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from "expo-router";
 import { getAuth } from "firebase/auth";
 import { getDatabase, onValue, ref } from "firebase/database";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
 
 type PaymentStatus = "paid" | "unconfirmed" | "cancelled" | "error";
 
@@ -80,6 +83,15 @@ export default function BookingSuccess() {
     return () => unsubscribe();
   }, [status, appointmentId, dateKey]);
 
+  // Flags the push-notification reminder for whichever screen the user lands on next - "My
+  // Bookings" and "Go Home" below both lead somewhere inside the user tabs, so the trigger lives
+  // here (the one guaranteed moment of success) rather than on either individual button.
+  useEffect(() => {
+    if (status === "paid") {
+      AsyncStorage.setItem(PUSH_HINT_PENDING_KEY, "1").catch(() => {});
+    }
+  }, [status]);
+
   const handlePayAgain = async () => {
     const userId = getAuth().currentUser?.uid;
     if (!appointmentId || !dateKey || !userId) {
@@ -130,10 +142,20 @@ export default function BookingSuccess() {
       contentContainerStyle={{ flexGrow: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingVertical: 28 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Icon */}
-      <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-5">
-        <Ionicons name={state.icon} size={30} color="#1A1A1A" />
-      </View>
+      {/* Icon - the illustration is reserved for an actually-successful booking; the
+          not-paid-yet states keep the plain icon box since nothing's confirmed for them yet */}
+      {status === "paid" ? (
+        <Image
+          source={require('../../../../assets/images/booksuccess.png')}
+          style={{ width: 160, height: 160 }}
+          resizeMode="contain"
+          className="mb-3"
+        />
+      ) : (
+        <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-5">
+          <Ionicons name={state.icon} size={30} color="#1A1A1A" />
+        </View>
+      )}
 
       {/* Title */}
       <Text className="text-[18px] font-bold text-[#1A1A1A] text-center mb-1.5">
@@ -177,9 +199,8 @@ export default function BookingSuccess() {
       {status === "paid" ? (
         <>
           {/* My Bookings */}
-          <TouchableOpacity
+          <AppButton
             className="w-full bg-[#F9EF08] py-3.5 rounded-2xl items-center mb-3"
-            activeOpacity={0.85}
             onPress={() =>
               router.push({ pathname: "/user/(tabs)/history" } as any)
             }
@@ -187,24 +208,22 @@ export default function BookingSuccess() {
             <Text className="text-[14px] font-bold text-[#1A1A00]">
               My Bookings
             </Text>
-          </TouchableOpacity>
+          </AppButton>
 
           {/* Home */}
-          <TouchableOpacity
+          <AppButton
             className="w-full bg-[#FAFAFA] border border-[#EEEEEE] py-3.5 rounded-2xl items-center"
-            activeOpacity={0.85}
             onPress={() => router.push({ pathname: "/user" } as any)}
           >
             <Text className="text-[14px] font-semibold text-[#1A1A1A]">
               Go Home
             </Text>
-          </TouchableOpacity>
+          </AppButton>
         </>
       ) : (
         /* Pay Again - the only action while there's nothing confirmed yet */
-        <TouchableOpacity
+        <AppButton
           className="w-full bg-[#F9EF08] py-3.5 rounded-2xl items-center justify-center"
-          activeOpacity={0.85}
           onPress={handlePayAgain}
           disabled={retrying}
         >
@@ -215,7 +234,7 @@ export default function BookingSuccess() {
               Pay Again
             </Text>
           )}
-        </TouchableOpacity>
+        </AppButton>
       )}
 
       {AlertComponent}

@@ -6,7 +6,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { get, ref, set, update } from 'firebase/database';
 import { useEffect } from 'react';
-import { Image, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Platform, Text, View } from 'react-native';
 import { auth, db } from '../../../firebase/firebase';
 
 // Must run at module scope (before any component mounts) so the pending auth session claims
@@ -133,11 +134,10 @@ function GoogleSignInConfigured({ alert }: { alert: AlertCompat }) {
   }, [googleResponse, alert]);
 
   return (
-    <TouchableOpacity
+    <AppButton
       className="flex-row items-center justify-center bg-[#FAFAFA] border border-[#EEEEEE] rounded-full py-4 px-4 min-h-[52px]"
       onPress={() => googlePromptAsync()}
       disabled={!googleRequest}
-      activeOpacity={0.85}
     >
       <Image
         source={require('../../../assets/images/googlelogo.png')}
@@ -145,7 +145,7 @@ function GoogleSignInConfigured({ alert }: { alert: AlertCompat }) {
         resizeMode="contain"
       />
       <Text className="text-[13px] font-inter-medium tracking-tight text-[#1A1A1A]">Continue with Google</Text>
-    </TouchableOpacity>
+    </AppButton>
   );
 }
 
@@ -159,10 +159,9 @@ function GoogleSignInSection({ alert }: { alert: AlertCompat }) {
           : 'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to your .env (and restart Expo).';
 
     return (
-      <TouchableOpacity
+      <AppButton
         className="flex-row items-center justify-center bg-[#F5F5F5] border border-transparent rounded-full py-4 px-4 min-h-[52px] opacity-70"
         onPress={() => alert('Google sign-in unavailable', hint)}
-        activeOpacity={0.85}
       >
         <Image
           source={require('../../../assets/images/googlelogo.png')}
@@ -170,7 +169,7 @@ function GoogleSignInSection({ alert }: { alert: AlertCompat }) {
           resizeMode="contain"
         />
         <Text className="text-[13px] font-inter-medium tracking-tight text-[#9CA3AF]">Continue with Google</Text>
-      </TouchableOpacity>
+      </AppButton>
     );
   }
 

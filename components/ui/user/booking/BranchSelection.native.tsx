@@ -1,6 +1,6 @@
 import RemoteImage from '@/components/ui/common/RemoteImage';
 import { BranchListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
-import { useAlert } from '@/hooks/use-alert';
+import WalkInsOnlyModal from '@/components/ui/user/booking/WalkInsOnlyModal';
 import { isBranchArchived } from '@/lib/branch';
 import { formatDistance, getCurrentLocation, haversineMeters } from '@/lib/location';
 import { logError, logWarn } from '@/lib/logger';
@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   ActivityIndicator,
   Dimensions,
@@ -17,7 +18,6 @@ import {
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -114,7 +114,7 @@ function BranchLabelContent({ name }: { name: string }) {
 }
 
 export default function BranchSelection({ onBranchSelect, initialQuery, initialQueryNonce }: BranchSelectionProps = {}) {
-  const { alert, AlertComponent } = useAlert();
+  const [showWalkInsModal, setShowWalkInsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [showBookingFlow, setShowBookingFlow] = useState(false);
@@ -387,12 +387,9 @@ const handleSearch = (q: string) => {
     }
   };
 
-  const NOT_ACCEPTING_MESSAGE =
-    'This branch is not accepting online reservations right now, but is still open for walk-in customers.';
-
   const handleListPress = (branch: Branch) => {
     if (!branch.acceptingReservations) {
-      alert('Walk-ins Only', NOT_ACCEPTING_MESSAGE);
+      setShowWalkInsModal(true);
       return;
     }
     setBookingBranch(branch);
@@ -403,7 +400,7 @@ const handleSearch = (q: string) => {
   const handleSelectBranch = () => {
     if (!bookingBranch) return;
     if (!bookingBranch.acceptingReservations) {
-      alert('Walk-ins Only', NOT_ACCEPTING_MESSAGE);
+      setShowWalkInsModal(true);
       return;
     }
     onBranchSelect?.(bookingBranch);
@@ -429,13 +426,13 @@ const handleSearch = (q: string) => {
       <View className="bg-white pt-4 pb-0">
         {/* Title row */}
         <View className="px-5 flex-row items-center mb-3">
-          <TouchableOpacity
+          <AppButton
             onPress={() => router.back()}
             className="mr-3"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
-          </TouchableOpacity>
+          </AppButton>
           <Text className="text-[20px] font-bold text-[#1A1A1A] mb-1">
             Select branch
           </Text>
@@ -583,10 +580,9 @@ const handleSearch = (q: string) => {
                       )
                     : null;
                   return (
-                    <TouchableOpacity
+                    <AppButton
                       key={branch.id}
                       className="bg-white rounded-2xl px-3 py-5 mx-5 mb-1.5 flex-row items-center"
-                      activeOpacity={0.8}
                       onPress={() => handleListPress(branch)}
                     >
                       <RemoteImage
@@ -613,7 +609,7 @@ const handleSearch = (q: string) => {
                         )}
                       </View>
                       <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
-                    </TouchableOpacity>
+                    </AppButton>
                   );
                 })}
               </ScrollView>
@@ -654,7 +650,7 @@ const handleSearch = (q: string) => {
         />
       )}
 
-      {AlertComponent}
+      <WalkInsOnlyModal visible={showWalkInsModal} onClose={() => setShowWalkInsModal(false)} />
     </View>
   );
 }

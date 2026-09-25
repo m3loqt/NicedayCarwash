@@ -170,7 +170,7 @@ export default function Services({ branchId: propBranchId, refreshKey }: Service
             </Text>
           </View>
           <Switch
-            value={item.isAvailable !== false}
+            value={confirmModal?.item.id === item.id ? confirmModal.newValue : item.isAvailable !== false}
             onValueChange={(value) => handleToggleRequest(item, value)}
             disabled={updatingId === item.id}
             trackColor={{ false: "#E5E7EB", true: "#F9EF08" }}

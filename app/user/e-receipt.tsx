@@ -8,7 +8,8 @@ import * as Sharing from 'expo-sharing';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 
@@ -199,16 +200,20 @@ export default function EReceiptScreen() {
   if (!booking || booking.status !== 'completed') {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center px-8" edges={['top']}>
-        <Ionicons name="receipt-outline" size={48} color="#E0E0E0" />
+        <Image
+          source={require('../../assets/images/waitreceipt.png')}
+          style={{ width: 160, height: 160 }}
+          resizeMode="contain"
+        />
         <Text className="text-[14px] font-inter-medium tracking-tight text-[#999] mt-4 text-center">
           E-Receipt not available for this booking
         </Text>
-        <TouchableOpacity
+        <AppButton
           className="mt-6 bg-[#F9EF08] rounded-2xl px-8 py-3"
           onPress={() => router.back()}
         >
           <Text className="text-[14px] font-inter-bold tracking-tight text-[#1A1A00]">Go Back</Text>
-        </TouchableOpacity>
+        </AppButton>
       </SafeAreaView>
     );
   }
@@ -217,6 +222,12 @@ export default function EReceiptScreen() {
   const plateNumber = booking.vehicleDetails?.plateNumber || '';
   const durationLabel = formatDuration(booking.timeSlot?.estCompletion) || '—';
   const transactionId = booking.mayaPaymentId || booking.transactionId || booking.appointmentId;
+  // Full value stays one tap away via handleCopyTransactionId - this is just so a 36-char UUID
+  // doesn't blow out the label/value row's width.
+  const displayTransactionId =
+    transactionId && transactionId.length > 14
+      ? `${transactionId.slice(0, 8)}…${transactionId.slice(-4)}`
+      : transactionId;
   const completedLabel = formatDateTime(booking.completedAt);
 
   const orderRows = [
@@ -229,13 +240,13 @@ export default function EReceiptScreen() {
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center px-5 pt-2 pb-5">
-        <TouchableOpacity
+        <AppButton
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="w-9 h-9 rounded-full border border-[#EEEEEE] items-center justify-center"
         >
           <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text className="flex-1 text-center text-[17px] font-bold text-[#1A1A1A] mr-9">
           E-Receipt
         </Text>
@@ -307,12 +318,12 @@ export default function EReceiptScreen() {
 
             <View className="flex-row justify-between items-center py-2">
               <Text className="text-[12.5px] font-inter-regular tracking-tight text-[#999]">Transaction ID</Text>
-              <TouchableOpacity className="flex-row items-center" onPress={handleCopyTransactionId} activeOpacity={0.7}>
+              <AppButton className="flex-row items-center" onPress={handleCopyTransactionId}>
                 <Text className="text-[13px] font-inter-bold tracking-tight text-[#1A1A1A] mr-1.5">
-                  {transactionId}
+                  {displayTransactionId}
                 </Text>
                 <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={14} color="#999" />
-              </TouchableOpacity>
+              </AppButton>
             </View>
 
             <Divider />
@@ -328,18 +339,17 @@ export default function EReceiptScreen() {
         </ViewShot>
 
         <View className="px-6 mt-4">
-          <TouchableOpacity
+          <AppButton
             className={`bg-[#F9EF08] rounded-full py-4 items-center ${downloading ? 'opacity-60' : ''}`}
             onPress={handleDownload}
             disabled={downloading}
-            activeOpacity={0.85}
           >
             {downloading ? (
               <ActivityIndicator size="small" color="#1A1A00" />
             ) : (
               <Text className="text-[14px] font-inter-bold tracking-tight text-[#1A1A00]">Download E-Receipt</Text>
             )}
-          </TouchableOpacity>
+          </AppButton>
         </View>
       </ScrollView>
     </SafeAreaView>

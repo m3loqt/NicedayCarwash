@@ -2,7 +2,6 @@ import { AnalyticsSkeleton } from '@/components/ui/admin/AdminScreenSkeleton';
 import RemoteImage from '@/components/ui/common/RemoteImage';
 import {
   RecentBookings,
-  StatTile,
   TotalSalesCard,
   useBranchAnalytics,
 } from '@/components/ui/admin/analytics';
@@ -11,30 +10,26 @@ import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
 import { logError } from '@/lib/logger';
-import { ANDROID_KEEP_OPEN_HINT, registerForPushNotificationsAsync } from '@/lib/pushNotifications';
+import { registerForPushNotificationsAsync } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { get, ref, set } from 'firebase/database';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
-  Dimensions,
   Linking,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   Platform,
   ScrollView,
-  StatusBar,
-  StyleSheet,
+  StatusBar as RNStatusBar,
   Switch,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Deterministic placeholder for a branch with no uploaded photo yet - same set the customer app
 // falls back to, picked by branchId so the same branch always shows the same one.
@@ -63,19 +58,15 @@ const pctDelta = (curr: number, prev: number): number | null => {
   return Math.round(((curr - prev) / prev) * 1000) / 10;
 };
 
-const todayLabel = (): string =>
-  new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
-
 function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
   return (
     <View style={{ flexDirection: 'row', backgroundColor: '#F0F0F0', borderRadius: 999, padding: 2 }}>
       {PERIOD_OPTIONS.map((opt) => {
         const active = opt.key === value;
         return (
-          <TouchableOpacity
+          <AppButton
             key={opt.key}
             onPress={() => onChange(opt.key)}
-            activeOpacity={0.8}
             style={{
               paddingHorizontal: 12,
               paddingVertical: 5,
@@ -86,37 +77,78 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
             <Text style={{ fontSize: 12, fontWeight: active ? '700' : '500', color: active ? '#1A1A1A' : '#8A8A8A' }}>
               {opt.label}
             </Text>
-          </TouchableOpacity>
+          </AppButton>
         );
       })}
     </View>
   );
 }
 
+// Same white card in both states - only the icon, title, and subtitle change between
+// accepting/not-accepting. `children` (the branch thumbnail + name) renders above the toggle
+// row, inside the same card.
+function ReservationStatusCard({
+  accepting,
+  onToggle,
+  disabled,
+  children,
+}: {
+  accepting: boolean;
+  onToggle: (next: boolean) => void;
+  disabled: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingHorizontal: 18,
+        paddingVertical: 16,
+      }}
+    >
+      {children}
+      {!!children && <View style={{ height: 1, backgroundColor: '#F5F5F5', marginVertical: 14 }} />}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
+          {accepting ? (
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#F9EF08', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="checkmark" size={13} color="#1A1A00" />
+            </View>
+          ) : (
+            <Ionicons name="close-circle" size={20} color="#1A1A1A" />
+          )}
+          <View style={{ marginLeft: 10, flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1A1A1A' }}>
+              {accepting ? 'Accepting reservations' : 'Not accepting reservations'}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 3 }}>
+              {accepting ? 'Customers can book online' : "Customers can't book right now"}
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={accepting}
+          onValueChange={onToggle}
+          disabled={disabled}
+          trackColor={{ false: '#E5E5E5', true: '#F9EF08' }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+    </View>
+  );
+}
+
 export default function AdminOverviewScreen() {
   const { alert, AlertComponent } = useAlert();
-  const insets = useSafeAreaInsets();
-  const topPadding = Platform.OS === 'android' ? Math.max(insets.top, StatusBar.currentHeight ?? 0) : insets.top;
   const tabBarClearance = useTabBarClearance();
-  // Cap the fixed cover image so on a short viewport the scroll area below can't collapse to the
-  // point the sign-out row is unreachable.
-  const headerHeight = Math.min(184, Dimensions.get('window').height * 0.24);
 
-  // The cover photo scrolls with the content. Status-bar icons are light while the photo is
-  // under them, and flip to dark once it has scrolled away and the grey page is behind them.
-  const [darkIcons, setDarkIcons] = useState(false);
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const shouldBeDark = e.nativeEvent.contentOffset.y > headerHeight * 0.55;
-    setDarkIcons((cur) => (cur === shouldBeDark ? cur : shouldBeDark));
-  };
-  const barStyle: 'dark-content' | 'light-content' = darkIcons ? 'dark-content' : 'light-content';
-  // RN's <StatusBar> shares one native module across mounted tabs, so re-assert on focus.
-  const barStyleRef = useRef(barStyle);
-  barStyleRef.current = barStyle;
+  // Status bar is always dark now that the page is a flat gray background top to bottom - the
+  // scroll-tied light/dark swap only existed to stay readable over the removed cover photo.
   useFocusEffect(
     useCallback(() => {
-      StatusBar.setBarStyle(barStyleRef.current);
-      return () => StatusBar.setBarStyle('dark-content');
+      RNStatusBar.setBarStyle('dark-content');
+      return () => RNStatusBar.setBarStyle('dark-content');
     }, [])
   );
 
@@ -255,10 +287,39 @@ export default function AdminOverviewScreen() {
   const previousBucket = buckets[buckets.length - 2] ?? EMPTY_BUCKET;
 
   const revenueDelta = pctDelta(currentBucket.revenue, previousBucket.revenue);
-  // Whole-number change for the two count cards (a % swing off a tiny base is noise).
-  const countChange = (curr: number, prev: number): number | null => (curr === prev ? null : curr - prev);
-  const successDelta = countChange(currentBucket.completedCount, previousBucket.completedCount);
-  const cancelledDelta = countChange(currentBucket.cancelledCount, previousBucket.cancelledCount);
+  const revenueDiff = currentBucket.revenue - previousBucket.revenue;
+
+  // Chart labels, computed client-side from today's date using the same window math the hook
+  // uses internally (no new data) - day-of-week letters only line up with individual days, so
+  // they're used for the Day view; Week's bars are 7-day sums and Month's are calendar months,
+  // labelled accordingly instead of mislabelling them as weekdays.
+  const chartLabels = useMemo(() => {
+    const now = new Date();
+    const count = Math.min(buckets.length, 7);
+    if (period === 'daily') {
+      return Array.from({ length: count }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (count - 1 - i));
+        return d.toLocaleDateString('en-US', { weekday: 'narrow' });
+      });
+    }
+    if (period === 'monthly') {
+      return Array.from({ length: count }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (count - 1 - i), 1);
+        return d.toLocaleDateString('en-US', { month: 'short' });
+      });
+    }
+    // weekly - each bar is the day-of-month its 7-day window ends on. Bare day numbers alone
+    // ("14, 21, 28, 4...") read as ambiguous days-of-month with no visible month change, so the
+    // first bar and any bar where the month rolls over gets the month name too ("Sep 25").
+    const weekEndDates = Array.from({ length: count }, (_, i) => {
+      const weeksAgo = count - 1 - i;
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate() - weeksAgo * 7);
+    });
+    return weekEndDates.map((d, i) => {
+      const monthChanged = i === 0 || d.getMonth() !== weekEndDates[i - 1].getMonth();
+      return monthChanged ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : String(d.getDate());
+    });
+  }, [period, buckets.length]);
 
   const notifSwitch = (
     <Switch
@@ -270,65 +331,43 @@ export default function AdminOverviewScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
-      <StatusBar barStyle={barStyle} translucent backgroundColor="transparent" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAFA' }} edges={['top']}>
+      <StatusBar style="dark" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: tabBarClearance }}
       >
-        {/* Full-bleed branch cover - scrolls with the content. Name + address bottom-left over a
-            dark gradient; today's date top-right. */}
-        <View style={{ height: headerHeight + topPadding }}>
-          <RemoteImage
-            uri={branchImageUrl}
-            fallback={placeholderBranchImage}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.82)']}
-            locations={[0, 0.28, 0.6, 1]}
-            style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
-          />
-          <Text
-            style={{
-              position: 'absolute',
-              top: topPadding + 10,
-              right: 20,
-              fontSize: 12,
-              fontWeight: '600',
-              color: 'rgba(255,255,255,0.9)',
-            }}
-          >
-            {todayLabel()}
-          </Text>
-          <View style={{ position: 'absolute', left: 20, right: 20, bottom: 16 }}>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF' }} numberOfLines={1}>
-              {branchName || 'Overview'}
-            </Text>
-            {!!branchAddress && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
-                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.85)" />
-                <Text
-                  style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginLeft: 4, flex: 1 }}
-                  numberOfLines={1}
-                >
-                  {branchAddress}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
         {loading ? (
           <AnalyticsSkeleton />
         ) : (
-          <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 12 }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 16 }}>
+          {/* Reservation status - merged with the branch header (thumbnail + name) into one card;
+              day-off / no-supervisor-on-site fallback, same toggle logic and confirmation as before. */}
+          {branchId && (
+            <ReservationStatusCard
+              accepting={acceptingReservations}
+              onToggle={handleToggleAcceptingReservations}
+              disabled={savingAcceptingReservations}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {!!branchImageUrl && (
+                  <RemoteImage
+                    uri={branchImageUrl}
+                    fallback={placeholderBranchImage}
+                    style={{ width: 48, height: 48, borderRadius: 12, marginRight: 12 }}
+                  />
+                )}
+                <Text style={{ fontSize: 22, fontWeight: '700', color: '#1A1A1A', flex: 1 }} numberOfLines={1}>
+                  {branchName || 'Overview'}
+                </Text>
+              </View>
+            </ReservationStatusCard>
+          )}
+
           {branchId ? (
             <>
-              {/* Revenue card */}
+              {/* Revenue card - period toggle back inline, top-right of the card */}
               <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18 }}>
                 <View
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}
@@ -340,25 +379,11 @@ export default function AdminOverviewScreen() {
                   periodNoun={PERIOD_COPY[period].current}
                   value={formatPeso(currentBucket.revenue)}
                   delta={revenueDelta}
-                  comparison={`${formatPeso(previousBucket.revenue)} ${PERIOD_COPY[period].previous}`}
+                  diffLabel={`${formatPeso(Math.abs(revenueDiff))} ${
+                    revenueDiff < 0 ? 'less than' : revenueDiff > 0 ? 'more than' : 'same as'
+                  } ${PERIOD_COPY[period].previous}`}
                   series={buckets.slice(-7).map((b) => b.revenue)}
-                />
-              </View>
-
-              {/* Two count cards */}
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <StatTile
-                  label="Successful bookings"
-                  value={String(currentBucket.completedCount)}
-                  delta={successDelta}
-                  deltaSuffix=""
-                />
-                <StatTile
-                  label="Cancelled"
-                  value={String(currentBucket.cancelledCount)}
-                  delta={cancelledDelta}
-                  deltaSuffix=""
-                  alarmOnRise
+                  labels={chartLabels}
                 />
               </View>
 
@@ -374,9 +399,9 @@ export default function AdminOverviewScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 15, fontWeight: '700', color: '#1A1A1A' }}>Recent bookings</Text>
-                  <TouchableOpacity onPress={() => router.push('/admin/(tabs)/bookings')} hitSlop={8}>
+                  <AppButton onPress={() => router.push('/admin/(tabs)/bookings')} hitSlop={8}>
                     <Text style={{ fontSize: 13, fontWeight: '600', color: '#8A8A8A' }}>See all</Text>
-                  </TouchableOpacity>
+                  </AppButton>
                 </View>
                 <RecentBookings bookings={analytics.recentBookings} />
               </View>
@@ -387,40 +412,6 @@ export default function AdminOverviewScreen() {
               <Text style={{ fontSize: 13, color: '#8A8A8A', marginTop: 4 }}>
                 A superadmin needs to assign your account to a branch before figures show here.
               </Text>
-            </View>
-          )}
-
-          {/* Accepting reservations - day-off / no-supervisor-on-site fallback */}
-          {branchId && (
-            <View
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 16,
-                paddingHorizontal: 18,
-                paddingVertical: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
-                <Ionicons name="calendar-outline" size={18} color="#8A8A8A" />
-                <View style={{ marginLeft: 12, flex: 1 }}>
-                  <Text style={{ fontSize: 14, color: '#1A1A1A' }}>Accepting reservations</Text>
-                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 1 }}>
-                    {acceptingReservations
-                      ? 'Customers can book online'
-                      : 'Online booking paused - walk-ins only'}
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={acceptingReservations}
-                onValueChange={handleToggleAcceptingReservations}
-                disabled={savingAcceptingReservations}
-                trackColor={{ false: '#E5E5E5', true: '#F9EF08' }}
-                thumbColor="#FFFFFF"
-              />
             </View>
           )}
 
@@ -443,18 +434,13 @@ export default function AdminOverviewScreen() {
                 <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 1 }}>
                   Get a push when a customer books
                 </Text>
-                {Platform.OS === 'android' && (
-                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginTop: 4 }}>
-                    {ANDROID_KEEP_OPEN_HINT}
-                  </Text>
-                )}
               </View>
             </View>
             {notifSwitch}
           </View>
 
           {/* Sign out */}
-          <TouchableOpacity
+          <AppButton
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: 16,
@@ -464,7 +450,6 @@ export default function AdminOverviewScreen() {
               alignItems: 'center',
               justifyContent: 'space-between',
             }}
-            activeOpacity={0.7}
             onPress={() => setSignOutModalVisible(true)}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -472,7 +457,7 @@ export default function AdminOverviewScreen() {
               <Text style={{ fontSize: 14, color: '#1A1A1A', marginLeft: 12 }}>Sign out</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-          </TouchableOpacity>
+          </AppButton>
           </View>
         )}
       </ScrollView>
@@ -484,6 +469,6 @@ export default function AdminOverviewScreen() {
         loading={signingOut}
       />
       {AlertComponent}
-    </View>
+    </SafeAreaView>
   );
 }

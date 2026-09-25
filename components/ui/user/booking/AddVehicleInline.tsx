@@ -4,13 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   Image,
   Modal,
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -118,7 +118,7 @@ export default function AddVehicleInline({
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Vehicle Classification</Text>
 
-            <TouchableOpacity
+            <AppButton
               key={selectedClassification?.id || 'empty'}
               className="bg-white border border-gray-300 rounded-xl px-4 py-4 flex-row items-center justify-between"
               onPress={() => setShowClassificationModal(true)}
@@ -141,7 +141,7 @@ export default function AddVehicleInline({
                 <Text className="text-lg text-gray-500">Choose Classification</Text>
               )}
               <Ionicons name="chevron-down" size={22} color="#666" />
-            </TouchableOpacity>
+            </AppButton>
 
             {/* Dropdown Modal */}
             <VehicleClassificationModal
@@ -185,17 +185,16 @@ export default function AddVehicleInline({
           className="absolute bottom-0 left-0 right-0 px-6 pt-6 bg-white border-t border-gray-200"
           style={{ paddingBottom: insets.bottom + 24 }}
         >
-          <TouchableOpacity
+          <AppButton
             className="bg-[#F9EF08] py-4 rounded-xl items-center mb-3"
             onPress={handleSave}
-            activeOpacity={0.85}
           >
             <Text className="text-[#1A1A00] font-semibold text-lg">Save Vehicle</Text>
-          </TouchableOpacity>
+          </AppButton>
 
-          <TouchableOpacity className="items-center" onPress={onClose}>
+          <AppButton className="items-center" onPress={onClose}>
             <Text className="text-gray-600 text-lg">Cancel</Text>
-          </TouchableOpacity>
+          </AppButton>
         </View>
 
       </View>

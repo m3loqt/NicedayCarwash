@@ -1,3 +1,4 @@
+import { AppButton } from '@/components/ui/common/AppButton';
 import { useAlert } from '@/hooks/use-alert';
 import { checkBranchCapacity } from '@/lib/capacityCheck';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
@@ -9,7 +10,7 @@ import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, remove, set } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ServiceOrAddon {
@@ -362,18 +363,17 @@ export default function ConfirmationStep({
         className="absolute bottom-0 left-0 right-0 px-4 pt-3 bg-white border-t border-[#F5F5F5]"
         style={{ paddingBottom: insets.bottom + 32 }}
       >
-        <TouchableOpacity
+        <AppButton
           className="bg-[#F9EF08] rounded-2xl py-4 items-center"
           onPress={handleConfirm}
           disabled={submitting}
-          activeOpacity={0.85}
         >
           {submitting ? (
             <ActivityIndicator color="#1A1A00" />
           ) : (
             <Text className="text-[14px] font-bold text-[#1A1A00]">Confirm Booking</Text>
           )}
-        </TouchableOpacity>
+        </AppButton>
       </View>
 
       {AlertComponent}

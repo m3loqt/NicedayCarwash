@@ -5,7 +5,8 @@ import { useTabBarVisibility } from '@/hooks/use-tab-bar-visibility';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Animated, Image, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Animated, Image, Text, View } from 'react-native';
 
 const STATUS_ART: Record<BookingStatus, any> = {
   pending: require('../../../assets/images/booking_status_pending.png'),
@@ -102,14 +103,13 @@ export default function ActiveBookingBar() {
         pointerEvents: 'box-none',
       }}
     >
-      <TouchableOpacity
+      <AppButton
         onPress={() =>
           router.push({
             pathname: '/user/booking-progress',
             params: { appointmentId: booking.appointmentId, date: booking.dateKey },
           } as any)
         }
-        activeOpacity={0.92}
         style={{
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
@@ -164,7 +164,7 @@ export default function ActiveBookingBar() {
             })}
           </View>
         </View>
-      </TouchableOpacity>
+      </AppButton>
     </Animated.View>
   );
 }

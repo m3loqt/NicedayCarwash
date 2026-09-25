@@ -7,6 +7,20 @@ const MUTED = '#8A8A8A';
 
 const peso = (n: number) => `₱${Math.round(n).toLocaleString('en-US')}`;
 
+// "Today, 10:00 AM" / "Yesterday, 7:00 AM" / "Sep 11, 3:00 PM" - a recent-bookings list spans
+// multiple days, so a bare time alone ("10:00 AM") doesn't say which day it happened.
+const formatWhen = (dateKey: string, time: string): string => {
+  if (!dateKey) return time || '—';
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+  const dayLabel =
+    diffDays === 0 ? 'Today' : diffDays === 1 ? 'Yesterday' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return time ? `${dayLabel}, ${time}` : dayLabel;
+};
+
 // The "Recent bookings" heading + "See all" live on the page, outside this card.
 export default function RecentBookings({ bookings }: { bookings: RecentBooking[] }) {
   if (bookings.length === 0) {
@@ -41,7 +55,7 @@ export default function RecentBookings({ bookings }: { bookings: RecentBooking[]
                 {b.plateNumber ? <Text style={{ color: MUTED, fontWeight: '400' }}>{`  ${b.plateNumber}`}</Text> : null}
               </Text>
               <Text style={{ fontSize: 12, color: MUTED, marginTop: 2 }} numberOfLines={1}>
-                {b.time || '—'}
+                {formatWhen(b.dateKey, b.time)}
               </Text>
             </View>
             <Text style={{ fontSize: 14, fontWeight: '700', color: INK, marginRight: 10 }}>{peso(b.amountDue)}</Text>

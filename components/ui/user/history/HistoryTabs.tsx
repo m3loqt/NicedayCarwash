@@ -1,4 +1,5 @@
-import { Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Text, View } from 'react-native';
 
 interface HistoryTabsProps {
   activeTab: string;
@@ -16,7 +17,7 @@ export default function HistoryTabs({ activeTab, onTabChange }: HistoryTabsProps
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
-          <TouchableOpacity
+          <AppButton
             key={tab.id}
             className="flex-1 items-center pb-3"
             onPress={() => onTabChange(tab.id)}
@@ -31,7 +32,7 @@ export default function HistoryTabs({ activeTab, onTabChange }: HistoryTabsProps
                 className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-full bg-[#F9EF08]"
               />
             )}
-          </TouchableOpacity>
+          </AppButton>
         );
       })}
     </View>

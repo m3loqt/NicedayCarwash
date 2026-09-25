@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Modal, ScrollView, Text, View, Pressable } from 'react-native';
 
 interface VehicleClassification {
   id: string;
@@ -37,14 +38,12 @@ export default function VehicleClassificationModal({
       animationType="none"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
+      <Pressable
         className="flex-1"
-        activeOpacity={1}
         onPress={onClose}
         style={backdropColor ? { backgroundColor: backdropColor } : undefined}
       >
-        <TouchableOpacity
-          activeOpacity={1}
+        <Pressable
           onPress={(e) => e.stopPropagation()}
           className="absolute left-6 right-6 bg-white rounded-xl shadow-lg border border-gray-200 mt-2"
           style={{ top: topPosition }}
@@ -54,7 +53,7 @@ export default function VehicleClassificationModal({
             nestedScrollEnabled={true}
           >
             {classifications.map((classification, index) => (
-              <TouchableOpacity
+              <AppButton
                 key={classification.id}
                 className={`flex-row items-center p-4 ${
                   index < classifications.length - 1 ? 'border-b border-gray-200' : ''
@@ -77,11 +76,11 @@ export default function VehicleClassificationModal({
                 {selectedClassification?.id === classification.id && (
                   <Ionicons name="checkmark" size={24} color="#F9EF08" />
                 )}
-              </TouchableOpacity>
+              </AppButton>
             ))}
           </ScrollView>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

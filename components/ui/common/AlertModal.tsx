@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type AlertType = 'success' | 'error' | 'warning' | 'info';
@@ -172,13 +173,13 @@ export default function AlertModal({
 
           {/* Close button shown only for non-confirmation dialogs */}
           {!isConfirmation && (
-            <TouchableOpacity
+            <AppButton
               className="absolute top-4 right-5 z-10"
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="close" size={22} color="#999" />
-            </TouchableOpacity>
+            </AppButton>
           )}
 
           <View className="px-6 pt-3 pb-8">
@@ -186,9 +187,17 @@ export default function AlertModal({
                 carry the context and a generic icon (usually just "i") adds nothing */}
             <View className="items-center mb-1">
               {!isConfirmation && (
-                <View className="w-12 h-12 rounded-full bg-[#F5F5F5] items-center justify-center mb-3">
-                  <Ionicons name={iconConfig.name} size={24} color={iconConfig.color} />
-                </View>
+                type === 'success' ? (
+                  <Image
+                    source={require('../../../assets/images/universalsuccess.png')}
+                    style={{ width: 160, height: 160 }}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View className="w-12 h-12 rounded-full bg-[#F5F5F5] items-center justify-center mb-3">
+                    <Ionicons name={iconConfig.name} size={24} color={iconConfig.color} />
+                  </View>
+                )
               )}
 
               {/* Title text */}
@@ -210,10 +219,9 @@ export default function AlertModal({
                   const isDestructive = button.style === 'destructive';
 
                   return (
-                    <TouchableOpacity
+                    <AppButton
                       key={index}
                       onPress={() => handleButtonPress(button)}
-                      activeOpacity={0.85}
                       className={`flex-1 py-3.5 rounded-full items-center justify-center ${
                         isCancel ? 'bg-[#F5F5F5]' : isDestructive ? 'bg-[#DC2626]' : 'bg-[#F9EF08]'
                       }`}
@@ -225,7 +233,7 @@ export default function AlertModal({
                       >
                         {button.text}
                       </Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   );
                 })}
               </View>

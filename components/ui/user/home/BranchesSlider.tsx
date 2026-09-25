@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { onValue, ref } from 'firebase/database';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ScrollView, Text, View } from 'react-native';
 import { db } from '../../../../firebase/firebase';
 import { formatDistance, getCurrentLocation, haversineMeters } from '../../../../lib/location';
 
@@ -92,14 +93,14 @@ export default function BranchesSlider() {
       {/* Section header */}
       <View className="flex-row justify-between items-center px-5 mb-2">
         <Text className="text-lg font-bold text-[#1A1A1A]">Branches near you</Text>
-        <TouchableOpacity
+        <AppButton
           className="flex-row items-center"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           onPress={() => router.push('/user/(tabs)/book')}
         >
           <Text className="text-sm font-semibold text-[#1A1A1A] mr-1">See All</Text>
           <Ionicons name="chevron-forward" size={14} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
       </View>
 
       {/* Cards */}
@@ -118,7 +119,7 @@ export default function BranchesSlider() {
               : null;
 
           return (
-            <TouchableOpacity
+            <AppButton
               key={branch.id}
               className={index < branches.length - 1 ? 'mr-4' : ''}
               style={{ width: 220 }}
@@ -127,7 +128,6 @@ export default function BranchesSlider() {
                 // see HomeHeader's handleSelectBranch for why a repeated `q` alone isn't enough.
                 router.push({ pathname: '/user/(tabs)/book', params: { q: branch.name, ts: String(Date.now()) } })
               }
-              activeOpacity={0.82}
             >
               {/* Image */}
               <RemoteImage
@@ -152,7 +152,7 @@ export default function BranchesSlider() {
                   {branch.address}
                 </Text>
               </View>
-            </TouchableOpacity>
+            </AppButton>
           );
         })}
       </ScrollView>

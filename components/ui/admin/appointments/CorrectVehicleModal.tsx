@@ -4,6 +4,7 @@ import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { get, ref, update } from 'firebase/database';
 import { useEffect, useMemo, useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,7 +14,6 @@ import {
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -239,9 +239,9 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
         <View className="bg-white rounded-t-2xl px-5 pt-5" style={{ maxHeight: '86%' }}>
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-lg font-bold text-[#1A1A1A]">Correct Vehicle / Service</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <AppButton onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           {!booking ? null : loadingCatalog ? (
@@ -258,7 +258,7 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
               <Text className="text-xs font-semibold text-gray-500 uppercase mb-2 mt-2">Actual vehicle class</Text>
               <View className="flex-row flex-wrap" style={{ gap: 8 }}>
                 {VEHICLE_CLASSES.map((c) => (
-                  <TouchableOpacity
+                  <AppButton
                     key={c.label}
                     onPress={() => handleSelectClass(c.label)}
                     className={`px-3 py-2 rounded-full border ${
@@ -268,7 +268,7 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
                     <Text className={`text-xs font-semibold ${selectedLabel === c.label ? 'text-[#1A1A00]' : 'text-[#1A1A1A]'}`}>
                       {c.label}
                     </Text>
-                  </TouchableOpacity>
+                  </AppButton>
                 ))}
               </View>
 
@@ -282,9 +282,9 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
                 >
                   <Text className="flex-1 text-sm text-[#1A1A1A]" numberOfLines={1}>{item.name}</Text>
                   <Text className="text-sm text-[#1A1A1A] mr-3">{fmtPeso(item.price)}</Text>
-                  <TouchableOpacity onPress={() => toggleRemoveService(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <AppButton onPress={() => toggleRemoveService(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name={item.removed ? 'add-circle-outline' : 'close-circle-outline'} size={20} color={item.removed ? '#22C55E' : '#EF4444'} />
-                  </TouchableOpacity>
+                  </AppButton>
                 </View>
               ))}
 
@@ -298,9 +298,9 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
                     >
                       <Text className="flex-1 text-sm text-[#1A1A1A]" numberOfLines={1}>{item.name}</Text>
                       <Text className="text-sm text-[#1A1A1A] mr-3">{fmtPeso(item.price)}</Text>
-                      <TouchableOpacity onPress={() => toggleRemoveAddon(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <AppButton onPress={() => toggleRemoveAddon(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                         <Ionicons name={item.removed ? 'add-circle-outline' : 'close-circle-outline'} size={20} color={item.removed ? '#22C55E' : '#EF4444'} />
-                      </TouchableOpacity>
+                      </AppButton>
                     </View>
                   ))}
                 </>
@@ -329,11 +329,10 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
                 style={{ minHeight: 56, textAlignVertical: 'top' }}
               />
 
-              <TouchableOpacity
+              <AppButton
                 className={`rounded-2xl py-4 items-center mt-5 ${selectedLabel && !saving ? 'bg-[#F9EF08]' : 'bg-[#F0F0F0]'}`}
                 onPress={handleSave}
                 disabled={!selectedLabel || saving}
-                activeOpacity={0.85}
               >
                 {saving ? (
                   <ActivityIndicator color="#1A1A00" />
@@ -342,7 +341,7 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
                     Save Correction
                   </Text>
                 )}
-              </TouchableOpacity>
+              </AppButton>
 
               <View style={{ height: insets.bottom + 16 }} />
             </ScrollView>

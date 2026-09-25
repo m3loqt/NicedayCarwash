@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ScrollView, StatusBar, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -19,13 +20,13 @@ export default function PrivacyPolicyScreen() {
 
       {/* Header */}
       <View className="flex-row items-center px-6 pt-4 pb-4">
-        <TouchableOpacity
+        <AppButton
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="mr-3"
         >
           <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text className="text-[17px] font-inter-bold tracking-tight text-[#1A1A1A]">Privacy Policy</Text>
       </View>
 

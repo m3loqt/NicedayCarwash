@@ -27,6 +27,13 @@ export const ANDROID_NOTIFICATION_CHANNEL_ID = 'default';
 export const ANDROID_KEEP_OPEN_HINT =
   "To get alerts while the app is closed, don't swipe it away from your recent apps.";
 
+// Set (BookingSuccess) the moment a booking is confirmed, regardless of which exit button the
+// user taps next - consumed once by whichever screen they land on first (see the user tabs
+// layout), so the reminder isn't tied to one specific route.
+export const PUSH_HINT_PENDING_KEY = 'pendingPushHintTrigger';
+// Never shown twice - once this is set, the reminder is retired for good.
+export const PUSH_HINT_SEEN_KEY = 'hasSeenPushHint';
+
 // Safe to call repeatedly - re-creating an existing channel just updates it. Call this
 // early (app start) so the channel exists before the first notification arrives, not only
 // after the user logs in.

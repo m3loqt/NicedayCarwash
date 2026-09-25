@@ -1,18 +1,19 @@
 import { ListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { useAlert } from '@/hooks/use-alert';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref, remove } from 'firebase/database';
 import { useEffect, useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
+  Image,
   ImageSourcePropType,
   Modal,
   ScrollView,
   Text,
-  TouchableOpacity,
-  View
+  View,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VehicleCard from './VehicleCard';
@@ -117,6 +118,7 @@ export default function VehiclesList() {
         message="Vehicle has been removed successfully!"
         onContinue={() => setShowDeleteSuccess(false)}
         iconType="delete"
+        image={require('../../../../assets/images/vehiremoved.png')}
       />
     );
   }
@@ -150,19 +152,22 @@ export default function VehiclesList() {
           ))
         ) : (
           <View className="items-center justify-center py-24">
-            <Ionicons name="car-outline" size={48} color="#E0E0E0" />
+            <Image
+              source={require('../../../../assets/images/novehi.png')}
+              style={{ width: 160, height: 160 }}
+              resizeMode="contain"
+            />
             <Text className="text-base text-[#999] mt-4">No vehicles yet</Text>
             <Text className="text-[13px] text-[#CCC] mt-1">Add your first vehicle below</Text>
           </View>
         )}
 
-        <TouchableOpacity
+        <AppButton
           className="bg-[#F9EF08] rounded-2xl mx-5 mt-3 py-4 items-center"
           onPress={handleAdd}
-          activeOpacity={0.85}
         >
           <Text className="text-[#1A1A00] text-[15px] font-bold">Add Vehicle</Text>
-        </TouchableOpacity>
+        </AppButton>
       </ScrollView>
 
       {/* Vehicle action modal */}
@@ -173,9 +178,8 @@ export default function VehiclesList() {
         onRequestClose={() => setSelectedVehicle(null)}
       >
         <View className="flex-1 bg-black/40 justify-end">
-          <TouchableOpacity
+          <Pressable
             className="flex-1"
-            activeOpacity={1}
             onPress={() => setSelectedVehicle(null)}
           />
           <View className="bg-white rounded-t-xl px-5 pt-3" style={{ paddingBottom: insets.bottom + 40 }}>
@@ -198,21 +202,19 @@ export default function VehiclesList() {
 
             {/* Edit / Delete - side by side */}
             <View className="flex-row gap-3">
-              <TouchableOpacity
+              <AppButton
                 className="flex-1 bg-[#F9EF08] rounded-2xl py-4 items-center"
                 onPress={() => selectedVehicle && handleEdit(selectedVehicle.vplateNumber)}
-                activeOpacity={0.85}
               >
                 <Text className="text-[#1A1A00] text-[15px] font-bold">Edit</Text>
-              </TouchableOpacity>
+              </AppButton>
 
-              <TouchableOpacity
+              <AppButton
                 className="flex-1 bg-[#F5F5F5] rounded-2xl py-4 items-center"
                 onPress={() => selectedVehicle && handleDelete(selectedVehicle.vplateNumber)}
-                activeOpacity={0.85}
               >
                 <Text className="text-[#1A1A1A] text-[15px] font-bold">Delete</Text>
-              </TouchableOpacity>
+              </AppButton>
             </View>
           </View>
         </View>

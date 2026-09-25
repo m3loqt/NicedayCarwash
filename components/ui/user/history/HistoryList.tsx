@@ -1,13 +1,13 @@
 import PullToRefresh from '@/components/ui/common/PullToRefresh';
 import { ListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Text, View } from 'react-native';
 import BookingCard from './BookingCard';
 import AppointmentDetailsModal from './modals/AppointmentDetailsModal';
 
@@ -254,7 +254,11 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
       >
         {isEmpty ? (
           <View className="flex-1 justify-center items-center px-10">
-            <Ionicons name="receipt-outline" size={48} color="#E0E0E0" />
+            <Image
+              source={require('../../../../assets/images/empty.png')}
+              style={{ width: 160, height: 160 }}
+              resizeMode="contain"
+            />
             <Text className="text-[19px] font-bold text-[#1A1A1A] mt-4 mb-1.5">{emptyState.title}</Text>
             <Text
               className="text-[13.5px] text-[#999] text-center leading-5 mb-6"
@@ -263,13 +267,12 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               {emptyState.subtitle}
             </Text>
             {emptyState.showCta && (
-              <TouchableOpacity
+              <AppButton
                 className="bg-[#F9EF08] rounded-full px-8 py-3.5"
                 onPress={() => router.push('/user/(tabs)/book')}
-                activeOpacity={0.85}
               >
                 <Text className="text-[14px] font-bold text-[#1A1A00]">Book a Wash</Text>
-              </TouchableOpacity>
+              </AppButton>
             )}
           </View>
         ) : (

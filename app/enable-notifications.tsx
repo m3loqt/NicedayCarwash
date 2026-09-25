@@ -1,10 +1,10 @@
 import { ANDROID_KEEP_OPEN_HINT, registerForPushNotificationsAsync } from '@/lib/pushNotifications';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, ref, update } from 'firebase/database';
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Platform, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ActivityIndicator, Image, Linking, Platform, StatusBar, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EnableNotificationsScreen() {
@@ -31,9 +31,11 @@ export default function EnableNotificationsScreen() {
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <View className="flex-1 px-6 justify-center items-center">
-        <View className="w-20 h-20 rounded-full bg-[#FAFAFA] items-center justify-center mb-6">
-          <Ionicons name="notifications" size={32} color="#1A1A1A" />
-        </View>
+        <Image
+          source={require('../assets/images/enablenotif.png')}
+          style={{ width: 160, height: 160, marginBottom: 8 }}
+          resizeMode="contain"
+        />
 
         <Text className="text-[22px] font-inter-semibold tracking-tight text-[#1A1A1A] mb-1.5 text-center">
           Enable Notification Access
@@ -42,14 +44,13 @@ export default function EnableNotificationsScreen() {
           className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center mb-10"
           style={{ maxWidth: 260 }}
         >
-          Enable notifications to receive real-time updates
+          Get notified the moment your booking status changes
         </Text>
 
-        <TouchableOpacity
+        <AppButton
           className={`w-full bg-[#F9EF08] rounded-full py-4 items-center mb-5 min-h-[52px] justify-center ${requesting ? 'opacity-60' : ''}`}
           onPress={handleAllowNotifications}
           disabled={requesting}
-          activeOpacity={0.85}
         >
           {requesting ? (
             <ActivityIndicator size="small" color="#1A1A00" />
@@ -58,20 +59,20 @@ export default function EnableNotificationsScreen() {
               Allow Notification
             </Text>
           )}
-        </TouchableOpacity>
+        </AppButton>
 
-        <TouchableOpacity onPress={finishOnboarding} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <AppButton onPress={finishOnboarding} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text className="text-[13px] font-inter-medium tracking-tight text-[#666]">
             Maybe Later
           </Text>
-        </TouchableOpacity>
+        </AppButton>
 
         {Platform.OS === 'android' && (
           <View className="mt-8 items-center" style={{ maxWidth: 280 }}>
             <Text className="text-[12px] font-inter-regular tracking-tight text-[#999] text-center">
               {ANDROID_KEEP_OPEN_HINT}
             </Text>
-            <TouchableOpacity
+            <AppButton
               onPress={() => Linking.openSettings()}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               className="mt-1.5"
@@ -79,7 +80,7 @@ export default function EnableNotificationsScreen() {
               <Text className="text-[12px] font-inter-medium tracking-tight text-[#666]">
                 Open app settings
               </Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
         )}
       </View>

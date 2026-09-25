@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   Modal,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
-} from "react-native";
+  Pressable,
+} from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AddTimeSlotModal({
@@ -66,7 +67,7 @@ export default function AddTimeSlotModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-black/40 justify-end">
-        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+        <Pressable className="flex-1" onPress={onClose} />
         <View className="bg-white rounded-t-xl px-5 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
           <View className="items-center pb-2">
             <View className="w-10 h-1 rounded-full bg-[#E0E0E0]" />
@@ -75,33 +76,33 @@ export default function AddTimeSlotModal({
             <Text className="text-[17px] font-bold text-[#1A1A1A]" style={{ fontFamily: "Inter_700Bold" }}>
               Add time slot
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <AppButton onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color="#999" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           <Text className="text-[#666] text-sm mb-2" style={{ fontFamily: "Inter_400Regular" }}>
             Start time
           </Text>
           <View className="mb-4 relative">
-            <TouchableOpacity
+            <AppButton
               onPress={() => { setOpenStart(!openStart); setOpenEnd(false); }}
               className="bg-[#FAFAFA] rounded-lg px-4 py-3 flex-row justify-between items-center"
             >
               <Text className="text-[#1E1E1E] text-base" style={{ fontFamily: "Inter_500Medium" }}>{startTime}</Text>
               <Ionicons name={openStart ? "chevron-up" : "chevron-down"} size={20} color="#666" />
-            </TouchableOpacity>
+            </AppButton>
             {openStart && (
               <View className="absolute left-0 right-0 top-full mt-1 bg-white rounded-lg z-20 max-h-48">
                 <ScrollView>
                   {times.slice(0, times.length - 1).map((t) => (
-                    <TouchableOpacity
+                    <AppButton
                       key={t}
                       onPress={() => handleSelectStartTime(t)}
                       className="px-4 py-3 border-b border-[#EEEEEE]/50 last:border-0"
                     >
                       <Text className="text-[#1E1E1E] text-sm" style={{ fontFamily: "Inter_400Regular" }}>{t}</Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   ))}
                 </ScrollView>
               </View>
@@ -112,38 +113,38 @@ export default function AddTimeSlotModal({
             End time
           </Text>
           <View className="mb-6 relative">
-            <TouchableOpacity
+            <AppButton
               onPress={() => { setOpenEnd(!openEnd); setOpenStart(false); }}
               className="bg-[#FAFAFA] rounded-lg px-4 py-3 flex-row justify-between items-center"
             >
               <Text className="text-[#1E1E1E] text-base" style={{ fontFamily: "Inter_500Medium" }}>{endTime}</Text>
               <Ionicons name={openEnd ? "chevron-up" : "chevron-down"} size={20} color="#666" />
-            </TouchableOpacity>
+            </AppButton>
             {openEnd && (
               <View className="absolute left-0 right-0 top-full mt-1 bg-white rounded-lg z-20 max-h-48">
                 <ScrollView>
                   {filteredEndTimes.map((t) => (
-                    <TouchableOpacity
+                    <AppButton
                       key={t}
                       onPress={() => { setEndTime(t); setOpenEnd(false); }}
                       className="px-4 py-3 border-b border-[#EEEEEE]/50 last:border-0"
                     >
                       <Text className="text-[#1E1E1E] text-sm" style={{ fontFamily: "Inter_400Regular" }}>{t}</Text>
-                    </TouchableOpacity>
+                    </AppButton>
                   ))}
                 </ScrollView>
               </View>
             )}
           </View>
 
-          <TouchableOpacity
+          <AppButton
             onPress={handleAdd}
             className="bg-[#F9EF08] rounded-lg py-3 items-center"
           >
             <Text className="text-[#1A1A1A] font-bold" style={{ fontFamily: "Inter_700Bold" }}>
               Add time slot
             </Text>
-          </TouchableOpacity>
+          </AppButton>
         </View>
       </View>
     </Modal>

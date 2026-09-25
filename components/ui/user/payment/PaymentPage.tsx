@@ -7,7 +7,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BookingData {
@@ -204,13 +205,13 @@ export default function PaymentPage() {
         {/* Header */}
         <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
           <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
-            <TouchableOpacity
+            <AppButton
               className="w-10 h-10 rounded-full bg-white border items-center justify-center"
               style={{ borderColor: 'rgba(179, 179, 179, 0.20)' }}
               onPress={() => router.back()}
             >
               <Ionicons name="arrow-back" size={24} color="#B3B3B3" />
-            </TouchableOpacity>
+            </AppButton>
             <Text className="text-2xl font-semibold text-[#1E1E1E]">Payment</Text>
             <View className="w-10" />
           </View>
@@ -263,7 +264,7 @@ export default function PaymentPage() {
                 icon: '💳',
               },
             ].map((method) => (
-              <TouchableOpacity
+              <AppButton
                 key={method.id}
                 onPress={() => setSelectedPaymentMethod(method.id)}
                 className="bg-gray-50 p-4 rounded-xl mb-3 flex-row items-center border-2"
@@ -287,13 +288,13 @@ export default function PaymentPage() {
                     <View className="w-3.5 h-3.5 rounded-full bg-[#F9EF08]" />
                   )}
                 </View>
-              </TouchableOpacity>
+              </AppButton>
             ))}
           </View>
 
           {/* Payment Button */}
           <View className="mx-4">
-            <TouchableOpacity
+            <AppButton
               className="bg-[#F9EF08] py-4 rounded-xl items-center justify-center"
               onPress={handlePayment}
               disabled={processing || !selectedPaymentMethod}
@@ -306,7 +307,7 @@ export default function PaymentPage() {
                   Pay ₱{bookingFee.toFixed(2)}
                 </Text>
               )}
-            </TouchableOpacity>
+            </AppButton>
           </View>
         </ScrollView>
         {AlertComponent}

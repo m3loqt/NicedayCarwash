@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
     Modal,
     Pressable,
     Text,
     TextInput,
-    TouchableOpacity,
     View,
-} from "react-native";
+} from 'react-native';
 
 interface EditBayModalProps {
   visible: boolean;
@@ -60,9 +60,9 @@ export default function EditBayModal({
             <Text className="text-xl font-bold text-gray-900">
               Edit Bay
             </Text>
-            <TouchableOpacity onPress={onClose}>
+            <AppButton onPress={onClose}>
               <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           <View className="mb-6">
@@ -78,22 +78,22 @@ export default function EditBayModal({
 
           {/* BUTTONS */}
           <View className="flex-row gap-3">
-            <TouchableOpacity
+            <AppButton
               onPress={onClose}
               className="flex-1 bg-gray-300 py-3 rounded-full"
             >
               <Text className="text-center text-white font-bold text-lg">
                 Cancel
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AppButton>
+            <AppButton
               onPress={handleSave}
               className="flex-1 bg-[#F9EF08] py-3 rounded-full"
             >
               <Text className="text-center text-white font-bold text-lg">
                 Save
               </Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
         </Pressable>
       </Pressable>

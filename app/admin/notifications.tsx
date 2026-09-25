@@ -1,7 +1,8 @@
 import { usePendingBranchBookings, type PendingBranchBooking } from '@/hooks/use-pending-branch-bookings';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, ScrollView, StatusBar, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatRelativeDate(isoString: string): string {
@@ -29,9 +30,9 @@ export default function AdminNotificationsScreen() {
 
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <AppButton onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={22} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#1A1A1A', marginRight: count > 0 ? 0 : 22 }}>
           Notifications
         </Text>
@@ -48,12 +49,11 @@ export default function AdminNotificationsScreen() {
         {items.length === 0 ? (
           /* Empty state */
           <View style={{ alignItems: 'center', paddingTop: 100, paddingHorizontal: 40 }}>
-            <View style={{
-              width: 100, height: 100, borderRadius: 50,
-              backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center', marginBottom: 24,
-            }}>
-              <Ionicons name="mail-outline" size={48} color="#BDBDBD" />
-            </View>
+            <Image
+              source={require('../../assets/images/nonotif.png')}
+              style={{ width: 160, height: 160, marginBottom: 16 }}
+              resizeMode="contain"
+            />
             <Text style={{ fontSize: 20, fontWeight: '700', color: '#1A1A1A', marginBottom: 8 }}>
               No pending requests
             </Text>
@@ -82,8 +82,7 @@ function NotifCard({ item, onPress }: { item: PendingBranchBooking; onPress: (it
   const vehicleLabel = item.vehicleDetails.vehicleName || item.vehicleDetails.classification || 'Vehicle';
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.75}
+    <AppButton
       onPress={() => onPress(item)}
       style={{
         flexDirection: 'row',
@@ -122,6 +121,6 @@ function NotifCard({ item, onPress }: { item: PendingBranchBooking; onPress: (it
           {vehicleLabel} · {item.timeSlot.appointmentDate} at {item.timeSlot.time} · P{item.amountDue.toFixed(2)}
         </Text>
       </View>
-    </TouchableOpacity>
+    </AppButton>
   );
 }

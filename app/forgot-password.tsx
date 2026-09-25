@@ -4,14 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
   StatusBar,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,9 +50,12 @@ export default function ForgotPasswordScreen() {
         <View className="flex-1 px-6 justify-center items-center">
 
           {/* Icon */}
-          <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-5">
-            <Ionicons name="mail-outline" size={28} color="#1A1A1A" />
-          </View>
+          <Image
+            source={require('../assets/images/emailsent.png')}
+            style={{ width: 160, height: 160 }}
+            resizeMode="contain"
+            className="mb-3"
+          />
 
           {/* Title + message */}
           <Text className="text-[20px] font-bold text-[#1A1A1A] text-center mb-1.5">
@@ -63,26 +67,25 @@ export default function ForgotPasswordScreen() {
           </Text>
 
           {/* Open email app */}
-          <TouchableOpacity
+          <AppButton
             className="w-full bg-[#F9EF08] rounded-2xl py-3.5 items-center mb-4"
-            activeOpacity={0.85}
             onPress={() => Linking.openURL('mailto:')}
           >
             <Text className="text-[14px] font-bold text-[#1A1A00]">Open email app</Text>
-          </TouchableOpacity>
+          </AppButton>
 
           {/* Resend */}
           <View className="flex-row items-center">
             <Text className="text-[12px] text-[#999]">Didn't receive it? </Text>
-            <TouchableOpacity onPress={handleResetPassword}>
+            <AppButton onPress={handleResetPassword}>
               <Text className="text-[12px] font-bold text-[#1A1A1A]">Resend</Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           {/* Back to login */}
-          <TouchableOpacity onPress={handleBack} className="mt-6">
+          <AppButton onPress={handleBack} className="mt-6">
             <Text className="text-[12px] text-[#999]">Back to Sign In</Text>
-          </TouchableOpacity>
+          </AppButton>
 
         </View>
       </SafeAreaView>
@@ -100,13 +103,13 @@ export default function ForgotPasswordScreen() {
         <View className="flex-1 px-6">
 
           {/* Back */}
-          <TouchableOpacity
+          <AppButton
             onPress={handleBack}
             className="mt-4 mb-8"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
-          </TouchableOpacity>
+          </AppButton>
 
           {/* Icon */}
           <View className="w-16 h-16 rounded-2xl bg-[#FAFAFA] border border-[#EEEEEE] items-center justify-center mb-5">
@@ -139,13 +142,12 @@ export default function ForgotPasswordScreen() {
           </View>
 
           {/* Send button */}
-          <TouchableOpacity
+          <AppButton
             className="w-full bg-[#F9EF08] rounded-2xl py-3.5 items-center mb-5"
             onPress={handleResetPassword}
-            activeOpacity={0.85}
           >
             <Text className="text-[14px] font-bold text-[#1A1A00]">Send Reset Link</Text>
-          </TouchableOpacity>
+          </AppButton>
 
           {/* Back to login */}
           <View className="items-center">

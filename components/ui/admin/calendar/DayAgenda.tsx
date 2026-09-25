@@ -1,8 +1,8 @@
-import { bookingStatusStyle } from '@/components/ui/admin/bookingStatusStyle';
+import BookingCard from '@/components/ui/admin/BookingCard';
 import PullToRefresh from '@/components/ui/common/PullToRefresh';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Fragment } from 'react';
+import { Image, Text, View } from 'react-native';
 
 // Maps a booking's raw status to the tab it lives under on the Bookings screen.
 const STATUS_TO_TAB: Record<string, string> = {
@@ -13,12 +13,29 @@ const STATUS_TO_TAB: Record<string, string> = {
   cancelled: 'history',
 };
 
+// Maps a booking's raw status to the section it's grouped under in the day's agenda below.
+// "In progress" is literally status === 'ongoing' (the wash is happening right now); pending
+// and accepted are both still ahead of that, so they share "Upcoming" for a single day's view.
+type AgendaGroup = 'In progress' | 'Upcoming' | 'Completed' | 'Cancelled';
+const STATUS_TO_GROUP: Record<string, AgendaGroup> = {
+  ongoing: 'In progress',
+  pending: 'Upcoming',
+  accepted: 'Upcoming',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+const GROUP_ORDER: AgendaGroup[] = ['In progress', 'Upcoming', 'Completed', 'Cancelled'];
+
 interface DayAgendaBooking {
   appointmentId: string;
   status: string;
   timeSlot: { time: string; appointmentDate: string; estCompletion?: string };
   vehicleDetails: { vehicleName: string; plateNumber: string; classification: string };
   amountDue: number;
+  // TODO: no customer name is stored on the reservation record anywhere (see
+  // ConfirmationStep.tsx's bookingData) - the card falls back to the vehicle name as its title
+  // until one is added at booking-creation time.
+  services?: { name: string }[];
 }
 
 interface DayAgendaProps {
@@ -28,31 +45,55 @@ interface DayAgendaProps {
   onRefresh: () => void | Promise<void>;
 }
 
-export default function DayAgenda({ date, bookings, onRefresh }: DayAgendaProps) {
+// Parses "7:00 AM" / "07:00 AM" / "19:00" into minutes-since-midnight for sorting.
+const timeToMinutes = (time: string | undefined): number => {
+  if (!time) return 0;
+  const isPM = /pm/i.test(time);
+  const isAM = /am/i.test(time);
+  const [hStr, mStr] = time.replace(/[^0-9:]/g, '').split(':');
+  let h = parseInt(hStr, 10) || 0;
+  const m = parseInt(mStr, 10) || 0;
+  if (isPM && h !== 12) h += 12;
+  if (isAM && h === 12) h = 0;
+  return h * 60 + m;
+};
+
+export default function DayAgenda({ date, isToday, bookings, onRefresh }: DayAgendaProps) {
   const dateLabel = date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   });
+  const headingLabel = isToday ? `Today, ${dateLabel}` : dateLabel;
+
+  // Client-side summary from the day's already-loaded bookings - no new fetch.
+  const nonCancelled = bookings.filter((b) => b.status !== 'cancelled');
+  const inProgressCount = bookings.filter((b) => STATUS_TO_GROUP[b.status] === 'In progress').length;
+
+  const summaryParts = [`${nonCancelled.length} booking${nonCancelled.length !== 1 ? 's' : ''}`];
+  if (inProgressCount > 0) summaryParts.push(`${inProgressCount} in progress`);
+
+  const sorted = [...bookings].sort((a, b) => timeToMinutes(a.timeSlot?.time) - timeToMinutes(b.timeSlot?.time));
+  const grouped: Partial<Record<AgendaGroup, DayAgendaBooking[]>> = {};
+  sorted.forEach((b) => {
+    const group = STATUS_TO_GROUP[b.status] ?? 'Upcoming';
+    (grouped[group] ??= []).push(b);
+  });
 
   return (
     <View style={{ flex: 1 }}>
       {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          paddingHorizontal: 20,
-          paddingTop: 16,
-          paddingBottom: 12,
-        }}
-      >
+      <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
         <Text style={{ fontSize: 22, fontWeight: '700', color: '#1A1A1A' }}>
-          {dateLabel}
+          {headingLabel}
         </Text>
-        <Text style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
-          {bookings.length} booking{bookings.length !== 1 ? 's' : ''}
+        <Text style={{ fontSize: 13, color: '#999', marginTop: 3 }}>
+          {summaryParts.map((part, i) => (
+            <Fragment key={i}>
+              {i > 0 && <Text style={{ color: '#CCC' }}> · </Text>}
+              {part}
+            </Fragment>
+          ))}
         </Text>
       </View>
 
@@ -65,65 +106,50 @@ export default function DayAgenda({ date, bookings, onRefresh }: DayAgendaProps)
       >
         {bookings.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
-            <Ionicons name="calendar-outline" size={48} color="#E0E0E0" />
+            <Image
+              source={require('../../../../assets/images/empty.png')}
+              style={{ width: 160, height: 160 }}
+              resizeMode="contain"
+            />
             <Text style={{ fontSize: 17, fontWeight: '700', color: '#1A1A1A', marginTop: 14, marginBottom: 6 }}>
               No bookings on this day
             </Text>
-            <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', lineHeight: 18, maxWidth: 220 }}>
-              Bookings scheduled for this date will show up here.
+            <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', lineHeight: 18, maxWidth: 260 }}>
+              Bookings for this date will show up here.
             </Text>
           </View>
         ) : (
-          bookings.map((booking) => {
-            const s = bookingStatusStyle(booking.status);
-            const tab = STATUS_TO_TAB[booking.status] ?? 'pending';
+          GROUP_ORDER.map((group) => {
+            const items = grouped[group];
+            if (!items || items.length === 0) return null;
+
             return (
-              <TouchableOpacity
-                key={booking.appointmentId}
-                activeOpacity={0.7}
-                onPress={() => router.push(`/admin/bookings?tab=${tab}` as any)}
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 16,
-                  padding: 16,
-                  marginBottom: 10,
-                }}
-              >
-                {/* Vehicle name + status */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                  <Text
-                    style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#1A1A1A', marginRight: 8 }}
-                    numberOfLines={1}
-                  >
-                    {booking.vehicleDetails?.vehicleName || 'Vehicle'}
-                  </Text>
-                  <View style={{ backgroundColor: s.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: s.fg }}>
-                      {s.label}
-                    </Text>
-                  </View>
-                </View>
+              <View key={group}>
+                {items.map((booking) => {
+                  const tab = STATUS_TO_TAB[booking.status] ?? 'pending';
+                  // No customer name is available (see the TODO on DayAgendaBooking above) - the
+                  // vehicle name doubles as the title, so it's left out of the detail row below
+                  // to avoid showing it twice.
+                  const title = booking.vehicleDetails?.vehicleName || 'Vehicle';
+                  const serviceLabel = (booking.services ?? []).map((sv) => sv?.name).filter(Boolean).join(', ');
+                  const detailLabel = [booking.vehicleDetails?.plateNumber, booking.vehicleDetails?.classification]
+                    .filter(Boolean)
+                    .join(' · ');
 
-                {/* Plate · Type */}
-                <Text style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
-                  {booking.vehicleDetails?.plateNumber}
-                  {booking.vehicleDetails?.plateNumber && booking.vehicleDetails?.classification ? '  ·  ' : ''}
-                  {booking.vehicleDetails?.classification}
-                </Text>
-
-                {/* Time + Amount */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="time-outline" size={13} color="#BDBDBD" />
-                    <Text style={{ fontSize: 12, color: '#BDBDBD', marginLeft: 4 }}>
-                      {booking.timeSlot?.time}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A1A1A' }}>
-                    ₱{Number(booking.amountDue).toFixed(2)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                  return (
+                    <BookingCard
+                      key={booking.appointmentId}
+                      time={booking.timeSlot?.time}
+                      title={title}
+                      serviceLabel={serviceLabel}
+                      detailLabel={detailLabel}
+                      amountDue={booking.amountDue}
+                      status={booking.status}
+                      onPress={() => router.push(`/admin/bookings?tab=${tab}` as any)}
+                    />
+                  );
+                })}
+              </View>
             );
           })
         )}

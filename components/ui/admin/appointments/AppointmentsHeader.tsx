@@ -1,7 +1,8 @@
 import { usePendingBranchBookings } from '@/hooks/use-pending-branch-bookings';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, Text, View } from 'react-native';
 
 export default function AppointmentsHeader() {
   const { count } = usePendingBranchBookings();
@@ -10,8 +11,7 @@ export default function AppointmentsHeader() {
     <View className="px-5 pt-4 pb-4 flex-row items-center justify-between">
       <Text className="text-3xl font-bold text-[#1A1A1A]">Bookings</Text>
       <View className="flex-row items-center">
-        <TouchableOpacity
-          activeOpacity={0.7}
+        <AppButton
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           onPress={() => router.push('/admin/notifications')}
           className="w-9 h-9 rounded-full bg-[#FAFAFA] items-center justify-center"
@@ -24,7 +24,7 @@ export default function AppointmentsHeader() {
               ) : null}
             </View>
           )}
-        </TouchableOpacity>
+        </AppButton>
         <Image
           source={require('../../../../assets/images/ndcwlogo.png')}
           className="w-16 h-11 ml-2.5"

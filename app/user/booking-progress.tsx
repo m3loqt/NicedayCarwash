@@ -1,14 +1,17 @@
+import { ANDROID_KEEP_OPEN_HINT } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getDatabase, onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   ActivityIndicator,
   Image,
+  Platform,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -103,6 +106,15 @@ export default function BookingProgressScreen() {
   const { appointmentId, date } = useLocalSearchParams<{ appointmentId: string; date: string }>();
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Fallback reference for the reminder that also shows once, right after booking - this is the
+  // screen a user actually opens to check on a pending appointment, so it's the more durable spot
+  // to catch anyone who missed (or dismissed) the one-time version.
+  const [notificationsGranted, setNotificationsGranted] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    Notifications.getPermissionsAsync().then(({ status }) => setNotificationsGranted(status === 'granted'));
+  }, []);
 
   useEffect(() => {
     if (!appointmentId || !date) return;
@@ -147,14 +159,18 @@ export default function BookingProgressScreen() {
   if (!booking) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center px-8" edges={['top']}>
-        <Ionicons name="alert-circle-outline" size={48} color="#E0E0E0" />
+        <Image
+          source={require('../../assets/images/bookingnotfound.png')}
+          style={{ width: 160, height: 160 }}
+          resizeMode="contain"
+        />
         <Text className="text-base text-[#999] mt-4 text-center">Booking not found</Text>
-        <TouchableOpacity
+        <AppButton
           className="mt-6 bg-[#F9EF08] rounded-2xl px-8 py-3"
           onPress={() => router.back()}
         >
           <Text className="text-[14px] font-bold text-[#1A1A00]">Go Back</Text>
-        </TouchableOpacity>
+        </AppButton>
       </SafeAreaView>
     );
   }
@@ -178,13 +194,13 @@ export default function BookingProgressScreen() {
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center px-5 pt-2 pb-5">
-        <TouchableOpacity
+        <AppButton
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="w-9 h-9 rounded-full border border-[#EEEEEE] items-center justify-center"
         >
           <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
-        </TouchableOpacity>
+        </AppButton>
         <Text className="flex-1 text-center text-[17px] font-bold text-[#1A1A1A] mr-9">
           Booking Status
         </Text>
@@ -202,14 +218,18 @@ export default function BookingProgressScreen() {
             <View className="flex-row items-start bg-[#FFFBE0] rounded-xl px-4 py-3 mb-6">
               <Ionicons name="information-circle-outline" size={16} color="#8A7A00" style={{ marginRight: 8, marginTop: 1 }} />
               <Text className="flex-1 text-[12px] text-[#5A5100] leading-[17px]">
-                Booking hours can only be accepted during the operating hours of this branch, please be patient.
+                Bookings can only be accepted during this branch's operating hours — please be patient.
               </Text>
             </View>
           )}
 
           {booking.status === 'cancelled' ? (
             <View className="items-center py-10">
-              <Ionicons name="close-circle-outline" size={40} color="#BDBDBD" />
+              <Image
+                source={require('../../assets/images/canceledbook.png')}
+                style={{ width: 160, height: 160 }}
+                resizeMode="contain"
+              />
               <Text className="text-[16px] font-bold text-[#1A1A1A] mt-3">Booking Cancelled</Text>
               <Text className="text-[13px] text-[#999] mt-1 text-center">
                 This appointment has been cancelled.
@@ -271,6 +291,16 @@ export default function BookingProgressScreen() {
             </View>
           )}
 
+          {Platform.OS === 'android' &&
+            notificationsGranted &&
+            booking.status !== 'completed' &&
+            booking.status !== 'cancelled' && (
+              <View className="flex-row items-start bg-[#FAFAFA] border border-[#EEEEEE] rounded-xl px-4 py-3 mb-6">
+                <Ionicons name="notifications-outline" size={16} color="#999" style={{ marginRight: 8, marginTop: 1 }} />
+                <Text className="flex-1 text-[12px] text-[#666] leading-[17px]">{ANDROID_KEEP_OPEN_HINT}</Text>
+              </View>
+            )}
+
           <View className="h-[0.5px] bg-[#EEEEEE] my-2" />
 
           {/* Branch / vehicle / date summary */}
@@ -328,7 +358,7 @@ export default function BookingProgressScreen() {
         <View className="px-6 mt-6">
           {/* Only while a branch hasn't acted on it yet - once accepted, the branch is locked in */}
           {booking.status === 'pending' && (
-            <TouchableOpacity
+            <AppButton
               className="bg-white border border-[#EEEEEE] rounded-full py-4 items-center flex-row justify-center mt-3"
               onPress={() =>
                 router.push({
@@ -336,15 +366,14 @@ export default function BookingProgressScreen() {
                   params: { appointmentId: booking.appointmentId, date: booking.timeSlot?.appointmentDate },
                 })
               }
-              activeOpacity={0.85}
             >
               <Ionicons name="swap-horizontal-outline" size={16} color="#1A1A1A" style={{ marginRight: 6 }} />
               <Text className="text-[14px] font-bold text-[#1A1A1A]">Look for Another Branch</Text>
-            </TouchableOpacity>
+            </AppButton>
           )}
 
           {booking.status === 'completed' && (
-            <TouchableOpacity
+            <AppButton
               className="bg-white border border-[#EEEEEE] rounded-full py-4 items-center flex-row justify-center mt-3"
               onPress={() =>
                 router.push({
@@ -352,11 +381,10 @@ export default function BookingProgressScreen() {
                   params: { appointmentId: booking.appointmentId, date: booking.timeSlot?.appointmentDate },
                 })
               }
-              activeOpacity={0.85}
             >
               <Ionicons name="receipt-outline" size={16} color="#1A1A1A" style={{ marginRight: 6 }} />
               <Text className="text-[14px] font-bold text-[#1A1A1A]">View E-Receipt</Text>
-            </TouchableOpacity>
+            </AppButton>
           )}
         </View>
       </ScrollView>

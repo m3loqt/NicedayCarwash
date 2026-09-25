@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { get, onValue, ref } from 'firebase/database';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../../../firebase/firebase';
 import PromotionalBanner, { BANNER_HEIGHT } from './PromotionalBanner';
@@ -146,7 +147,7 @@ export default function HomeHeader() {
             </Text>
           </View>
           <View className="flex-row items-center">
-            <TouchableOpacity
+            <AppButton
               className="w-10 h-10 rounded-full bg-[#1A1A00]/10 items-center justify-center"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={() => router.push('/user/notifications')}
@@ -159,7 +160,7 @@ export default function HomeHeader() {
                   ) : null}
                 </View>
               )}
-            </TouchableOpacity>
+            </AppButton>
             <Image
               source={require('../../../../assets/images/ndcwlogo.png')}
               className="w-20 h-14 ml-3"
@@ -181,13 +182,13 @@ export default function HomeHeader() {
             onChangeText={handleSearchChange}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
+            <AppButton
               onPress={() => setSearchQuery('')}
               className="ml-1 p-1"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="close-circle" size={18} color="#C4C4C4" />
-            </TouchableOpacity>
+            </AppButton>
           )}
         </View>
       </View>
@@ -220,11 +221,10 @@ export default function HomeHeader() {
                       )
                     : null;
                 return (
-                  <TouchableOpacity
+                  <AppButton
                     key={branch.id}
                     className={`px-5 py-3.5 flex-row items-start justify-between ${i < matchedBranches.length - 1 ? 'border-b border-gray-100' : ''}`}
                     onPress={() => handleSelectBranch(branch)}
-                    activeOpacity={0.7}
                   >
                     <View className="flex-1 mr-3">
                       <Text className="text-[14px] font-semibold text-[#1A1A1A]" numberOfLines={1}>
@@ -239,7 +239,7 @@ export default function HomeHeader() {
                     {distanceText && (
                       <Text className="text-[11px] font-semibold text-gray-400">{distanceText}</Text>
                     )}
-                  </TouchableOpacity>
+                  </AppButton>
                 );
               })}
             </ScrollView>

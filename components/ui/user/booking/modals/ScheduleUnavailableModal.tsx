@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Modal, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ScheduleUnavailableModalProps {
@@ -23,7 +24,7 @@ export default function ScheduleUnavailableModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-black/40 justify-end">
-        <TouchableOpacity className="flex-1" activeOpacity={1} onPress={onClose} />
+        <Pressable className="flex-1" onPress={onClose} />
 
         <View className="bg-white rounded-t-xl">
           {/* Handle */}
@@ -34,9 +35,9 @@ export default function ScheduleUnavailableModal({
           {/* Header */}
           <View className="flex-row items-center justify-between px-5 pt-3 pb-4">
             <Text className="text-[17px] font-bold text-[#1A1A1A]">Date Not Available</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <AppButton onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={22} color="#999" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           <View className="h-[0.5px] bg-[#F0F0F0]" />
@@ -59,13 +60,12 @@ export default function ScheduleUnavailableModal({
 
           {/* Button */}
           <View className="px-5 pt-3" style={{ paddingBottom: insets.bottom + 40 }}>
-            <TouchableOpacity
+            <AppButton
               className="bg-[#F9EF08] rounded-2xl py-4 items-center"
               onPress={onClose}
-              activeOpacity={0.85}
             >
               <Text className="text-[14px] font-bold text-[#1A1A1A]">Try Another Date</Text>
-            </TouchableOpacity>
+            </AppButton>
           </View>
         </View>
       </View>

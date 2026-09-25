@@ -1,4 +1,5 @@
-import { Image, ImageSourcePropType, Text, TouchableOpacity } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, ImageSourcePropType, Text } from 'react-native';
 
 interface VehicleCardProps {
   id: string;
@@ -28,10 +29,9 @@ export default function VehicleCard({
   const config = vehicleConfig[type] || defaultConfig;
 
   return (
-    <TouchableOpacity
+    <AppButton
       className="bg-white rounded-2xl mx-5 mb-1.5 px-5 py-5 items-center"
       onPress={onEdit}
-      activeOpacity={0.7}
     >
       <Image
         source={config.image}
@@ -40,6 +40,6 @@ export default function VehicleCard({
       />
       <Text className="text-[14px] font-bold text-[#1A1A1A] -mt-5">{config.label}</Text>
       <Text className="text-[13px] text-[#999] mt-1">{name} {plateNumber}</Text>
-    </TouchableOpacity>
+    </AppButton>
   );
 }

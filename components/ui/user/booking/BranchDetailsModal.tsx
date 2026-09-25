@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import RemoteImage from '@/components/ui/common/RemoteImage';
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   ActivityIndicator,
   Dimensions,
@@ -12,7 +13,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -149,13 +149,13 @@ export default function BranchDetailsModal({
                   />
 
                   {/* Close */}
-                  <TouchableOpacity
+                  <AppButton
                     onPress={onClose}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/35 items-center justify-center"
                   >
                     <Ionicons name="close" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
+                  </AppButton>
 
                   {/* Name + address */}
                   <View className="absolute left-4 right-4 bottom-3.5">
@@ -246,13 +246,12 @@ export default function BranchDetailsModal({
                 style={{ paddingBottom: insets.bottom + 18 }}
               >
                 {branch.acceptingReservations ? (
-                  <TouchableOpacity
+                  <AppButton
                     className="bg-[#F9EF08] py-4 rounded-2xl items-center"
                     onPress={onMakeOrder}
-                    activeOpacity={0.85}
                   >
                     <Text className="text-[#1A1A00] text-[15px] font-inter-bold">Choose branch</Text>
-                  </TouchableOpacity>
+                  </AppButton>
                 ) : (
                   <View className="bg-[#F5F5F5] py-4 rounded-2xl items-center">
                     <Text className="text-[#9CA3AF] text-[15px] font-inter-bold">Walk-ins only</Text>

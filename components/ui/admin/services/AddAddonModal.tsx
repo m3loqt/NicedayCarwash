@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
+import { AppButton } from '@/components/ui/common/AppButton';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,9 +10,8 @@ import {
   ScrollView,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
-} from "react-native";
+} from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export interface AddonFormData {
@@ -83,9 +83,9 @@ export default function AddAddonModal({ visible, onClose, onAdd }: AddAddonModal
         <View className="bg-white rounded-t-xl px-5 pt-5" style={{ paddingBottom: insets.bottom + 32 }}>
           <View className="flex-row items-center justify-between mb-5">
             <Text className="text-xl font-bold text-[#1A1A1A]">Add Add-on</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <AppButton onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
+            </AppButton>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -98,18 +98,17 @@ export default function AddAddonModal({ visible, onClose, onAdd }: AddAddonModal
               <Text className="text-red-500 text-xs mb-3">{error}</Text>
             )}
 
-            <TouchableOpacity
+            <AppButton
               className={`bg-[#F9EF08] rounded-2xl py-4 items-center mt-2 ${loading ? 'opacity-60' : ''}`}
               onPress={handleAdd}
               disabled={loading}
-              activeOpacity={0.85}
             >
               {loading ? (
                 <ActivityIndicator color="#1A1A00" />
               ) : (
                 <Text className="text-[14px] font-bold text-[#1A1A00]">Add Add-on</Text>
               )}
-            </TouchableOpacity>
+            </AppButton>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>

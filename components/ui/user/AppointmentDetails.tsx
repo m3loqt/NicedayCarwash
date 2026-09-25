@@ -1,7 +1,8 @@
 import { formatDuration, parseDurationMinutes } from '@/lib/duration';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/ui/common/AppButton';
+import { Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import PaymentBadge from './payment/PaymentBadge';
 import PaymentButton from './payment/PaymentButton';
@@ -154,13 +155,13 @@ export default function AppointmentDetails({
         {/* Header */}
         <View className="bg-white border-b border-gray-200" style={{ marginTop: -insets.top }}>
         <View className="flex-row items-center justify-between p-4" style={{ paddingTop: insets.top + 16 }}>
-          <TouchableOpacity
+          <AppButton
             className="w-10 h-10 rounded-full bg-white border items-center justify-center"
             style={{ borderColor: 'rgba(179, 179, 179, 0.20)' }}
             onPress={onBack}
           >
             <Ionicons name="arrow-back" size={24} color="#B3B3B3" />
-          </TouchableOpacity>
+          </AppButton>
 
           <Text className="text-2xl font-semibold text-[#1E1E1E]">Appointment Details</Text>
 
