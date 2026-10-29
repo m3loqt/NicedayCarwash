@@ -178,7 +178,7 @@ export default function AvailabilityModal({
             disabled={loading}
             className="bg-[#F9EF08] rounded-xl py-4 items-center"
           >
-            <Text className="text-base font-semibold text-white" numberOfLines={1}>
+            <Text className="text-base font-semibold text-[#1A1A00]" numberOfLines={1}>
               {loading ? "Saving..." : "Save"}
             </Text>
           </AppButton>

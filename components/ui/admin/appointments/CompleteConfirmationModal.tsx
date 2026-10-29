@@ -63,10 +63,10 @@ export default function CompleteConfirmationModal({
               <Text className="text-[14px] font-semibold text-[#666]">Back</Text>
             </AppButton>
             <AppButton
-              className="flex-1 bg-[#1A1A1A] rounded-2xl py-4 items-center"
+              className="flex-1 bg-[#F9EF08] rounded-2xl py-4 items-center"
               onPress={onConfirm}
             >
-              <Text className="text-[14px] font-bold text-white">Complete</Text>
+              <Text className="text-[14px] font-bold text-[#1A1A00]">Complete</Text>
             </AppButton>
           </View>
         </View>

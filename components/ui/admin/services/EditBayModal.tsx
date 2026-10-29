@@ -80,9 +80,9 @@ export default function EditBayModal({
           <View className="flex-row gap-3">
             <AppButton
               onPress={onClose}
-              className="flex-1 bg-gray-300 py-3 rounded-full"
+              className="flex-1 bg-[#F5F5F5] py-3 rounded-full"
             >
-              <Text className="text-center text-white font-bold text-lg">
+              <Text className="text-center text-[#666] font-semibold text-lg">
                 Cancel
               </Text>
             </AppButton>
@@ -90,7 +90,7 @@ export default function EditBayModal({
               onPress={handleSave}
               className="flex-1 bg-[#F9EF08] py-3 rounded-full"
             >
-              <Text className="text-center text-white font-bold text-lg">
+              <Text className="text-center text-[#1A1A00] font-bold text-lg">
                 Save
               </Text>
             </AppButton>
