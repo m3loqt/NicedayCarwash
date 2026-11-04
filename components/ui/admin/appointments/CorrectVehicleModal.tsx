@@ -1,5 +1,7 @@
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
+import { BOOKING_FEE } from '@/lib/bookingFee';
+import { formatPeso } from '@/lib/formatPeso';
 import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { get, ref, update } from 'firebase/database';
@@ -312,7 +314,7 @@ export default function CorrectVehicleModal({ visible, branchId, booking, onClos
               </View>
               {newAmountDue !== booking.amountDue && (
                 <Text className="text-xs text-[#999] -mt-2 mb-2">
-                  Was {fmtPeso(booking.amountDue)}. The ₱25 booking fee already paid via Maya is unaffected - this only
+                  Was {fmtPeso(booking.amountDue)}. The {formatPeso(BOOKING_FEE)} booking fee already paid via Maya is unaffected - this only
                   updates the on-site amount due.
                 </Text>
               )}

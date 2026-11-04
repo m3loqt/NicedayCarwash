@@ -19,6 +19,8 @@ interface AppointmentDetailsModalProps {
   time: string;
   orderSummary: Array<{ label: string; price: string }>;
   amountDue: string;
+  // Paid online versus at the branch. Null/absent hides it (see lib/feeSplit.ts).
+  feeSplit?: { paidOnline: number; atBranch: number } | null;
   paymentMethod: string;
   estimatedCompletion?: string;
   note?: string;
@@ -86,6 +88,7 @@ export default function AppointmentDetailsModal({
   time,
   orderSummary,
   amountDue,
+  feeSplit,
   paymentMethod,
   estimatedCompletion,
   note,
@@ -253,6 +256,24 @@ export default function AppointmentDetailsModal({
                 <Text className="text-[14px] font-bold text-[#1A1A1A]">Amount Due</Text>
                 <Text className="text-[14px] font-bold text-[#1A1A1A]">{formatPrice(amountDue)}</Text>
               </View>
+              {feeSplit && (
+                <View className="mt-2">
+                  <View className="flex-row justify-between py-1">
+                    <Text className="text-[13px] text-[#999]">Paid online (Maya)</Text>
+                    <Text className="text-[13px] text-[#666]">{formatPrice(feeSplit.paidOnline)}</Text>
+                  </View>
+                  <View className="flex-row justify-between py-1">
+                    <Text className="text-[13px] text-[#999]">
+                      {isAdminView
+                        ? 'Balance to collect'
+                        : status === 'completed'
+                          ? 'Paid at the branch'
+                          : 'Due at the branch'}
+                    </Text>
+                    <Text className="text-[13px] font-semibold text-[#1A1A1A]">{formatPrice(feeSplit.atBranch)}</Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             <Divider />

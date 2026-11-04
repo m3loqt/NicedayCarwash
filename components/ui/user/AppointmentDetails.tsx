@@ -1,4 +1,5 @@
 import { formatDuration, parseDurationMinutes } from '@/lib/duration';
+import { BOOKING_FEE } from '@/lib/bookingFee';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/ui/common/AppButton';
@@ -138,7 +139,7 @@ export default function AppointmentDetails({
   
   const showPaymentSection = status === 'accepted' && !isPaid;
   const showPaymentPaid = (status === 'ongoing' || status === 'accepted') && isPaid;
-  const bookingFee = 25.00;
+  const bookingFee = BOOKING_FEE;
 
   const handlePaymentPress = () => {
     if (appointmentId) {

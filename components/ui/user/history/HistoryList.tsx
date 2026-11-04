@@ -1,6 +1,9 @@
 import PullToRefresh from '@/components/ui/common/PullToRefresh';
 import { ListSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
+import { BOOKING_FEE } from '@/lib/bookingFee';
+import { getFeeSplit } from '@/lib/feeSplit';
+import { formatPeso } from '@/lib/formatPeso';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getAuth } from 'firebase/auth';
@@ -343,9 +346,16 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
               label: (a?.name ?? 'Add-on') as string,
               price: `₱${a?.price ?? '0'}`,
             })) ?? []),
-            { label: 'Booking Fee', price: '₱25' },
+            { label: 'Booking Fee', price: formatPeso(BOOKING_FEE) },
           ]}
           amountDue={selectedBooking.amount}
+          feeSplit={getFeeSplit({
+            isPaid: selectedBooking.isPaid,
+            status: selectedBooking.status,
+            amountDue: selectedBooking.amount,
+            services: selectedBooking.services,
+            addOns: selectedBooking.addOns,
+          })}
           paymentMethod={selectedBooking.paymentMethod}
           estimatedCompletion={
             selectedBooking.estCompletion != null

@@ -1,3 +1,5 @@
+import { BOOKING_FEE } from '@/lib/bookingFee';
+import { getFeeSplit } from '@/lib/feeSplit';
 import { ANDROID_KEEP_OPEN_HINT } from '@/lib/pushNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
@@ -30,6 +32,7 @@ interface BookingData {
   timeSlot: { time: string; appointmentDate: string; estCompletion?: string };
   vehicleDetails: { vehicleName: string; plateNumber: string; classification: string };
   amountDue: number;
+  isPaid?: boolean;
   paymentMethod: string;
   note?: string;
   services?: any[];
@@ -187,8 +190,10 @@ export default function BookingProgressScreen() {
   const orderRows = [
     ...(booking.services?.map((s: any) => ({ label: s?.name ?? 'Service', price: s?.price ?? 0 })) ?? []),
     ...(booking.addOns?.map((a: any) => ({ label: a?.name ?? 'Add-on', price: a?.price ?? 0 })) ?? []),
-    { label: 'Booking Fee', price: 25 },
+    { label: 'Booking Fee', price: BOOKING_FEE },
   ];
+  // Paid online versus at the branch (null when it would not add up, e.g. a corrected total)
+  const feeSplit = getFeeSplit(booking);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -325,6 +330,15 @@ export default function BookingProgressScreen() {
           ))}
           <View className="h-[0.5px] bg-[#EEEEEE] my-2" />
           <Row label="Total" value={`₱${Number(booking.amountDue).toFixed(2)}`} />
+          {feeSplit && (
+            <>
+              <Row label="Paid online (Maya)" value={`₱${feeSplit.paidOnline.toFixed(2)}`} />
+              <Row
+                label={booking.status === 'completed' ? 'Paid at the branch' : 'Due at the branch'}
+                value={`₱${feeSplit.atBranch.toFixed(2)}`}
+              />
+            </>
+          )}
 
           <View className="h-[0.5px] bg-[#EEEEEE] my-3" />
 

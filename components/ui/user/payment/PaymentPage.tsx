@@ -1,4 +1,5 @@
 import { useAlert } from '@/hooks/use-alert';
+import { BOOKING_FEE } from '@/lib/bookingFee';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { logAppError } from '@/lib/logger';
 import { payBookingFeeWithMaya } from '@/lib/mayaPayment';
@@ -8,7 +9,7 @@ import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { AppButton } from '@/components/ui/common/AppButton';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BookingData {
@@ -42,7 +43,7 @@ export default function PaymentPage() {
   const [bookingKey, setBookingKey] = useState<string | null>(null);
 
   const db = getDatabase();
-  const bookingFee = 25.00;
+  const bookingFee = BOOKING_FEE;
 
   useEffect(() => {
     loadBookingData();
@@ -261,7 +262,6 @@ export default function PaymentPage() {
                 id: 'maya',
                 title: 'Maya',
                 desc: 'Pay via Maya wallet, card, or QR Ph',
-                icon: '💳',
               },
             ].map((method) => (
               <AppButton
@@ -273,7 +273,11 @@ export default function PaymentPage() {
                 }}
               >
                 <View className="w-12 h-12 rounded-full bg-white items-center justify-center mr-4">
-                  <Text className="text-2xl">{method.icon}</Text>
+                  <Image
+                    source={require('../../../../assets/images/maya_logo.png')}
+                    style={{ width: 34, height: 11 }}
+                    resizeMode="contain"
+                  />
                 </View>
                 <View className="flex-1">
                   <Text className="text-lg font-semibold text-[#1E1E1E]">{method.title}</Text>

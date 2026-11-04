@@ -1,5 +1,7 @@
 import Barcode from '@/components/ui/user/receipt/Barcode';
+import { BOOKING_FEE } from '@/lib/bookingFee';
 import { formatDuration } from '@/lib/duration';
+import { getFeeSplit } from '@/lib/feeSplit';
 import { logError } from '@/lib/logger';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -27,6 +29,7 @@ interface BookingData {
   timeSlot?: { time: string; appointmentDate: string; estCompletion?: string };
   vehicleDetails?: { vehicleName: string; plateNumber: string; classification: string };
   amountDue: number;
+  isPaid?: boolean;
   paymentMethod?: string;
   services?: ReceiptItem[];
   addOns?: ReceiptItem[];
@@ -233,8 +236,10 @@ export default function EReceiptScreen() {
   const orderRows = [
     ...(booking.services?.map((s) => ({ label: s.name || 'Service', price: s.price })) ?? []),
     ...(booking.addOns?.map((a) => ({ label: a.name || 'Add-on', price: a.price })) ?? []),
-    { label: 'Booking Fee', price: 25 },
+    { label: 'Booking Fee', price: BOOKING_FEE },
   ];
+  // Paid online versus at the branch (null when it would not add up, e.g. a corrected total)
+  const feeSplit = getFeeSplit(booking);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -297,6 +302,15 @@ export default function EReceiptScreen() {
             <Divider />
 
             <Row label="Total" value={formatPrice(booking.amountDue)} bold />
+            {feeSplit && (
+              <>
+                <Row label="Paid online (Maya)" value={formatPrice(feeSplit.paidOnline)} />
+                <Row
+                  label={booking.status === 'completed' ? 'Paid at the branch' : 'Due at the branch'}
+                  value={formatPrice(feeSplit.atBranch)}
+                />
+              </>
+            )}
 
             <Divider />
 
