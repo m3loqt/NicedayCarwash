@@ -106,20 +106,6 @@ export default function AlertModal({
   onClose,
   dismissOnBackdrop = true,
 }: AlertModalProps) {
-  const getIconConfig = () => {
-    switch (type) {
-      case 'success':
-        return { name: 'checkmark' as const, color: '#1A1A1A' };
-      case 'error':
-        return { name: 'close-circle' as const, color: '#DC2626' };
-      case 'warning':
-        return { name: 'warning' as const, color: '#D97706' };
-      case 'info':
-      default:
-        return { name: 'information-circle' as const, color: '#1A1A1A' };
-    }
-  };
-
   const getDefaultTitle = () => {
     if (title) return title;
     switch (type) {
@@ -135,7 +121,6 @@ export default function AlertModal({
     }
   };
 
-  const iconConfig = getIconConfig();
   const displayTitle = getDefaultTitle();
   const hasButtons = buttons && buttons.length > 0;
   const isConfirmation = hasButtons && buttons.length > 1;
@@ -183,21 +168,16 @@ export default function AlertModal({
           )}
 
           <View className="px-6 pt-3 pb-8">
-            {/* Icon display - skipped for confirmation dialogs, where title + message already
-                carry the context and a generic icon (usually just "i") adds nothing */}
+            {/* Plain sheet: title and message only. No icon badge for warning, error or info (the
+                title and message already say what happened); the success illustration is the
+                app's own artwork and stays. */}
             <View className="items-center mb-1">
-              {!isConfirmation && (
-                type === 'success' ? (
-                  <Image
-                    source={require('../../../assets/images/universalsuccess.png')}
-                    style={{ width: 160, height: 160 }}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <View className="w-12 h-12 rounded-full bg-[#F5F5F5] items-center justify-center mb-3">
-                    <Ionicons name={iconConfig.name} size={24} color={iconConfig.color} />
-                  </View>
-                )
+              {!isConfirmation && type === 'success' && (
+                <Image
+                  source={require('../../../assets/images/universalsuccess.png')}
+                  style={{ width: 160, height: 160 }}
+                  resizeMode="contain"
+                />
               )}
 
               {/* Title text */}

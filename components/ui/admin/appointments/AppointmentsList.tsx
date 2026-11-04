@@ -4,9 +4,14 @@ import PullToRefresh from '@/components/ui/common/PullToRefresh';
 import AppointmentDetailsModal from '@/components/ui/user/history/modals/AppointmentDetailsModal';
 import { auth, db } from '@/firebase/firebase';
 import { useAlert } from '@/hooks/use-alert';
+import { useToast } from '@/hooks/use-toast';
 import { useTabBarClearance } from '@/hooks/use-tab-bar-height';
+import { BOOKING_FEE } from '@/lib/bookingFee';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
+import { getFeeSplit } from '@/lib/feeSplit';
+import { formatPeso } from '@/lib/formatPeso';
 import { logError } from '@/lib/logger';
+import { Ionicons } from '@expo/vector-icons';
 import { get, onValue, push, ref, set, update } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useRef, useState } from 'react';
@@ -17,7 +22,6 @@ import AppointmentCard from './AppointmentCard';
 import CancelReasonModal, { CancelReason } from './CancelReasonModal';
 import CompleteConfirmationModal from './CompleteConfirmationModal';
 import CorrectVehicleModal from './CorrectVehicleModal';
-import SuccessModal from './SuccessModal';
 
 // Every reason reachable through CancelReasonModal is branch-caused, so refund-eligible by
 // construction. No-shows/late arrivals are handled separately via the "Mark No-Show" action,
@@ -473,6 +477,7 @@ const updateBayStatus = async (
 
 export default function AppointmentsList({ activeTab, searchQuery }: AppointmentsListProps) {
   const { alert, AlertComponent } = useAlert();
+  const { showToast, ToastComponent } = useToast();
   const tabBarClearance = useTabBarClearance();
   const insets = useSafeAreaInsets();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -503,10 +508,6 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [correctVehicleBooking, setCorrectVehicleBooking] = useState<Booking | null>(null);
   
-  // State for Success Modal
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-
   // State for Time Slot Unavailable bottom sheet
   const [showTimeSlotSheet, setShowTimeSlotSheet] = useState(false);
   const [blockedTimeSlot, setBlockedTimeSlot] = useState('');
@@ -1309,15 +1310,8 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
       // Time slot status is admin-managed only — not modified by bookings
 
-      // Formatting date for display
-      const formattedDate = formatDateForDisplay(bookingToAccept.timeSlot.appointmentDate);
-      const formattedTime = bookingToAccept.timeSlot.time;
-      const vehiclePlate = bookingToAccept.vehicleDetails.plateNumber || 'N/A';
-      
-      setSuccessMessage(
-        `Appointment for ${customerName} (${vehiclePlate}) on ${formattedDate} at ${formattedTime} has been accepted and assigned to Bay ${selectedBay}.`
-      );
-      setShowSuccessModal(true);
+      // Routine confirmation: a short self-dismissing toast, not a sheet that needs a tap
+      showToast(`Appointment accepted and assigned to Bay ${selectedBay}`);
       handleCloseBayModal();
     } catch (error) {
       logError('AppointmentsList.handleAcceptAppointment', error, { context: 'Error accepting appointment' });
@@ -1492,8 +1486,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
 
       // Time slot status is admin-managed only — not modified by bookings
 
-      setSuccessMessage('Appointment completed successfully');
-      setShowSuccessModal(true);
+      showToast('Appointment marked as completed');
       handleCompleteModalClose();
     } catch (error) {
       logError('AppointmentsList.handleCompleteAppointment', error, { context: 'Error completing appointment' });
@@ -1627,22 +1620,26 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       // Cancellation is already committed above regardless of what happens below - a refund
       // failure must never roll back the cancellation itself.
       const wasPaid = userBookingData?.isPaid ?? branchBookingData?.isPaid;
-      let successMessage = `Appointment cancelled successfully. Reason: "${selectedCancelReason}"`;
+      let cancelOutcome = 'Appointment cancelled';
+      let refundNeedsManual = false;
       if (refundEligible && wasPaid) {
         try {
           await httpsCallable(getFunctions(), 'refundBookingFee')({
             appointmentId: bookingToCancel.appointmentId,
           });
-          successMessage += ' The booking fee has been refunded.';
+          cancelOutcome = 'Appointment cancelled and booking fee refunded';
         } catch (refundError) {
           logError('AppointmentsList.handleFinishCancel', refundError, { context: 'Refund failed' });
-          successMessage +=
-            ' The automatic refund could not be completed - please process it manually in the Maya merchant dashboard.';
+          refundNeedsManual = true;
         }
       }
 
-      setSuccessMessage(successMessage);
-      setShowSuccessModal(true);
+      if (refundNeedsManual) {
+        // Staff have something to do here, so this one stays a sheet and waits for a tap
+        alert('Refund needed', 'Appointment cancelled, but the booking fee refund needs to be processed manually.');
+      } else {
+        showToast(cancelOutcome);
+      }
       handleCancelModalClose();
     } catch (error) {
       logError('AppointmentsList.handleConfirmCancelAppointment', error, { context: 'Error cancelling appointment' });
@@ -1655,7 +1652,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
   const handleMarkNoShow = (booking: Booking) => {
     alert(
       'Mark as No-Show?',
-      `This marks appointment ${booking.appointmentId} as a no-show/late arrival. The ₱25 booking fee will NOT be refunded, per policy.`,
+      `This marks appointment ${booking.appointmentId} as a no-show/late arrival. The ${formatPeso(BOOKING_FEE)} booking fee will NOT be refunded, per policy.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Confirm No-Show', style: 'destructive', onPress: () => finishMarkNoShow(booking) },
@@ -1740,8 +1737,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
       // best-effort write after the atomic update above.
       await updateCalendarEntry(branchId, booking, 'cancelled', bayNumber, noShowAtTimestamp);
 
-      setSuccessMessage(`Appointment ${booking.appointmentId} marked as no-show. Booking fee not refunded.`);
-      setShowSuccessModal(true);
+      showToast('Appointment marked as no-show, booking fee not refunded');
     } catch (error) {
       logError('AppointmentsList.finishMarkNoShow', error, { context: 'Error marking no-show' });
       alert('Error', 'Failed to mark as no-show');
@@ -1932,9 +1928,10 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
               label: (a?.name ?? 'Add-on') as string,
               price: `₱${a?.price ?? '0'}`,
             })) ?? []),
-            { label: 'Booking Fee', price: '₱25' },
+            { label: 'Booking Fee', price: formatPeso(BOOKING_FEE) },
           ]}
           amountDue={`₱${selectedBooking.amountDue.toFixed(2)}`}
+          feeSplit={getFeeSplit(selectedBooking)}
           paymentMethod={selectedBooking.paymentMethod || ''}
           estimatedCompletion={
             selectedBooking.timeSlot.estCompletion != null
@@ -1982,12 +1979,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
         onClose={() => setCorrectVehicleBooking(null)}
       />
 
-      {/* Branded Success Modal */}
-      <SuccessModal
-        visible={showSuccessModal}
-        message={successMessage}
-        onClose={() => setShowSuccessModal(false)}
-      />
+      {ToastComponent}
       {AlertComponent}
 
       {/* Time Slot Unavailable bottom sheet */}
@@ -2042,7 +2034,7 @@ export default function AppointmentsList({ activeTab, searchQuery }: Appointment
             {/* Icon + message */}
             <View style={{ paddingHorizontal: 20, alignItems: 'center' }}>
               <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFF3F3', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Text style={{ fontSize: 26 }}>🕐</Text>
+                <Ionicons name="time-outline" size={28} color="#B42318" />
               </View>
               <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A1A', textAlign: 'center', marginBottom: 8 }}>
                 {blockedTimeSlot} is currently unavailable
