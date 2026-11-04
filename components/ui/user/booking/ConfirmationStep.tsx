@@ -1,16 +1,20 @@
 import { AppButton } from '@/components/ui/common/AppButton';
+import RemoteImage from '@/components/ui/common/RemoteImage';
 import { useAlert } from '@/hooks/use-alert';
+import { BOOKING_FEE } from '@/lib/bookingFee';
 import { checkBranchCapacity } from '@/lib/capacityCheck';
 import { consumeClientRateLimit } from '@/lib/clientRateLimit';
 import { formatDuration } from '@/lib/duration';
+import { formatPeso } from '@/lib/formatPeso';
 import { logWarn } from '@/lib/logger';
 import { payBookingFeeWithMaya } from '@/lib/mayaPayment';
 import { sanitizePlainText } from '@/lib/sanitize';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { get, getDatabase, ref, remove, set } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Keyboard, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ServiceOrAddon {
@@ -25,7 +29,7 @@ interface ServiceOrAddon {
 }
 
 interface ConfirmationStepProps {
-  branch: { id: string; name: string; address?: string; image?: any };
+  branch: { id: string; name: string; address?: string; image?: any; imageUrl?: string };
   vehicle: { vname: string; vplateNumber: string; classification?: string; vtype?: string };
   services: ServiceOrAddon[];
   addons: ServiceOrAddon[];
@@ -62,44 +66,63 @@ const getPriceForClassification = (item: ServiceOrAddon, classification?: string
   }
 };
 
-const formatDate = (date: Date): string => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "Thu, Nov 5" (the year is implied: bookings are at most a week out)
+const formatDate = (date: Date): string =>
+  `${DAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+
+// 12 hour clock label for a minutes-since-midnight value, e.g. 885 -> "2:45 PM"
+const formatClock = (totalMinutes: number): string => {
+  const h24 = Math.floor(totalMinutes / 60) % 24;
+  const minute = totalMinutes % 60;
+  const period = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 > 12 ? h24 - 12 : h24 === 0 ? 12 : h24;
+  return `${h12}:${String(minute).padStart(2, '0')} ${period}`;
 };
 
-const formatTimeRange = (timeSlot: { time: string } | null, estimatedMins: number): string => {
-  if (!timeSlot) return '';
+// Estimated finish time for a slot such as "2:00 PM" plus the booking's total minutes.
+const getEstimatedFinish = (timeSlot: { time: string } | null, estimatedMins: number): string => {
+  if (!timeSlot || estimatedMins <= 0) return '';
   const match = timeSlot.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!match) return timeSlot.time;
+  if (!match) return '';
   let hour = parseInt(match[1], 10);
   const minute = parseInt(match[2], 10);
   const period = match[3].toUpperCase();
   if (period === 'PM' && hour !== 12) hour += 12;
   if (period === 'AM' && hour === 12) hour = 0;
-  const endMinutes = hour * 60 + minute + estimatedMins;
-  const endHour = Math.floor(endMinutes / 60) % 24;
-  const endMin = endMinutes % 60;
-  const endPeriod = endHour >= 12 ? 'PM' : 'AM';
-  const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
-  return `${timeSlot.time} – ${endHour12}:${endMin.toString().padStart(2, '0')} ${endPeriod}`;
+  return formatClock(hour * 60 + minute + estimatedMins);
 };
 
-// ─── Row helper ────────────────────────────────────────────────────────────────
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between items-center py-2.5 border-b border-[#F5F5F5]">
-      <Text className="text-[12px] text-[#999]">{label}</Text>
-      <Text className="text-[13px] font-semibold text-[#1A1A1A]">{value}</Text>
-    </View>
-  );
+// One white card per block of the review, no outline.
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <View className={`bg-white rounded-2xl p-4 mb-3 ${className}`}>{children}</View>;
 }
 
-// ─── Section label ─────────────────────────────────────────────────────────────
-function SectionLabel({ children }: { children: string }) {
+// A quiet label, a title and an optional second line. The label says what the block is, which
+// does the job a leading icon would, without mixing icon styles.
+function InfoRow({
+  label,
+  title,
+  subtitle,
+  subtitleLines,
+}: {
+  label: string;
+  title: string;
+  subtitle?: string;
+  subtitleLines?: number;
+}) {
   return (
-    <Text className="text-[10px] font-semibold tracking-widest text-[#999] uppercase mb-2">
-      {children}
-    </Text>
+    <View>
+      <Text className="text-[12px] text-[#6B6B6B]">{label}</Text>
+      <Text className="text-[15px] font-semibold text-[#1A1A1A] mt-0.5">{title}</Text>
+      {!!subtitle && (
+        <Text className="text-[13px] text-[#6B6B6B] mt-0.5" numberOfLines={subtitleLines}>
+          {subtitle}
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -157,14 +180,48 @@ export default function ConfirmationStep({
   };
 
   const classificationForPrice = vehicle?.vtype || vehicle?.classification?.toLowerCase() || '';
-  const bookingFee = 25.00;
+  const bookingFee = BOOKING_FEE;
   const orderSummary = [
     ...services.map(s => ({ label: s.name, price: getPriceForClassification(s, classificationForPrice) })),
     ...addons.map(a => ({ label: a.name, price: getPriceForClassification(a, classificationForPrice) })),
     { label: 'Booking Fee', price: bookingFee },
   ];
   const amountDue = orderSummary.reduce((sum, i) => sum + i.price, 0);
-  const fmt = (v: number) => `₱ ${v.toFixed(2)}`;
+  // What the customer pays where: only the booking fee is charged online (Maya); services and add
+  // ons are settled at the branch after the wash. amountDue (the stored total) is unchanged.
+  const dueAtBranch = amountDue - bookingFee;
+  const [noteFocused, setNoteFocused] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const noteRef = useRef<TextInput>(null);
+
+  // The app runs edge to edge, so the window does not resize for the keyboard by itself.
+  // KeyboardAvoidingView left stale padding behind once the keyboard closed, so the height is
+  // tracked explicitly: the screen is padded by it while the keyboard is up, which lifts the note
+  // field and the Pay button above it, and reset to 0 when it goes away.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Once the keyboard is up and the note is being edited, bring the note fully into view
+  useEffect(() => {
+    if (keyboardHeight <= 0 || !noteFocused) return;
+    const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+    return () => clearTimeout(t);
+  }, [keyboardHeight, noteFocused]);
+  useEffect(() => {
+    // Measured from where the keyboard actually starts on screen: its reported height can fall
+    // short of the real overlap once the system navigation inset is involved.
+    const show = Keyboard.addListener('keyboardDidShow', (e) =>
+      setKeyboardHeight(Math.max(0, Dimensions.get('screen').height - e.endCoordinates.screenY)),
+    );
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+      // Android keeps focus on the field when the keyboard is closed with its own button, which
+      // would leave the yellow "being typed in" outline on: drop focus with the keyboard.
+      noteRef.current?.blur();
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const handleConfirm = async () => {
     if (!date || !timeSlot) {
@@ -281,97 +338,185 @@ export default function ConfirmationStep({
     }
   };
 
+  const vehicleClassLabel = vehicle?.classification || getClassificationName(vehicle?.vtype);
+  const estimatedFinish = getEstimatedFinish(timeSlot, totalEstimatedTime);
+  const durationLabel = formatDuration(totalEstimatedTime);
+  const planItems = services.map((s) => ({
+    key: `s-${s.name}`,
+    name: s.name,
+    duration: formatDuration(s.estimatedTime),
+    price: getPriceForClassification(s, classificationForPrice),
+  }));
+  const addonItems = addons.map((a) => ({
+    key: `a-${a.name}`,
+    name: a.name,
+    duration: formatDuration(a.estimatedTime),
+    price: getPriceForClassification(a, classificationForPrice),
+  }));
+
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
-      <ScrollView contentContainerStyle={{ paddingBottom: 110, paddingTop: 16 }}>
-
-        <View className="mx-4 mb-4 bg-white rounded-2xl px-4 pt-5 pb-4">
-
-          {/* Branch + Vehicle — plain rows, matching the rest of this summary's style */}
-          <Row label="Branch" value={branch?.name || ''} />
-          <View className="mb-5">
-            <Row
-              label="Vehicle"
-              value={`${vehicle?.vname || ''} · ${vehicle?.vplateNumber || ''} · ${
-                vehicle?.classification || getClassificationName(vehicle?.vtype)
-              }`}
-            />
+    <View className="flex-1 bg-[#FAFAFA]" style={{ paddingBottom: keyboardHeight }}>
+      <ScrollView
+        ref={scrollRef}
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+      >
+        {/* Vehicle and branch share one card */}
+        <Card>
+          {/* The plate is what identifies a vehicle at a glance, so it gets a chip of its own;
+              the vehicle type rides inline after the name, like the durations in the bill. */}
+          <View>
+            <Text className="text-[12px] text-[#6B6B6B]">Vehicle information</Text>
+            <View className="flex-row items-center justify-between mt-1.5">
+              <Text className="flex-1 text-[15px] font-semibold text-[#1A1A1A] pr-3">
+                {vehicle?.vname || ''}
+                {!!vehicleClassLabel && (
+                  <Text className="text-[13px] font-normal text-[#6B6B6B]">{`   ${vehicleClassLabel}`}</Text>
+                )}
+              </Text>
+              {!!vehicle?.vplateNumber && (
+                <View className="rounded-lg bg-[#F3F3F3] px-2.5 py-1">
+                  <Text className="text-[13px] font-semibold text-[#1A1A1A]" style={{ letterSpacing: 0.5 }}>
+                    {vehicle.vplateNumber}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
-          {/* Date & Time */}
-          {date && (
-            <>
-              <SectionLabel>Date &amp; Time</SectionLabel>
-              <Row label="Appointment date" value={formatDate(date)} />
-              {timeSlot && <Row label="Time" value={formatTimeRange(timeSlot, totalEstimatedTime)} />}
-              <View className="mb-5">
-                <Row label="Est. duration" value={formatDuration(totalEstimatedTime) || '—'} />
-              </View>
-            </>
-          )}
-
-          {/* Order Summary */}
-          <SectionLabel>Order Summary</SectionLabel>
-          {orderSummary.map((item, i) => (
-            <Row key={i} label={item.label} value={fmt(item.price)} />
-          ))}
-          <View className="flex-row justify-between items-center pt-3 mb-5">
-            <Text className="text-[13px] font-bold text-[#1A1A1A]">Amount Due</Text>
-            <Text className="text-[15px] font-bold text-[#1A1A1A]">{fmt(amountDue)}</Text>
-          </View>
-
-          {/* Payment */}
-          <SectionLabel>Payment</SectionLabel>
-          <View className="flex-row justify-between items-center py-2.5 mb-5 border-b border-[#F5F5F5]">
-            <Text className="text-[12px] text-[#999]">Method</Text>
-            {paymentMethod ? (
-              <Image
-                source={require('../../../../assets/images/maya_logo.png')}
-                style={{ width: 45, height: 14 }}
-                resizeMode="contain"
+          {/* The branch is the one block with real material to show: its own photo, the same one
+              the branch list uses (RemoteImage handles the loading shimmer and the fallback). */}
+          <View className="mt-4 pt-4 border-t border-[#F0F0F0]">
+            <Text className="text-[12px] text-[#6B6B6B]">Branch address</Text>
+            <View className="flex-row items-center mt-2">
+              <RemoteImage
+                uri={branch?.imageUrl}
+                fallback={require('../../../../assets/images/branch1.jpg')}
+                style={{ width: 56, height: 56, borderRadius: 12, marginRight: 12 }}
               />
-            ) : (
-              <Text className="text-[13px] font-semibold text-[#1A1A1A]">Not selected</Text>
-            )}
+              <View className="flex-1">
+                <Text className="text-[15px] font-semibold text-[#1A1A1A]">{branch?.name || ''}</Text>
+                {!!branch?.address && (
+                  <Text className="text-[13px] text-[#6B6B6B] mt-0.5" numberOfLines={2}>
+                    {branch.address}
+                  </Text>
+                )}
+              </View>
+            </View>
           </View>
+        </Card>
 
-          {/* Note */}
-          <SectionLabel>Note to Branch</SectionLabel>
+        {/* Schedule */}
+        {date && (
+          <Card>
+            <InfoRow
+              label="Schedule"
+              title={`${formatDate(date)}${timeSlot ? ` at ${timeSlot.time}` : ''}`}
+              subtitle={
+                durationLabel
+                  ? `About ${durationLabel}${estimatedFinish ? `, done around ${estimatedFinish}` : ''}`
+                  : undefined
+              }
+            />
+          </Card>
+        )}
+
+        {/* The bill: what you picked, then who gets paid when. The wash adds up to the branch
+            amount, and branch plus fee equals the total, so the maths is visible. */}
+        <Card>
+          <Text className="text-[12px] text-[#6B6B6B] mb-2.5">Your wash</Text>
+          {[...planItems, ...addonItems].map((item, i) => (
+            <View key={item.key} className={`flex-row items-start justify-between ${i > 0 ? 'mt-3' : ''}`}>
+              <Text className="flex-1 text-[15px] font-medium text-[#1A1A1A] pr-3">
+                {item.name}
+                {!!item.duration && (
+                  <Text className="text-[13px] font-normal text-[#6B6B6B]">{`   ${item.duration}`}</Text>
+                )}
+              </Text>
+              <Text className="text-[15px] font-medium text-[#1A1A1A]">{formatPeso(item.price)}</Text>
+            </View>
+          ))}
+
+          <View className="flex-row items-center justify-between mt-4 pt-4 border-t border-[#F0F0F0]">
+            <View className="flex-1 pr-3">
+              <Text className="text-[15px] font-medium text-[#1A1A1A]">Pay at the branch</Text>
+              <Text className="text-[13px] text-[#6B6B6B] mt-0.5">After your wash</Text>
+            </View>
+            <Text className="text-[15px] font-medium text-[#1A1A1A]">{formatPeso(dueAtBranch)}</Text>
+          </View>
+          <View className="flex-row items-center justify-between mt-4">
+            <View className="flex-1 pr-3">
+              <Text className="text-[15px] font-semibold text-[#1A1A1A]">Pay now</Text>
+              <View className="flex-row items-center mt-0.5">
+                <Text className="text-[13px] text-[#6B6B6B]">
+                  {paymentMethod ? 'Booking fee, charged with ' : 'Payment method not selected'}
+                </Text>
+                {!!paymentMethod && (
+                  <Image
+                    source={require('../../../../assets/images/maya_logo.png')}
+                    style={{ width: 50, height: 16 }}
+                    resizeMode="contain"
+                  />
+                )}
+              </View>
+            </View>
+            <Text className="text-[20px] font-bold text-[#1A1A1A]">{formatPeso(bookingFee)}</Text>
+          </View>
+          <View className="flex-row items-center justify-between mt-4 pt-4 border-t border-[#F0F0F0]">
+            <Text className="text-[15px] text-[#6B6B6B]">Total</Text>
+            <Text className="text-[15px] text-[#6B6B6B]">{formatPeso(amountDue)}</Text>
+          </View>
+        </Card>
+
+        {/* Note: outlined in yellow only while it is being typed in */}
+        <View
+          className={`bg-white rounded-2xl mb-3 border-2 ${noteFocused ? 'border-[#F9EF08]' : 'border-transparent'}`}
+        >
           <TextInput
-            className="bg-[#FAFAFA] border border-[#EEEEEE] rounded-xl px-3 py-3 text-[#1A1A1A] mb-4"
-            placeholder="e.g. I'd like to request a specific washer"
-            placeholderTextColor="#C4C4C4"
+            ref={noteRef}
+            className="px-4 py-3.5 text-[#1A1A1A]"
+            placeholder="Add a note for the branch (optional)"
+            placeholderTextColor="#6B7280"
             multiline
-            numberOfLines={3}
+            maxLength={240}
             value={note}
             onChangeText={setNote}
+            onFocus={() => setNoteFocused(true)}
+            onBlur={() => setNoteFocused(false)}
             textAlignVertical="top"
-            style={{ fontSize: 12, minHeight: 72 }}
+            style={{ fontSize: 14, minHeight: 48 }}
           />
-
-          {/* Disclaimer */}
-          <Text className="text-[11px] text-[#C4C4C4] italic text-center">
-            Final duration will depend on the vehicle&apos;s size and condition.
-          </Text>
-
         </View>
 
+        {/* A kind reminder: light grey card, small muted info glyph */}
+        <View className="flex-row items-start rounded-2xl bg-[#F3F3F3] px-4 py-3">
+          <Ionicons name="information-circle-outline" size={16} color="#6B6B6B" style={{ marginRight: 8, marginTop: 1 }} />
+          <View className="flex-1">
+            <Text className="text-[13px] font-semibold text-[#1A1A1A]">Please arrive a few minutes early.</Text>
+            <Text className="text-[12px] leading-[17px] text-[#6B6B6B] mt-0.5">This helps us keep your slot on time.</Text>
+          </View>
+        </View>
       </ScrollView>
 
-      {/* Confirm Button */}
+      {/* ------------------- BOOK ------------------- */}
       <View
-        className="absolute bottom-0 left-0 right-0 px-4 pt-3 bg-white border-t border-[#F5F5F5]"
-        style={{ paddingBottom: insets.bottom + 32 }}
+        className="bg-white border-t border-[#EDEDED] px-4 pt-3"
+        style={{ paddingBottom: keyboardHeight > 0 ? 12 : insets.bottom + 12 }}
       >
         <AppButton
-          className="bg-[#F9EF08] rounded-2xl py-4 items-center"
+          className="bg-[#F9EF08] rounded-2xl items-center justify-center"
+          style={{ height: 52 }}
           onPress={handleConfirm}
           disabled={submitting}
+          accessibilityRole="button"
+          accessibilityLabel={`Pay ${formatPeso(bookingFee)} to book`}
         >
           {submitting ? (
-            <ActivityIndicator color="#1A1A00" />
+            <ActivityIndicator color="#1A1A1A" />
           ) : (
-            <Text className="text-[14px] font-bold text-[#1A1A00]">Confirm Booking</Text>
+            <Text className="text-[16px] font-bold text-[#1A1A1A]">Pay {formatPeso(bookingFee)} to book</Text>
           )}
         </AppButton>
       </View>
@@ -380,10 +525,3 @@ export default function ConfirmationStep({
     </View>
   );
 }
-
-
-
-
-
-
-

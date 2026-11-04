@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddVehicleInline from './AddVehicleInline';
 import ChooseVehicleStep from './ChooseVehicleStep';
 import ConfirmationStep from './ConfirmationStep';
+import BookingPolicyModal from './modals/BookingPolicyModal';
 import ServicesStep from './ServicesStep';
 
 interface Branch {
@@ -19,6 +20,8 @@ interface Branch {
   hours: string;
   status: 'Open' | 'Closed';
   coordinates: { latitude: number; longitude: number };
+  // Branch photo, when the branch has one (shown on the review step)
+  imageUrl?: string;
 }
 
 export default function BookingFlow({ branch, onClose }: { branch: Branch | null; onClose: () => void }) {
@@ -35,6 +38,7 @@ export default function BookingFlow({ branch, onClose }: { branch: Branch | null
   const [totalEstimatedTime, setTotalEstimatedTime] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
 
   // Nav bar stays hidden for the whole booking flow (select vehicle -> plan -> review),
   // and reappears once this overlay unmounts back to the branch list.
@@ -107,7 +111,19 @@ const handleNext = (data?: any, vehicleOverride?: any) => {
           <Text className="text-[20px] font-bold text-[#1A1A1A] mb-1 flex-1">
             {step === 1 ? 'Select vehicle' : step === 2 ? 'Select plan' : 'Review booking'}
           </Text>
-          <View style={{ width: 22 }} />
+          {/* The review step keeps its fine print behind this button so the screen itself stays light */}
+          {step === 3 ? (
+            <AppButton
+              onPress={() => setPolicyOpen(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Booking policy"
+            >
+              <Text className="text-[14px] font-semibold text-[#1A1A1A] underline">Booking policy</Text>
+            </AppButton>
+          ) : (
+            <View style={{ width: 22 }} />
+          )}
         </View>
 
         {/* Segmented progress bar: 3 equal parts across full width */}
@@ -167,6 +183,8 @@ const handleNext = (data?: any, vehicleOverride?: any) => {
           }}
         />
       )}
+
+      <BookingPolicyModal visible={policyOpen} onClose={() => setPolicyOpen(false)} />
 
       {AlertComponent}
     </View>
