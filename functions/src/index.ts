@@ -6,9 +6,12 @@ import {
   activePublicKey,
   activeSecretKey,
   createMayaCheckout,
+  fetchCheckoutPaymentRecords,
   fetchPaymentsByReferenceNumber,
+  MayaBuyer,
   MAYA_SUCCESS_STATUS,
   MAYA_TERMINAL_FAILURE_STATUSES,
+  MayaPaymentRecord,
   mayaEnvironment,
   mayaLivePublicKey,
   mayaLiveSecretKey,
@@ -74,6 +77,33 @@ async function findReservation(
   return found;
 }
 
+// Stored locally as 9171234567 / 09171234567 / 639171234567; Maya wants +639171234567. Anything that
+// doesn't normalise cleanly is dropped rather than risk a 400 over an optional field.
+function normalizePhPhone(phone: unknown): string | undefined {
+  if (typeof phone !== "string") return undefined;
+  const national = phone.replace(/\D/g, "").replace(/^(63|0)/, "");
+  return /^9\d{9}$/.test(national) ? `+63${national}` : undefined;
+}
+
+// Maya requires firstName + lastName + an email for Kount-enabled merchants (see MayaBuyer). Older or
+// Google-created accounts may lack a stored last name, so fall back to the auth profile and finally a
+// placeholder instead of blocking the customer's payment over it; a missing email is the one hard stop.
+async function buildMayaBuyer(uid: string, authEmail?: string): Promise<MayaBuyer> {
+  const snap = await admin.database().ref(`users/${uid}`).get();
+  const user = snap.val() ?? {};
+  const email = (typeof user.email === "string" && user.email) || authEmail;
+  if (!email) {
+    throw new HttpsError("failed-precondition", "Your profile needs an email address before you can pay.");
+  }
+  const clean = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  return {
+    firstName: clean(user.firstName) || "Customer",
+    lastName: clean(user.lastName) || "Customer",
+    email,
+    phone: normalizePhPhone(user.phone),
+  };
+}
+
 export const createCheckout = onCall({ secrets: ALL_MAYA_SECRETS }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
@@ -104,6 +134,7 @@ export const createCheckout = onCall({ secrets: ALL_MAYA_SECRETS }, async (reque
 
   const requestReferenceNumber = `${appointmentId}-${Date.now()}`;
   const db = admin.database();
+  const buyer = await buildMayaBuyer(uid, request.auth?.token?.email);
 
   let checkout;
   try {
@@ -111,6 +142,7 @@ export const createCheckout = onCall({ secrets: ALL_MAYA_SECRETS }, async (reque
       requestReferenceNumber,
       amount: BOOKING_FEE,
       description: `Booking fee - ${appointmentId}`,
+      buyer,
       redirectUrl: {
         success: `${FUNCTIONS_BASE_URL}/paymentReturn?ref=${encodeURIComponent(requestReferenceNumber)}&result=success`,
         failure: `${FUNCTIONS_BASE_URL}/paymentReturn?ref=${encodeURIComponent(requestReferenceNumber)}&result=failure`,
@@ -215,7 +247,21 @@ export const paymentReturn = onRequest((req, res) => {
 </html>`);
 });
 
-export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, res) => {
+// Payment lookup by reference number first; only if that fails (e.g. a Checkout-only key getting K007)
+// does it fall back to the checkout's own paymentStatus - see fetchCheckoutPaymentRecords.
+async function verifyMayaPayment(requestReferenceNumber: string, checkoutId?: string): Promise<MayaPaymentRecord[]> {
+  try {
+    return await fetchPaymentsByReferenceNumber(activeSecretKey(), requestReferenceNumber);
+  } catch (err) {
+    if (!checkoutId) throw err;
+    logger.warn("Maya payment lookup failed, falling back to checkout status", err);
+    return fetchCheckoutPaymentRecords(activeSecretKey(), checkoutId);
+  }
+}
+
+// minInstances: Maya requires a 200 within 5s and retries on timeout; a cold start alone measured ~3.5s,
+// which left too little headroom for the DB reads + Maya lookup. One warm instance removes that.
+export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS, minInstances: 1 }, async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).send("Method not allowed");
     return;
@@ -251,7 +297,7 @@ export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, 
 
   let records;
   try {
-    records = await fetchPaymentsByReferenceNumber(activeSecretKey(), requestReferenceNumber);
+    records = await verifyMayaPayment(requestReferenceNumber, record.checkoutId);
   } catch (err) {
     logger.error("Failed to verify Maya payment status", err);
     res.status(500).send("verification failed");
@@ -304,8 +350,15 @@ export const mayaWebhook = onRequest({ secrets: ALL_MAYA_SECRETS }, async (req, 
       // pending list/bell badge already gates on (see hooks/use-pending-branch-bookings.ts),
       // regardless of whether it's been accepted yet, so the push fires here too rather than
       // at raw booking-creation time (before checkout even starts).
-      const branchNameSnap = await db.ref(`Branches/${record.branchId}/profile/name`).get();
-      await notifyBranchStaffOfNewBooking(record.branchId, record.appointmentId, branchNameSnap.val() ?? null);
+      //
+      // Best-effort: the payment is already recorded above, and Maya requires a 200 to stop retrying -
+      // a staff-push failure (missing index, Expo outage) must never turn into a 500 here.
+      try {
+        const branchNameSnap = await db.ref(`Branches/${record.branchId}/profile/name`).get();
+        await notifyBranchStaffOfNewBooking(record.branchId, record.appointmentId, branchNameSnap.val() ?? null);
+      } catch (err) {
+        logger.error("Failed to notify branch staff of new booking", err);
+      }
     }
   } else if (failed) {
     await db.ref(refPath).update({ status: "failed", updatedAt: admin.database.ServerValue.TIMESTAMP });

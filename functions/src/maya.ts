@@ -39,12 +39,23 @@ function basicAuthHeader(key: string): string {
   return `Basic ${Buffer.from(`${key}:`).toString("base64")}`;
 }
 
+// Merchants with Kount fraud screening enabled (e.g. "Checkout with kount") reject any checkout without
+// a buyer: Maya answers 400 code 2553 requiring buyer.firstName, buyer.lastName and buyer.contact.
+// Merchants without Kount simply ignore it, so it is always sent. Phone is optional.
+export interface MayaBuyer {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+}
+
 export interface CreateCheckoutParams {
   requestReferenceNumber: string;
   amount: number;
   currency?: string;
   description: string;
   redirectUrl: { success: string; failure: string; cancel: string };
+  buyer: MayaBuyer;
 }
 
 export interface CreateCheckoutResult {
@@ -69,6 +80,14 @@ export async function createMayaCheckout(
       },
       requestReferenceNumber: params.requestReferenceNumber,
       redirectUrl: params.redirectUrl,
+      buyer: {
+        firstName: params.buyer.firstName,
+        lastName: params.buyer.lastName,
+        contact: {
+          email: params.buyer.email,
+          ...(params.buyer.phone ? { phone: params.buyer.phone } : {}),
+        },
+      },
       items: [
         {
           name: params.description,
@@ -114,15 +133,36 @@ export async function fetchPaymentsByReferenceNumber(
   return Array.isArray(body) ? body : [];
 }
 
+// Fallback for a secret key scoped to Checkout only: a freshly provisioned app gets K007 "Invalid
+// key scope" on every /payments/v1/* call (this lookup, refunds) until Maya's tech team grants the
+// Payments scope, but it can still read the checkout itself, whose paymentStatus carries the same
+// PAYMENT_SUCCESS/PAYMENT_FAILED/... values. Same trust model as above - a server-side re-fetch with
+// the secret key, keyed by the checkoutId stored at creation. The checkout has no payment id (only
+// the /payments API exposes it), so mayaPaymentId stays unset on this path.
+export async function fetchCheckoutPaymentRecords(
+  secretKey: string,
+  checkoutId: string
+): Promise<MayaPaymentRecord[]> {
+  const response = await fetch(`${baseUrl()}/checkout/v1/checkouts/${encodeURIComponent(checkoutId)}`, {
+    method: "GET",
+    headers: { Authorization: basicAuthHeader(secretKey) },
+  });
+  if (!response.ok) {
+    throw new Error(`Maya checkout lookup failed (${response.status})`);
+  }
+  const body: any = await response.json().catch(() => null);
+  if (!body?.paymentStatus) return [];
+  return [{ status: body.paymentStatus, requestReferenceNumber: body.requestReferenceNumber }];
+}
+
 export interface RefundResult {
   refundId?: string;
   rawStatus?: string;
 }
 
-// TODO(VERIFY): endpoint/schema unconfirmed against Maya's authenticated reference docs (public
-// docs only confirm "refund functionality is available via Manager or API" - see
-// developers.maya.ph/reference/voids-and-refunds). This also requires Maya to enable refunds on
-// the merchant account (contact Relationship Manager) before this will succeed in sandbox or prod.
+// Endpoint and key scope are confirmed against the legacy sandbox merchant (a request reached
+// the refund validation and was rejected only for the amount field, see below). Refunds still
+// need to be enabled on the merchant account by Maya before they succeed in production.
 export async function refundMayaPayment(
   secretKey: string,
   paymentId: string,
@@ -136,7 +176,10 @@ export async function refundMayaPayment(
       Authorization: basicAuthHeader(secretKey),
     },
     body: JSON.stringify({
-      totalAmount: { value: amount, currency: "PHP" },
+      // Maya's refund body names the amount `amount`, unlike Checkout which uses `value`. Found
+      // when the first auto-expiry refund came back 400 code 2553: {"field":"totalAmount.amount",
+      // "description":"A valid amount is required."} (2026-11-05, booking ND-335067).
+      totalAmount: { amount, currency: "PHP" },
       reason,
     }),
   });
