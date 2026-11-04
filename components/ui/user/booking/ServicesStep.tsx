@@ -1,19 +1,25 @@
+import { ERROR_COLOR } from "@/components/ui/common/FieldError";
 import { useAlert } from "@/hooks/use-alert";
+import { BOOKING_FEE } from "@/lib/bookingFee";
+import { formatDuration } from "@/lib/duration";
+import { formatPeso } from "@/lib/formatPeso";
 import { logError } from "@/lib/logger";
 import { normalizeForSearch } from "@/lib/textMatch";
-import { AddonCardsSkeleton, ServiceCardsSkeleton } from "@/components/ui/user/UserScreenSkeleton";
+import { AddonCardsSkeleton, DateStripSkeleton, ServiceCardsSkeleton } from "@/components/ui/user/UserScreenSkeleton";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { get, getDatabase, onValue, ref } from "firebase/database";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppButton } from '@/components/ui/common/AppButton';
 import {
   Image,
+  LayoutAnimation,
   ScrollView,
   Text,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import ScheduleUnavailableModal from "./modals/ScheduleUnavailableModal";
+import SectionHeader from "./SectionHeader";
 
 interface Service {
   id: string;
@@ -136,6 +142,49 @@ const isAddonAvailableForVehicleClass = (addon: Addon, vehicleClass: VehicleClas
   return !allowed || allowed.includes(vehicleClass);
 };
 
+// Exact motorcycle fit. The catalog has ONE `motorcycle` price per item, so "small" vs "large" is
+// only carried in the item's name, e.g. "Motorcycle Wash (Large)" or "Motorcycle Wax (Small)".
+// Class-level filtering alone therefore showed both sizes to every motorcycle, and since the
+// charged price comes from the item picked (not from the bike) a large bike could book the
+// cheaper "(Small)" plan. This reads that naming convention and keeps only the matching size.
+// It fails open on purpose: an item with no size tag (or a vehicle that isn't a motorcycle) is
+// never hidden by it, so a renamed or brand new catalog item can't silently disappear.
+type MotorcycleSize = 'small' | 'large';
+
+const getVehicleMotorcycleSize = (vtype: string): MotorcycleSize | null =>
+  vtype === 'motorcycle-small' ? 'small' : vtype === 'motorcycle-large' ? 'large' : null;
+
+const getItemMotorcycleSize = (name: string): MotorcycleSize | null => {
+  const match = name.match(/\(\s*(small|large|s|l)\s*\)/i);
+  if (!match) return null;
+  return match[1].toLowerCase().startsWith('s') ? 'small' : 'large';
+};
+
+const fitsMotorcycleSize = (itemName: string, vtype: string): boolean => {
+  const vehicleSize = getVehicleMotorcycleSize(vtype);
+  const itemSize = getItemMotorcycleSize(itemName);
+  return !vehicleSize || !itemSize || vehicleSize === itemSize;
+};
+
+// A sedan has 8 add-ons, which on their own were more than a third of the page. Past
+// ADDON_COLLAPSE_ABOVE items the list shows only the first ADDON_PREVIEW_COUNT behind a "View
+// more" button (hiding just one or two would save nothing, so short lists are never collapsed).
+const ADDON_PREVIEW_COUNT = 3;
+const ADDON_COLLAPSE_ABOVE = 4;
+
+// "a large motorcycle", "an SUV" - used in the header and empty state copy.
+const getVehiclePhrase = (vtype: string): string => {
+  switch (vtype) {
+    case 'sedan': return 'a sedan';
+    case 'suv': return 'an SUV';
+    case 'pickup': return 'a pickup';
+    case 'motorcycle-small': return 'a small motorcycle';
+    case 'motorcycle-large': return 'a large motorcycle';
+    default: return 'your vehicle';
+  }
+};
+
+
 export default function ServicesStep({
   branchId,
   selectedVehicle,
@@ -154,20 +203,24 @@ export default function ServicesStep({
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(
     null
   );
-  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  // Maya is the only payment method, so it starts selected (the customer has nothing to choose).
+  const [paymentMethod, setPaymentMethod] = useState<string | null>('Maya');
   const [branchSchedule, setBranchSchedule] = useState<{ openTime: string; closeTime: string } | null>(null);
   // The branch's real bookable slots (Branches/{id}/TimeSlots) - the same node the branch admin
   // and the web dashboard write to. This is the source of truth for which hours are offered and
   // which are switched off; `null` = not loaded yet, `[]` = branch has no TimeSlots node (legacy,
   // fall back to synthesising an hourly range from the schedule string).
   const [branchTimeSlots, setBranchTimeSlots] = useState<TimeSlot[] | null>(null);
-  const [showScheduleUnavailableModal, setShowScheduleUnavailableModal] = useState(false);
-  const [unavailableReason, setUnavailableReason] = useState<string>("");
+  const [addonsExpanded, setAddonsExpanded] = useState(false);
+  // Inline validation: nothing is flagged until the first "Review booking" attempt. After that each
+  // message shows or clears on its own as its section becomes valid (see the derived errors below).
+  const [triedSubmit, setTriedSubmit] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionY = useRef<{ time?: number; payment?: number }>({});
 
   const db = getDatabase();
 
@@ -473,13 +526,10 @@ export default function ServicesStep({
     }
   };
 
-  const getServiceFeatures = (service: Service): string[] => {
-    // Capped at 2 so a card never grows past a predictable height - each shown line is left
-    // to wrap in full (never truncated mid-sentence), the rest is simply not shown on the card.
-    const lines = getDescriptionLines(service.description).slice(0, 2);
-    if (lines.length > 0) return lines;
-    return ['Exterior wash', 'Rinse & dry'];
-  };
+  // The card shows only the first description line as a summary (the rest of the catalog
+  // description is intentionally not surfaced). No invented filler when a legacy service has none.
+  const getServiceSummary = (service: Service): string | undefined =>
+    getDescriptionLines(service.description)[0];
 
   const totalEstimatedTime =
     selectedServices.reduce((acc, s) => acc + s.estimatedTime, 0) +
@@ -511,34 +561,12 @@ export default function ServicesStep({
     return `${month} ${day}, ${year}`;
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    setCalendarMonth(prev => {
-      const newDate = new Date(prev);
-      if (direction === 'prev') {
-        newDate.setMonth(prev.getMonth() - 1);
-      } else {
-        newDate.setMonth(prev.getMonth() + 1);
-      }
-      return newDate;
-    });
-  };
-
   const getMonthName = (date: Date): string => {
     const months = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December',
     ];
     return months[date.getMonth()];
-  };
-
-  const getDaysInMonth = (date: Date): Date[] => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1))
-      .filter(d => d >= today);
   };
 
   const isSameDay = (a: Date, b: Date): boolean =>
@@ -548,18 +576,61 @@ export default function ServicesStep({
 
   const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
+  // The days a customer can actually book: today through MAX_ADVANCE_DAYS ahead, minus any day
+  // with no bookable slot left. That uses the same check as the time picker, so it follows each
+  // branch's own hours: at 10 PM on a branch whose last slot is 5 PM, today simply isn't offered.
+  // Days outside the window or without a slot are left out, not shown greyed. Not shown until the
+  // branch's slots have loaded (`null`), so today can't flash in and then vanish.
+  const slotsReady = branchTimeSlots !== null;
+  const bookableDays: Date[] = !slotsReady
+    ? []
+    : Array.from({ length: MAX_ADVANCE_DAYS + 1 }, (_, i) => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + i);
+        return d;
+      }).filter((d) => checkDateAvailability(d).available);
+  const bookableDaysKey = bookableDays.map((d) => d.getTime()).join(',');
+
+  // The date selected by default is today, which may not be offered (see above) - move to the
+  // first day that is. Also covers the selected day dropping out while the screen stays open.
+  useEffect(() => {
+    if (bookableDays.length === 0) return;
+    if (!bookableDays.some((d) => isSameDay(d, selectedDate))) setSelectedDate(bookableDays[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookableDaysKey]);
+
+  // "November 2026", or "November to December 2026" when the window crosses a month end.
+  const getDateRangeLabel = (days: Date[]): string => {
+    if (days.length === 0) return '';
+    const first = days[0];
+    const last = days[days.length - 1];
+    if (first.getFullYear() !== last.getFullYear()) {
+      return `${getMonthName(first)} ${first.getFullYear()} to ${getMonthName(last)} ${last.getFullYear()}`;
+    }
+    if (first.getMonth() !== last.getMonth()) {
+      return `${getMonthName(first)} to ${getMonthName(last)} ${first.getFullYear()}`;
+    }
+    return `${getMonthName(first)} ${first.getFullYear()}`;
+  };
+
   // ------------------ Confirm Booking ------------------
   const handleNext = () => {
-    if (!selectedServices.length) {
-      showAlert("Please choose a washing plan before proceeding.", { title: "No service selected", type: 'warning' });
-      return;
-    }
-    if (!selectedTimeSlot) {
-      showAlert("Please pick an available time slot for your appointment.", { title: "No time slot selected", type: 'warning' });
-      return;
-    }
-    if (!paymentMethod) {
-      showAlert("Please select how you'd like to pay before completing your booking.", { title: "No payment method", type: 'warning' });
+    // A missing choice is something the customer can fix right on this page, so it is flagged in
+    // place (every missing section at once) and the page scrolls to the first one, instead of a
+    // modal that covers the very thing that needs fixing.
+    const firstMissing = !selectedServices.length
+      ? 'plan'
+      : !selectedTimeSlot
+        ? 'time'
+        : !paymentMethod
+          ? 'payment'
+          : null;
+    if (firstMissing) {
+      setTriedSubmit(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const y = firstMissing === 'plan' ? 0 : sectionY.current[firstMissing] ?? 0;
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
       return;
     }
 
@@ -581,7 +652,9 @@ export default function ServicesStep({
   // A price of exactly 0 means the catalog doesn't offer that service for this vehicle type
   // (e.g. "Motorcycle Wax" has sedan/suv/pickup: 0, and the car wash plans have motorcycle: 0)
   // rather than the service genuinely being free - filter those out instead of showing ₱0.00.
-  const availableServices = services.filter((s) => getPriceForVehicle(s) > 0);
+  const availableServices = services.filter(
+    (s) => getPriceForVehicle(s) > 0 && fitsMotorcycleSize(s.name, selectedVehicle.vtype),
+  );
 
   // A few items ("Motorcycle Wax (S/L)") sit in both the services and add-ons catalogs. For a
   // vehicle that can book one as a plan, it IS the plan - there's no separate motorcycle wash to
@@ -591,230 +664,242 @@ export default function ServicesStep({
   const availableAddons = addons.filter(
     (a) =>
       isAddonAvailableForVehicleClass(a, vehicleClass) &&
+      fitsMotorcycleSize(a.name, selectedVehicle.vtype) &&
       !serviceNames.has(normalizeForSearch(a.name)),
   );
 
+  // Cheapest first, so the few add-ons visible before "View more" are the easy yeses (vacuum,
+  // armor all) and the big detailing jobs sit at the end. Array.sort is stable, so equal prices
+  // keep the catalog's own order. A selected add-on is never hidden by collapsing the list.
+  const sortedAddons = [...availableAddons].sort((a, b) => a.price - b.price);
+  const canCollapseAddons = sortedAddons.length > ADDON_COLLAPSE_ABOVE;
+  const visibleAddons =
+    !canCollapseAddons || addonsExpanded
+      ? sortedAddons
+      : sortedAddons.filter(
+          (a, i) => i < ADDON_PREVIEW_COUNT || selectedAddons.some((x) => x.id === a.id),
+        );
+  const hiddenAddonCount = sortedAddons.length - visibleAddons.length;
+
+  const toggleAddonsExpanded = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setAddonsExpanded((v) => !v);
+  };
+
+  // What the customer will owe, mirroring ConfirmationStep's "Amount Due": plan + add-ons + the
+  // flat booking fee. Only the fee is charged online; the rest is settled at the branch.
+  const subtotal =
+    selectedServices.reduce((acc, s) => acc + getPriceForVehicle(s), 0) +
+    selectedAddons.reduce((acc, a) => acc + a.price, 0);
+  const total = subtotal + BOOKING_FEE;
+  const hasPlan = selectedServices.length > 0;
+  const planError = triedSubmit && !hasPlan ? 'Choose a wash plan' : undefined;
+  const timeError =
+    triedSubmit && !selectedTimeSlot
+      ? timeSlots.length > 0
+        ? 'Choose a time slot'
+        : 'No time slots left on this day. Pick another day.'
+      : undefined;
+  const paymentError = triedSubmit && !paymentMethod ? 'Choose how to pay' : undefined;
+  const vehiclePhrase = getVehiclePhrase(selectedVehicle.vtype);
+  const vehicleDisplayName = selectedVehicle.vname?.trim() || 'ride';
+
   return (
     <View className="flex-1 bg-[#FAFAFA]">
-      <ScrollView contentContainerStyle={{ paddingBottom: 0 }}>
-        {/* ------------------- SERVICES ------------------- */}
-        <Text className="text-xl font-semibold mt-4 px-4">
-          Select plan
-        </Text>
-        <Text className="text-sm text-[#999] mb-3 px-4">
-          Select your washing plan for{' '}
-          <Text className="font-semibold text-[#1A1A1A]">{getVehicleLabel()}</Text>
-        </Text>
+      <ScrollView
+        ref={scrollRef}
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        {/* ------------------- HEADER ------------------- */}
+        <View className="px-4 mt-3 mb-4">
+          <Text className="text-[20px] leading-[26px] font-bold text-[#1A1A1A]">
+            Make your {vehicleDisplayName} shine
+          </Text>
+          <Text className="text-[13px] text-[#999] mt-0.5">
+            Plans made for {vehiclePhrase}.
+          </Text>
+          {!!planError && (
+            <Text className="text-[13px] mt-1.5" style={{ color: ERROR_COLOR }} accessibilityLiveRegion="polite">
+              {planError}
+            </Text>
+          )}
+        </View>
 
+        {/* ------------------- SERVICES ------------------- */}
         {servicesLoading ? (
           <ServiceCardsSkeleton />
         ) : availableServices.length === 0 ? (
-          <View className="mx-4 mb-3 px-4 py-6 bg-white rounded-2xl items-center">
-            <Text className="text-[13px] text-[#999] text-center">
-              No washing plans available yet for {getVehicleLabel()} at this branch.
+          <View className="mx-4 mb-3 px-5 py-8 bg-white rounded-[20px] items-center">
+            <Text className="text-[15px] font-bold text-[#1A1A1A] text-center">
+              No plans for {vehiclePhrase} yet
+            </Text>
+            <Text className="text-[13px] text-[#999] text-center mt-1.5">
+              This branch has not added one. Try another vehicle or branch.
             </Text>
           </View>
         ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 12 }}
-        >
-          {availableServices.map((s) => {
-            const selected = selectedServices.some((x) => x.id === s.id);
-            const price = getPriceForVehicle(s);
-            const features = getServiceFeatures(s);
-            return (
-              <AppButton
-                key={s.id}
-                onPress={() => toggleService(s)}
-                className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-64 ${
-                  selected
-                    ? 'bg-[#F9EF08] border border-[#F9EF08]'
-                    : 'bg-white border border-transparent'
-                }`}
-              >
-                {/* Name */}
-                <Text className="text-[15px] font-bold text-[#1A1A1A] mb-3">
-                  {s.name}
-                </Text>
-
-                {/* Feature checklist */}
-                {features.map((feat, i) => (
-                  <View key={i} className="flex-row items-start mb-1.5">
-                    <Ionicons name="checkmark" size={14} color="#9CA3AF" style={{ marginTop: 1, marginRight: 6 }} />
-                    <Text className="text-[12px] text-[#666] flex-1" numberOfLines={2}>
-                      {feat}
-                    </Text>
-                  </View>
-                ))}
-
-                {/* Time + Price */}
-                <View
-                  className={`mt-3 pt-3 border-t flex-row justify-between items-center ${
-                    selected ? 'border-[#1A1A00]/5' : 'border-[#F0F0F0]'
+          <View className="px-4">
+            {availableServices.map((s) => {
+              const selected = selectedServices.some((x) => x.id === s.id);
+              const price = getPriceForVehicle(s);
+              const summary = getServiceSummary(s);
+              const duration = formatDuration(s.estimatedTime);
+              return (
+                <AppButton
+                  key={s.id}
+                  onPress={() => toggleService(s)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  className={`mb-3 rounded-2xl border-2 px-4 py-3.5 ${
+                    selected ? 'bg-[#FFFDE7] border-[#F9EF08]' : 'bg-white border-transparent'
                   }`}
                 >
-                  <View className="flex-row items-center">
-                    <Ionicons name="time-outline" size={13} color="#1A1A1A" />
-                    <Text className="text-[13px] font-semibold text-[#1A1A1A] ml-1">
-                      {s.estimatedTime} mins
-                    </Text>
+                  <View className="flex-row items-start">
+                    <SelectIndicator selected={selected} shape="radio" size={22} />
+                    <View className="flex-1 ml-3">
+                      {/* Duration rides inline after the name (same pattern as the add-on rows) */}
+                      <View className="flex-row items-start justify-between">
+                        <Text className="flex-1 text-[15px] font-bold text-[#1A1A1A] pr-3">
+                          {s.name}
+                          {!!duration && (
+                            <Text className="text-[12px] font-normal text-[#999]">{`   ${duration}`}</Text>
+                          )}
+                        </Text>
+                        <Text className="text-[15px] font-bold text-[#1A1A1A]">{formatPeso(price)}</Text>
+                      </View>
+                      {!!summary && (
+                        <Text className="text-[13px] leading-[19px] text-[#666] mt-1">{summary}</Text>
+                      )}
+                    </View>
                   </View>
-                  <Text className="text-[15px] font-bold text-[#1A1A1A]">
-                    ₱{price}.00
-                  </Text>
-                </View>
-              </AppButton>
-            );
-          })}
-        </ScrollView>
+                </AppButton>
+              );
+            })}
+          </View>
         )}
 
         {/* ------------------- ADD ONS ------------------- */}
-        {/* Hidden entirely for a vehicle with no applicable add-ons (e.g. motorcycles) */}
+        {/* Hidden entirely for a vehicle with no applicable add-ons */}
         {(addonsLoading || availableAddons.length > 0) && (
-        <>
-        <Text className="text-xl font-semibold mt-6 mb-3 px-4">
-          Add ons <Text className="text-gray-500">(Optional)</Text>
-        </Text>
+          <>
+            <SectionHeader title="Add ons" note="Optional" />
+            {addonsLoading ? (
+              <AddonCardsSkeleton />
+            ) : (
+              <View className="px-4">
+                {visibleAddons.map((a) => {
+                  const selected = selectedAddons.some((x) => x.id === a.id);
+                  const duration = formatDuration(a.estimatedTime);
+                  return (
+                    <AppButton
+                      key={a.id}
+                      onPress={() => toggleAddon(a)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected }}
+                      className={`mb-2.5 rounded-2xl border-2 px-4 py-3 flex-row items-center ${
+                        selected ? 'bg-[#FFFDE7] border-[#F9EF08]' : 'bg-white border-transparent'
+                      }`}
+                    >
+                      <SelectIndicator selected={selected} shape="check" size={22} />
+                      {/* Duration rides inline after the name so a normal row stays one line */}
+                      <Text className="flex-1 text-[14px] font-semibold text-[#1A1A1A] ml-3">
+                        {a.name}
+                        {!!duration && (
+                          <Text className="text-[12px] font-normal text-[#999]">{`   ${duration}`}</Text>
+                        )}
+                      </Text>
+                      <Text className="text-[14px] font-bold text-[#1A1A1A] ml-3">+{formatPeso(a.price)}</Text>
+                    </AppButton>
+                  );
+                })}
 
-        {addonsLoading ? (
-          <AddonCardsSkeleton />
-        ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 12 }}
-        >
-          {availableAddons.map((a) => {
-            const selected = selectedAddons.some((x) => x.id === a.id);
-            return (
-              <AppButton
-                key={a.id}
-                onPress={() => toggleAddon(a)}
-                className={`mx-2 rounded-2xl px-4 pt-4 pb-4 w-48 ${
-                  selected
-                    ? 'bg-[#F9EF08] border border-[#F9EF08]'
-                    : 'bg-white border border-transparent'
-                }`}
-              >
-                {/* Name */}
-                <Text className="text-[15px] font-bold text-[#1A1A1A]">
-                  {a.name}
-                </Text>
-
-                {/* Time + Price */}
-                <View
-                  className={`mt-2 pt-3 border-t flex-row justify-between items-center ${
-                    selected ? 'border-[#1A1A00]/5' : 'border-[#F0F0F0]'
-                  }`}
-                >
-                  <View className="flex-row items-center">
-                    <Ionicons name="time-outline" size={13} color="#1A1A1A" />
-                    <Text className="text-[13px] font-semibold text-[#1A1A1A] ml-1">
-                      {a.estimatedTime} mins
+                {canCollapseAddons && (addonsExpanded || hiddenAddonCount > 0) && (
+                  <AppButton
+                    onPress={toggleAddonsExpanded}
+                    haptic={false}
+                    accessibilityRole="button"
+                    className="flex-row items-center justify-center py-3"
+                  >
+                    <Text className="text-[14px] font-semibold text-[#1A1A1A]">
+                      {addonsExpanded ? 'Show less' : `View ${hiddenAddonCount} more`}
                     </Text>
-                  </View>
-                  <Text className="text-[15px] font-bold text-[#1A1A1A]">
-                    ₱{a.price}.00
-                  </Text>
-                </View>
-              </AppButton>
-            );
-          })}
-        </ScrollView>
-        )}
-        </>
+                    <Ionicons
+                      name={addonsExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                      color="#1A1A1A"
+                      style={{ marginLeft: 4 }}
+                    />
+                  </AppButton>
+                )}
+              </View>
+            )}
+          </>
         )}
 
         {/* ------------------- DATE & TIME ------------------- */}
-        <Text className="text-[11px] font-semibold tracking-widest text-[#999] mt-6 mb-3 px-4 uppercase">
-          Select Date
-        </Text>
+        <SectionHeader title="Select date and time" />
 
-        {/* Month header + arrows */}
-        <View className="flex-row items-center px-4 mb-3">
-          <Text className="text-[17px] font-bold text-[#1A1A1A] flex-1">
-            {getMonthName(calendarMonth)} {calendarMonth.getFullYear()}
-          </Text>
-          <AppButton onPress={() => navigateMonth('prev')} className="p-1 mr-2">
-            <Ionicons name="arrow-back" size={18} color="#9CA3AF" />
-          </AppButton>
-          <AppButton onPress={() => navigateMonth('next')} className="p-1">
-            <Ionicons name="arrow-forward" size={18} color="#9CA3AF" />
-          </AppButton>
-        </View>
+        {!slotsReady ? (
+          <DateStripSkeleton />
+        ) : bookableDays.length === 0 ? (
+          <View className="mx-4 mb-3 px-5 py-8 bg-white rounded-[20px] items-center">
+            <Text className="text-[15px] font-bold text-[#1A1A1A] text-center">No open slots right now</Text>
+            <Text className="text-[13px] text-[#999] text-center mt-1.5">
+              This branch has nothing bookable in the next {MAX_ADVANCE_DAYS} days. Try another branch.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text className="text-[15px] font-semibold text-[#1A1A1A] px-4 mb-3">
+              {getDateRangeLabel(bookableDays)}
+            </Text>
 
-        {/* Horizontal day scroller */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
-          className="mb-5"
-        >
-          {getDaysInMonth(calendarMonth).map((date) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const maxBookableDate = new Date(today);
-            maxBookableDate.setDate(maxBookableDate.getDate() + MAX_ADVANCE_DAYS);
-            const isPast = date < today;
-            const isTooFarAhead = date > maxBookableDate;
-            const isDisabled = isPast || isTooFarAhead;
-            const isSelected = isSameDay(date, selectedDate);
-            const dayLabel = DAY_LABELS[date.getDay()];
+            {/* Day strip: only bookable days (see bookableDays) */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+              className="mb-5"
+            >
+              {bookableDays.map((date) => {
+                const isSelected = isSameDay(date, selectedDate);
+                return (
+                  <AppButton
+                    key={date.getTime()}
+                    // The [selectedDate] effect recomputes the slot strip - no manual call needed.
+                    onPress={() => setSelectedDate(date)}
+                    accessibilityState={{ selected: isSelected }}
+                    className={`mr-2 items-center justify-center rounded-2xl px-3 py-3 w-16 border-2 ${
+                      isSelected ? 'bg-[#FFFDE7] border-[#F9EF08]' : 'bg-white border-transparent'
+                    }`}
+                  >
+                    <Text className={`text-[10px] font-semibold mb-1 ${isSelected ? 'text-[#1A1A1A]' : 'text-[#999]'}`}>
+                      {DAY_LABELS[date.getDay()]}
+                    </Text>
+                    <Text className="text-[18px] font-bold text-[#1A1A1A]">{date.getDate()}</Text>
+                  </AppButton>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
 
-            return (
-              <AppButton
-                key={date.toISOString()}
-                disabled={isDisabled}
-                onPress={async () => {
-                  let currentSchedule = branchSchedule;
-                  if (!currentSchedule) {
-                    currentSchedule = await loadBranchSchedule();
-                  }
-                  const availability = checkDateAvailability(date, currentSchedule || undefined);
-                  if (!availability.available) {
-                    setUnavailableReason(availability.reason);
-                    setShowScheduleUnavailableModal(true);
-                    return;
-                  }
-                  // The [selectedDate] effect recomputes the slot strip - no manual call needed.
-                  setSelectedDate(date);
-                }}
-                className={`mr-2 items-center justify-center rounded-2xl px-3 py-3 w-16 border ${
-                  isSelected
-                    ? 'bg-[#F9EF08] border-[#F9EF08]'
-                    : 'bg-white border-transparent'
-                }`}
-              >
-                <Text className={`text-[10px] font-semibold mb-1 ${
-                  isSelected ? 'text-[#1A1A00]' : isDisabled ? 'text-[#C4C4C4]' : 'text-[#999]'
-                }`}>
-                  {dayLabel}
-                </Text>
-                <Text className={`text-[18px] font-bold ${
-                  isSelected ? 'text-[#1A1A00]' : isDisabled ? 'text-[#C4C4C4]' : 'text-[#1A1A1A]'
-                }`}>
-                  {date.getDate()}
-                </Text>
-              </AppButton>
-            );
-          })}
-        </ScrollView>
-
-        {/* Schedule Unavailable Modal */}
-        <ScheduleUnavailableModal
-          visible={showScheduleUnavailableModal}
-          reason={unavailableReason}
-          branchSchedule={branchSchedule}
-          onClose={() => setShowScheduleUnavailableModal(false)}
-        />
-
+        <View onLayout={(e) => { sectionY.current.time = e.nativeEvent.layout.y; }}>
         {/* Time slot label */}
         {timeSlots.length > 0 && (
-          <Text className="text-[11px] font-semibold tracking-widest text-[#999] px-4 mb-2 uppercase">
-            Select Time
+          <Text className="text-[14px] font-semibold text-[#1A1A1A] px-4 mb-2.5">
+            Pick a time
+          </Text>
+        )}
+        {!!timeError && (
+          <Text
+            className={`text-[13px] px-4 mb-2.5 ${timeSlots.length > 0 ? '-mt-1.5' : ''}`}
+            style={{ color: ERROR_COLOR }}
+            accessibilityLiveRegion="polite"
+          >
+            {timeError}
           </Text>
         )}
 
@@ -822,41 +907,44 @@ export default function ServicesStep({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="mb-4"
+          className="mb-2"
           contentContainerStyle={{ paddingHorizontal: 16 }}
         >
-          {timeSlots.map((t) => (
-            <AppButton
-              key={t.time}
-              onPress={() => setSelectedTimeSlot(t)}
-              className={`mr-2 px-4 py-2.5 rounded-xl border ${
-                selectedTimeSlot?.time === t.time
-                  ? 'bg-[#F9EF08] border-[#F9EF08]'
-                  : 'bg-white border-transparent'
-              }`}
-            >
-              <Text className={`text-[13px] font-medium ${
-                selectedTimeSlot?.time === t.time ? 'text-[#1A1A00]' : 'text-[#666]'
-              }`}>
-                {t.time}
-              </Text>
-            </AppButton>
-          ))}
+          {timeSlots.map((t) => {
+            const selected = selectedTimeSlot?.time === t.time;
+            return (
+              <AppButton
+                key={t.time}
+                onPress={() => setSelectedTimeSlot(t)}
+                className={`mr-2 px-4 py-2.5 rounded-xl border-2 ${
+                  selected ? 'bg-[#FFFDE7] border-[#F9EF08]' : 'bg-white border-transparent'
+                }`}
+              >
+                <Text className={`text-[13px] ${selected ? 'font-bold text-[#1A1A1A]' : 'font-medium text-[#666]'}`}>
+                  {t.time}
+                </Text>
+              </AppButton>
+            );
+          })}
         </ScrollView>
+        </View>
 
         {/* ------------------- PAYMENT OPTIONS ------------------- */}
-        <Text className="text-xl font-semibold mt-6 mb-3 px-4">Payment Option</Text>
+        <View onLayout={(e) => { sectionY.current.payment = e.nativeEvent.layout.y; }}>
+        <SectionHeader title="Payment Option" error={paymentError} />
         <View className="px-4">
-          {/* Maya - the only integrated payment method */}
+          {/* Maya - the only integrated payment method. Only the booking fee is paid online. */}
           <AppButton
             onPress={() => setPaymentMethod('Maya')}
-            className={`flex-row items-center px-4 py-3 rounded-2xl mb-3 border-2 ${
-              paymentMethod === 'Maya' ? 'bg-white border-[#F9EF08]' : 'bg-white border-[#EEEEEE]'
+            className={`flex-row items-center px-4 py-3.5 rounded-2xl border-2 ${
+              paymentMethod === 'Maya' ? 'bg-[#FFFDE7] border-[#F9EF08]' : 'bg-white border-transparent'
             }`}
           >
             <View className="flex-1">
-              <Text className="text-[13px] font-semibold text-[#1A1A1A]">Maya</Text>
-              <Text className="text-[11px] text-[#999] mt-0.5">Pay via Maya wallet, card, or QR Ph.</Text>
+              <Text className="text-[14px] font-semibold text-[#1A1A1A]">Maya</Text>
+              <Text className="text-[12px] text-[#999] mt-0.5">
+                Pay the {formatPeso(BOOKING_FEE)} booking fee online.
+              </Text>
             </View>
             <Image
               source={require('../../../../assets/images/maya_logo.png')}
@@ -864,28 +952,71 @@ export default function ServicesStep({
               resizeMode="contain"
               className="ml-3"
             />
-            <Ionicons
-              name={paymentMethod === 'Maya' ? 'checkmark-circle' : 'ellipse-outline'}
-              size={18}
-              color={paymentMethod === 'Maya' ? '#1A1A1A' : '#D4D4D4'}
-              style={{ marginLeft: 10 }}
-            />
+            <View style={{ marginLeft: 12 }}>
+              <SelectIndicator selected={paymentMethod === 'Maya'} shape="radio" />
+            </View>
           </AppButton>
         </View>
-
-        {/* NEXT BUTTON */}
-        <View className="px-4 pt-4" style={{ paddingBottom: insets.bottom + 32 }}>
-          <AppButton
-            className="bg-[#F9EF08] rounded-2xl py-4 items-center"
-            onPress={handleNext}
-          >
-            <Text className="text-[15px] font-bold text-[#1A1A00]">
-              Complete and Review
-            </Text>
-          </AppButton>
         </View>
       </ScrollView>
+
+      {/* ------------------- STICKY TOTAL BAR ------------------- */}
+      <View
+        className="bg-white border-t border-[#EDEDED] px-4 pt-3"
+        style={{ paddingBottom: insets.bottom + 12 }}
+      >
+        <View className="flex-row items-center">
+          <View className="flex-1 pr-3">
+            {hasPlan ? (
+              <>
+                <Text className="text-[20px] font-bold text-[#1A1A1A]">
+                  {formatPeso(total)}
+                  <Text className="text-[12px] font-normal text-[#6B6B6B]">
+                    {`  including ${formatPeso(BOOKING_FEE)} booking fee`}
+                  </Text>
+                </Text>
+              </>
+            ) : (
+              <Text className="text-[13px] text-[#999]">Pick a plan to get started</Text>
+            )}
+          </View>
+          <AppButton className="bg-[#F9EF08] rounded-2xl px-6 py-3.5" onPress={handleNext}>
+            <Text className="text-[15px] font-bold text-[#1A1A1A]">Review booking</Text>
+          </AppButton>
+        </View>
+      </View>
+
       {AlertComponent}
+    </View>
+  );
+}
+
+// Round mark = "pick one" (plans, payment), rounded-square mark = "pick any" (add-ons). Selected
+// is a brand-yellow fill with a dark tick (the tick is what carries the contrast); unselected is
+// an empty ring so it still reads as a tappable control on a plain white card.
+function SelectIndicator({
+  selected,
+  shape,
+  size = 24,
+}: {
+  selected: boolean;
+  shape: 'radio' | 'check';
+  size?: number;
+}) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: shape === 'radio' ? size / 2 : 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: selected ? '#F9EF08' : 'transparent',
+        borderWidth: selected ? 0 : 1.5,
+        borderColor: '#D4D4D4',
+      }}
+    >
+      {selected && <Ionicons name="checkmark" size={15} color="#1A1A1A" />}
     </View>
   );
 }

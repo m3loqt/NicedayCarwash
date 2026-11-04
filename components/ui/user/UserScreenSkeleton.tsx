@@ -121,21 +121,27 @@ export function BranchesSliderSkeleton() {
   );
 }
 
-/** Skeleton for the booking flow's horizontal "Select plan" service cards */
+/** Skeleton for the booking flow's vertical "Select plan" cards */
 export function ServiceCardsSkeleton() {
   const pulse = usePulse();
   return (
-    <View className="flex-row px-3 gap-0" style={{ paddingVertical: 4 }}>
-      {[1, 2].map((i) => (
-        <View key={i} className="mx-2 rounded-2xl px-4 pt-4 pb-4 bg-white" style={{ width: 256 }}>
-          <SkeletonBar width="60%" height={18} style={{ marginBottom: 14 }} animatedValue={pulse} />
-          <SkeletonBar width="95%" height={12} style={{ marginBottom: 6 }} animatedValue={pulse} />
-          <SkeletonBar width="80%" height={12} style={{ marginBottom: 14 }} animatedValue={pulse} />
-          <SkeletonBar width="95%" height={12} style={{ marginBottom: 6 }} animatedValue={pulse} />
-          <SkeletonBar width="70%" height={12} style={{ marginBottom: 16 }} animatedValue={pulse} />
-          <View className="flex-row justify-between items-center pt-3" style={{ borderTopWidth: 1, borderTopColor: SKELETON_BG }}>
-            <SkeletonBar width={60} height={14} animatedValue={pulse} />
-            <SkeletonBar width={70} height={16} animatedValue={pulse} />
+    <View className="px-4" style={{ paddingVertical: 4 }}>
+      {[1, 2, 3].map((i) => (
+        <View
+          key={i}
+          className="mb-3 rounded-2xl bg-white px-4 py-3.5"
+          style={{ borderWidth: 2, borderColor: 'transparent' }}
+        >
+          <View className="flex-row items-start">
+            <SkeletonBar width={22} height={22} style={{ borderRadius: 11, marginRight: 12 }} animatedValue={pulse} />
+            <View style={{ flex: 1 }}>
+              <View className="flex-row justify-between items-center">
+                <SkeletonBar width="50%" height={15} animatedValue={pulse} />
+                <SkeletonBar width={44} height={15} animatedValue={pulse} />
+              </View>
+              <SkeletonBar width="92%" height={12} style={{ marginTop: 8 }} animatedValue={pulse} />
+              <SkeletonBar width="60%" height={12} style={{ marginTop: 6 }} animatedValue={pulse} />
+            </View>
           </View>
         </View>
       ))}
@@ -143,20 +149,35 @@ export function ServiceCardsSkeleton() {
   );
 }
 
-/** Skeleton for the booking flow's horizontal "Add ons" cards */
+/** Skeleton for the booking flow's compact "Add ons" rows */
 export function AddonCardsSkeleton() {
   const pulse = usePulse();
   return (
-    <View className="flex-row px-3 gap-0" style={{ paddingVertical: 4 }}>
+    <View className="px-4" style={{ paddingVertical: 4 }}>
       {[1, 2, 3].map((i) => (
-        <View key={i} className="mx-2 rounded-2xl px-4 pt-4 pb-4 bg-white" style={{ width: 192 }}>
-          <SkeletonBar width="90%" height={16} style={{ marginBottom: 6 }} animatedValue={pulse} />
-          <SkeletonBar width="60%" height={16} style={{ marginBottom: 14 }} animatedValue={pulse} />
-          <View className="flex-row justify-between items-center pt-3" style={{ borderTopWidth: 1, borderTopColor: SKELETON_BG }}>
-            <SkeletonBar width={55} height={14} animatedValue={pulse} />
-            <SkeletonBar width={65} height={16} animatedValue={pulse} />
+        <View
+          key={i}
+          className="mb-2.5 rounded-2xl bg-white px-4 py-3 flex-row items-center"
+          style={{ borderWidth: 2, borderColor: 'transparent' }}
+        >
+          <SkeletonBar width={22} height={22} style={{ borderRadius: 8, marginRight: 12 }} animatedValue={pulse} />
+          <View style={{ flex: 1 }}>
+            <SkeletonBar width="55%" height={15} animatedValue={pulse} />
           </View>
+          <SkeletonBar width={56} height={15} animatedValue={pulse} />
         </View>
+      ))}
+    </View>
+  );
+}
+
+/** Skeleton for the booking flow's day strip, shown until the branch's slots have loaded */
+export function DateStripSkeleton() {
+  const pulse = usePulse();
+  return (
+    <View className="flex-row px-4 mb-5" style={{ paddingTop: 4 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <SkeletonBar key={i} width={64} height={72} style={{ borderRadius: 16, marginRight: 8 }} animatedValue={pulse} />
       ))}
     </View>
   );
