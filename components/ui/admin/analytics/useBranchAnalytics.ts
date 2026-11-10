@@ -28,7 +28,6 @@ export interface RecentBooking {
   vehicleName: string;
   plateNumber: string;
   time: string;
-  status: Status;
   amountDue: number;
   /** "YYYY-MM-DD" - which calendar day this booking counts against (see resolveBookingDate). */
   dateKey: string;
@@ -42,7 +41,7 @@ export interface BranchAnalytics {
   weeklyBuckets: PeriodBucket[];
   /** Last 6 calendar months, oldest -> newest. */
   monthlyBuckets: PeriodBucket[];
-  /** Newest first, capped - for the "Recent bookings" list. */
+  /** Completed bookings only, newest first, capped - for the "Recent transactions" list. */
   recentBookings: RecentBooking[];
 }
 
@@ -173,8 +172,9 @@ export function useBranchAnalytics(branchId: string | null): BranchAnalytics {
       monthlyBuckets.push(sumDays(days));
     }
 
-    // --- Recent bookings (newest first) - "recency" is the completion time if finished,
-    // otherwise when the booking was created, so an active wash still surfaces near the top. ---
+    // --- Recent transactions: completed bookings only (the same ones the revenue figure counts),
+    // newest first by completion time. Cancelled, pending and ongoing bookings live on the
+    // Bookings and Calendar tabs, so they don't sit under a revenue number here. ---
     const recencyOf = (b: RawBooking): number => {
       const t = b.completedAt || b.createdAt;
       const parsed = t ? new Date(t).getTime() : NaN;
@@ -182,7 +182,8 @@ export function useBranchAnalytics(branchId: string | null): BranchAnalytics {
       const d = resolveBookingDate(b);
       return d ? d.getTime() : 0;
     };
-    const recentBookings: RecentBooking[] = [...bookings]
+    const recentBookings: RecentBooking[] = bookings
+      .filter((b) => b.status === 'completed')
       .sort((a, b) => recencyOf(b) - recencyOf(a))
       .slice(0, 6)
       .map((b) => {
@@ -192,7 +193,6 @@ export function useBranchAnalytics(branchId: string | null): BranchAnalytics {
           vehicleName: b.vehicleName || 'Vehicle',
           plateNumber: b.plateNumber || '',
           time: b.timeSlot?.time || '',
-          status: b.status,
           amountDue: b.amountDue,
           // Same field already read off the snapshot for bucketing above - just also kept
           // per-booking here so the "Recent bookings" list can show which day, not just a time.

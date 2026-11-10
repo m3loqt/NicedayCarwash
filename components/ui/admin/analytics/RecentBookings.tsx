@@ -1,4 +1,3 @@
-import { bookingStatusStyle } from '@/components/ui/admin/bookingStatusStyle';
 import { Text, View } from 'react-native';
 import type { RecentBooking } from './useBranchAnalytics';
 
@@ -10,7 +9,7 @@ const peso = (n: number) => `₱${Math.round(n).toLocaleString('en-US')}`;
 // "Today, 10:00 AM" / "Yesterday, 7:00 AM" / "Sep 11, 3:00 PM" - a recent-bookings list spans
 // multiple days, so a bare time alone ("10:00 AM") doesn't say which day it happened.
 const formatWhen = (dateKey: string, time: string): string => {
-  if (!dateKey) return time || '—';
+  if (!dateKey) return time;
   const [y, m, d] = dateKey.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   const today = new Date();
@@ -21,14 +20,13 @@ const formatWhen = (dateKey: string, time: string): string => {
   return time ? `${dayLabel}, ${time}` : dayLabel;
 };
 
-// The "Recent bookings" heading + "See all" live on the page, outside this card.
+// The "Recent transactions" heading + "See all" live on the page, outside this card. Every row is
+// a completed booking, so there is no status to show: just the vehicle, when, and the amount.
 export default function RecentBookings({ bookings }: { bookings: RecentBooking[] }) {
   if (bookings.length === 0) {
     return (
       <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18 }}>
-        <Text style={{ fontSize: 13, color: MUTED }}>
-          No bookings yet. They&apos;ll show here as customers book your branch.
-        </Text>
+        <Text style={{ fontSize: 13, color: MUTED }}>Completed bookings will show up here</Text>
       </View>
     );
   }
@@ -36,7 +34,6 @@ export default function RecentBookings({ bookings }: { bookings: RecentBooking[]
   return (
     <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden' }}>
       {bookings.map((b, i) => {
-        const pill = bookingStatusStyle(b.status);
         return (
           <View
             key={b.appointmentId}
@@ -58,10 +55,7 @@ export default function RecentBookings({ bookings }: { bookings: RecentBooking[]
                 {formatWhen(b.dateKey, b.time)}
               </Text>
             </View>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: INK, marginRight: 10 }}>{peso(b.amountDue)}</Text>
-            <View style={{ backgroundColor: pill.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: pill.fg }}>{pill.label}</Text>
-            </View>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: INK }}>{peso(b.amountDue)}</Text>
           </View>
         );
       })}

@@ -3,8 +3,6 @@ import Sparkline from './Sparkline';
 
 const INK = '#1A1A1A';
 const MUTED = '#8A8A8A';
-const GOOD = '#1D7A4C';
-const DOWN = '#C0392B';
 
 interface TotalSalesCardProps {
   /** e.g. "this week" */
@@ -39,7 +37,8 @@ export default function TotalSalesCard({ periodNoun, value, delta, diffLabel, se
 
       {delta !== null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: isDown ? DOWN : isUp ? GOOD : MUTED }}>
+          {/* Neutral ink for up and down alike: the arrow already says which way it moved */}
+          <Text style={{ fontSize: 12, fontWeight: '600', color: INK }}>
             {isUp ? '▲' : isDown ? '▼' : '—'} {Math.abs(delta)}%
           </Text>
           <Text style={{ fontSize: 12, color: MUTED, marginLeft: 8 }}>· {diffLabel}</Text>

@@ -387,7 +387,8 @@ export default function AdminOverviewScreen() {
                 />
               </View>
 
-              {/* Recent bookings - heading + See all on the page, list in the card below */}
+              {/* Recent transactions (completed bookings only, the same ones the revenue above
+                  counts) - heading + See all on the page, list in the card below */}
               <View style={{ marginTop: 4 }}>
                 <View
                   style={{
@@ -398,7 +399,7 @@ export default function AdminOverviewScreen() {
                     marginBottom: 8,
                   }}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#1A1A1A' }}>Recent bookings</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#1A1A1A' }}>Recent transactions</Text>
                   <AppButton onPress={() => router.push('/admin/(tabs)/bookings')} hitSlop={8}>
                     <Text style={{ fontSize: 13, fontWeight: '600', color: '#8A8A8A' }}>See all</Text>
                   </AppButton>
