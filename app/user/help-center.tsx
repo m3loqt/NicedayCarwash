@@ -62,7 +62,7 @@ function FAQAccordion({ items }: { items: typeof FAQ_ITEMS }) {
           style={{ width: 160, height: 160 }}
           resizeMode="contain"
         />
-        <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] mt-3">
+        <Text className="text-[19px] font-bold text-[#1A1A1A] text-center mt-4">
           No results found
         </Text>
       </View>

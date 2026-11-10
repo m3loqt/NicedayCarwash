@@ -53,8 +53,8 @@ export default function ChooseVehicleStep({ selectedVehicle, onSelectVehicle, on
           <Ionicons name="car-outline" size={28} color="#BDBDBD" />
         </View>
         <Text className="text-[16px] font-bold text-[#1A1A1A] text-center mb-1">No vehicles yet</Text>
-        <Text className="text-[13px] text-[#999] text-center mb-6">
-          Add a vehicle to your profile before booking a service.
+        <Text className="text-[14px] leading-6 text-[#666] text-center mb-6">
+          {'Add a vehicle to your profile\nbefore booking a wash'}
         </Text>
         <AppButton
           className="bg-[#F9EF08] rounded-2xl py-3.5 px-8 items-center"

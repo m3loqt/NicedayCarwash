@@ -41,10 +41,10 @@ export default function EnableNotificationsScreen() {
           Enable Notification Access
         </Text>
         <Text
-          className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center mb-10"
-          style={{ maxWidth: 260 }}
+          className="text-[14px] leading-6 font-inter-regular tracking-tight text-[#666] text-center mb-10"
+          style={{ maxWidth: 280 }}
         >
-          Get notified the moment your booking status changes
+          {'Get notified the moment\nyour booking status changes'}
         </Text>
 
         <AppButton

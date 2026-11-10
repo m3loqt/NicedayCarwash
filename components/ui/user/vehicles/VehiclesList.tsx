@@ -53,20 +53,29 @@ export default function VehiclesList() {
   useEffect(() => {
     const auth = getAuth();
     const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    // No signed-in user, or a failed read, falls through to the empty state instead of leaving the
+    // loading skeleton up forever.
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
     const db = getDatabase();
     const vehicleRef = ref(db, `users/${userId}/Vehicle Information`);
 
-    const unsubscribe = onValue(vehicleRef, (snapshot) => {
-      const list: VehicleProfile[] = [];
-      snapshot.forEach((child) => {
-        const data = child.val();
-        if (data) list.push(data);
-      });
-      setVehicles(list);
-      setLoading(false);
-    });
+    const unsubscribe = onValue(
+      vehicleRef,
+      (snapshot) => {
+        const list: VehicleProfile[] = [];
+        snapshot.forEach((child) => {
+          const data = child.val();
+          if (data) list.push(data);
+        });
+        setVehicles(list);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
 
     return () => unsubscribe();
   }, []);
@@ -79,8 +88,8 @@ export default function VehiclesList() {
   const handleDelete = (plateNumber: string) => {
     setSelectedVehicle(null);
     alert(
-      'Confirm Delete',
-      `Are you sure you want to delete vehicle ${plateNumber}?`,
+      'Delete vehicle?',
+      `Remove ${plateNumber} from your account?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -91,7 +100,7 @@ export default function VehiclesList() {
               const auth = getAuth();
               const userId = auth.currentUser?.uid;
               if (!userId) {
-                alert('Error', 'User not authenticated.');
+                alert('Please sign in', 'Your session has ended.\nSign in again to continue');
                 return;
               }
               const db = getDatabase();
@@ -100,7 +109,7 @@ export default function VehiclesList() {
               setVehicles((prev) => prev.filter((v) => v.vplateNumber !== plateNumber));
               setShowDeleteSuccess(true);
             } catch {
-              alert('Error', 'Failed to delete vehicle.');
+              alert("Couldn't remove vehicle", 'Please try again');
             }
           },
         },
@@ -115,7 +124,7 @@ export default function VehiclesList() {
   if (showDeleteSuccess) {
     return (
       <VehicleSuccessPanel
-        message="Vehicle has been removed successfully!"
+        message="It's no longer on your account"
         onContinue={() => setShowDeleteSuccess(false)}
         iconType="delete"
         image={require('../../../../assets/images/vehiremoved.png')}
@@ -151,14 +160,14 @@ export default function VehiclesList() {
             />
           ))
         ) : (
-          <View className="items-center justify-center py-24">
+          <View className="items-center justify-center pt-24 pb-5">
             <Image
               source={require('../../../../assets/images/novehi.png')}
               style={{ width: 160, height: 160 }}
               resizeMode="contain"
             />
-            <Text className="text-base text-[#999] mt-4">No vehicles yet</Text>
-            <Text className="text-[13px] text-[#CCC] mt-1">Add your first vehicle below</Text>
+            <Text className="text-[16px] font-bold text-[#1A1A1A] mt-4">No vehicles yet</Text>
+            <Text className="text-[14px] leading-6 text-[#666] mt-1">Add your first vehicle below</Text>
           </View>
         )}
 

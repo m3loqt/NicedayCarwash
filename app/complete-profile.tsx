@@ -67,7 +67,7 @@ export default function CompleteProfileScreen() {
       });
       router.replace('/enable-location');
     } catch {
-      alert('Error', 'Failed to save your profile. Please try again.');
+      alert("Couldn't save your profile", 'Please try again in a moment');
     } finally {
       setSaving(false);
     }

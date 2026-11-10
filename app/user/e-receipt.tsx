@@ -85,7 +85,7 @@ function ScallopEdge({ position }: { position: 'top' | 'bottom' }) {
       {notches.map((_, i) => (
         <View
           key={i}
-          style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#FAFAFA' }}
+          style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#FCFCFC' }}
         />
       ))}
     </View>
@@ -259,9 +259,9 @@ export default function EReceiptScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
-          {/* FAFAFA backdrop is captured along with the ticket so the scalloped notches (cut
+          {/* FCFCFC backdrop is captured along with the ticket so the scalloped notches (cut
               to match this exact color) still read correctly in the downloaded/shared image. */}
-          <View style={{ backgroundColor: '#FAFAFA', paddingHorizontal: 20, paddingVertical: 24 }}>
+          <View style={{ backgroundColor: '#FCFCFC', paddingHorizontal: 20, paddingVertical: 24 }}>
             <View className="bg-white rounded-2xl px-6 pt-6 pb-7">
               <ScallopEdge position="top" />
               {/* Shop header - the branch's own identity, like a printed receipt's letterhead */}

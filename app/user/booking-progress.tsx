@@ -167,12 +167,14 @@ export default function BookingProgressScreen() {
           style={{ width: 160, height: 160 }}
           resizeMode="contain"
         />
-        <Text className="text-base text-[#999] mt-4 text-center">Booking not found</Text>
+        <Text className="text-[18px] font-bold text-[#1A1A1A] mt-4 text-center">Booking Not Found</Text>
+        {/* A fixed destination rather than router.back(): opened from a push notification this
+            screen is the only one in the stack, so "back" would have nowhere to go. */}
         <AppButton
           className="mt-6 bg-[#F9EF08] rounded-2xl px-8 py-3"
-          onPress={() => router.back()}
+          onPress={() => router.replace('/user/(tabs)/history' as any)}
         >
-          <Text className="text-[14px] font-bold text-[#1A1A00]">Go Back</Text>
+          <Text className="text-[14px] font-bold text-[#1A1A00]">My Bookings</Text>
         </AppButton>
       </SafeAreaView>
     );
@@ -223,7 +225,7 @@ export default function BookingProgressScreen() {
             <View className="flex-row items-start bg-[#FFFBE0] rounded-xl px-4 py-3 mb-6">
               <Ionicons name="information-circle-outline" size={16} color="#8A7A00" style={{ marginRight: 8, marginTop: 1 }} />
               <Text className="flex-1 text-[12px] text-[#5A5100] leading-[17px]">
-                Bookings can only be accepted during this branch's operating hours — please be patient.
+                The branch accepts bookings during operating hours. Thanks for your patience
               </Text>
             </View>
           )}
@@ -236,8 +238,8 @@ export default function BookingProgressScreen() {
                 resizeMode="contain"
               />
               <Text className="text-[16px] font-bold text-[#1A1A1A] mt-3">Booking Cancelled</Text>
-              <Text className="text-[13px] text-[#999] mt-1 text-center">
-                This appointment has been cancelled.
+              <Text className="text-[14px] leading-6 text-[#666] mt-1 text-center">
+                {"This booking won't be going ahead.\nYou can always book a new time"}
               </Text>
             </View>
           ) : (

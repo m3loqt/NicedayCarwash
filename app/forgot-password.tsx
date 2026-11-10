@@ -31,14 +31,14 @@ export default function ForgotPasswordScreen() {
   const handleResetPassword = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      alert('Missing info', 'Please enter your email address.');
+      alert('Missing info', "Enter your email and we'll\nsend you a reset link");
       return;
     }
     try {
       await sendPasswordResetEmail(getAuth(), trimmedEmail);
       setShowSuccessScreen(true);
     } catch (error: any) {
-      alert('Couldn\'t send reset email', getFriendlyAuthErrorMessage(error, "We couldn't send the reset email. Please try again."));
+      alert('Couldn\'t send reset email', getFriendlyAuthErrorMessage(error, "We couldn't send the reset email. Please try again"));
     }
   };
 
@@ -61,8 +61,8 @@ export default function ForgotPasswordScreen() {
           <Text className="text-[20px] font-bold text-[#1A1A1A] text-center mb-1.5">
             Check your email
           </Text>
-          <Text className="text-[13px] text-[#999] text-center mb-8 leading-5 px-4">
-            We sent a password reset link to{' '}
+          <Text className="text-[14px] text-[#666] text-center mb-8 leading-6 px-4">
+            {'We sent a password reset link to\n'}
             <Text className="font-semibold text-[#1A1A1A]">{email}</Text>
           </Text>
 

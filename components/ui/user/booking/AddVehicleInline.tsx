@@ -72,13 +72,13 @@ export default function AddVehicleInline({
 
   const handleSave = () => {
     if (!vehicleName.trim() || !plateNumber.trim() || !selectedClassification) {
-      alert('Error', 'Please fill all fields and select a vehicle classification.');
+      alert('Missing info', 'Fill in every field and pick\nyour vehicle type');
       return;
     }
 
     const userId = getAuth().currentUser?.uid;
     if (!userId) {
-      alert('Error', 'User not authenticated.');
+      alert('Please sign in', 'Your session has ended.\nSign in again to continue');
       return;
     }
 

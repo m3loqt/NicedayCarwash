@@ -129,7 +129,7 @@ function GoogleSignInConfigured({ alert }: { alert: AlertCompat }) {
         }
       })
       .catch((err: Error) =>
-        alert('Couldn\'t sign you in', getFriendlyAuthErrorMessage(err, "We couldn't sign you in with Google. Please try again."))
+        alert('Couldn\'t sign you in', getFriendlyAuthErrorMessage(err, "We couldn't sign you in with Google. Please try again"))
       );
   }, [googleResponse, alert]);
 

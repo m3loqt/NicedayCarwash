@@ -186,7 +186,7 @@ export default function AlertModal({
               </Text>
 
               {/* Message text with formatted bold sections */}
-              <Text className="text-[13px] font-inter-regular tracking-tight text-[#666] text-center leading-5">
+              <Text className="text-[14px] font-inter-regular tracking-tight text-[#666] text-center leading-6">
                 {formatMessageWithBold(message)}
               </Text>
             </View>

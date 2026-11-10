@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useAlert } from '@/hooks/use-alert';
 import { logError } from '@/lib/logger';
 import { router, useLocalSearchParams } from 'expo-router';
 import { getAuth } from 'firebase/auth';
@@ -33,6 +34,7 @@ const vehicleTypes: VehicleType[] = [
 
 export default function EditVehicle() {
   const insets = useSafeAreaInsets();
+  const { alert, AlertComponent } = useAlert();
   const { id } = useLocalSearchParams();
   const vehicleId = String(id);
 
@@ -71,7 +73,7 @@ export default function EditVehicle() {
 
   const handleSave = async () => {
     if (!vehicleName.trim() || !plateNumber.trim() || !selectedType) {
-      alert('Please fill all fields and select a vehicle type.');
+      alert('Missing info', 'Fill in every field and pick\nyour vehicle type');
       return;
     }
 
@@ -92,16 +94,18 @@ export default function EditVehicle() {
       setShowSuccess(true);
     } catch (err) {
       logError('EditVehicle.handleSave', err, { context: 'Failed to update vehicle' });
-      alert('Failed to update vehicle.');
+      alert("Couldn't update your vehicle", 'Please try again');
     }
   };
 
   if (showSuccess) {
     return (
       <VehicleSuccessPanel
-        message="Vehicle has been updated successfully!"
+        title="Vehicle Updated"
+        message="Your changes are saved"
         onContinue={() => router.back()}
         iconType="success"
+        image={require('../../../../assets/images/vehiadded.png')}
       />
     );
   }
@@ -202,6 +206,8 @@ export default function EditVehicle() {
           <Text className="text-[#1A1A00] text-[15px] font-bold">Save Changes</Text>
         </AppButton>
       </View>
+
+      {AlertComponent}
     </SafeAreaView>
   );
 }

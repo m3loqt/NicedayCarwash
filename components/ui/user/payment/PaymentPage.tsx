@@ -54,7 +54,7 @@ export default function PaymentPage() {
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        alert('Error', 'User not authenticated');
+        alert('Please sign in', 'Your session has ended.\nSign in again to continue');
         router.back();
         return;
       }
@@ -64,7 +64,7 @@ export default function PaymentPage() {
       const snapshot = await get(userBookingsRef);
 
       if (!snapshot.exists()) {
-        alert('Error', 'Booking not found');
+        alert('Booking not found', 'It may have been cancelled or removed');
         router.back();
         return;
       }
@@ -95,7 +95,7 @@ export default function PaymentPage() {
       });
 
       if (!foundBooking) {
-        alert('Error', 'Booking not found');
+        alert('Booking not found', 'It may have been cancelled or removed');
         router.back();
         return;
       }
@@ -106,24 +106,24 @@ export default function PaymentPage() {
       setLoading(false);
     } catch (error) {
       logAppError('PaymentPage.loadBookingData', error);
-      alert('Error', 'Failed to load booking details');
+      alert("Couldn't load your booking", 'Please try again in a moment');
       router.back();
     }
   };
 
   const handlePayment = async () => {
     if (selectedPaymentMethod !== 'maya') {
-      alert('Error', 'Please select a payment method');
+      alert('Payment method needed', "Pick how you'd like to pay\nto continue");
       return;
     }
 
     if (!booking || (booking.status !== 'pending' && booking.status !== 'accepted')) {
-      alert('Error', 'This booking is not eligible for payment at this stage');
+      alert("Can't pay yet", "This booking can't be paid right now");
       return;
     }
 
     if (booking.isPaid) {
-      alert('Error', 'This booking has already been paid');
+      alert('Already paid', 'Nothing more to pay\nfor this booking');
       return;
     }
 
@@ -133,7 +133,7 @@ export default function PaymentPage() {
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId || !dateKey || !bookingKey) {
-        alert('Error', 'Missing required information');
+        alert('Something went wrong', "We're missing some booking details.\nPlease go back and try again");
         setProcessing(false);
         return;
       }
@@ -143,7 +143,7 @@ export default function PaymentPage() {
       });
       if (!writeGate.allowed) {
         const waitSeconds = Math.ceil(writeGate.retryAfterMs / 1000);
-        alert('Please wait', `Too many attempts. Try again in ${waitSeconds}s.`);
+        alert('Please wait', `You can try again in ${waitSeconds}s`);
         setProcessing(false);
         return;
       }
@@ -151,11 +151,11 @@ export default function PaymentPage() {
       const result = await payBookingFeeWithMaya(booking.appointmentId, dateKey, userId);
 
       if (result === 'paid') {
-        alert('Payment received', 'Your booking fee has been confirmed.');
+        alert('Payment received', 'Your booking fee is confirmed');
       } else if (result === 'unconfirmed') {
         alert(
           'Still verifying',
-          'We are still confirming your payment with Maya. This can take a moment - check back shortly.'
+          "We're still confirming your payment.\nThis can take a moment"
         );
       }
 
@@ -163,7 +163,7 @@ export default function PaymentPage() {
       router.back();
     } catch (error) {
       logAppError('PaymentPage.handlePayment', error);
-      alert('Error', 'Failed to process payment. Please try again.');
+      alert("Payment didn't go through", 'Please try again');
       setProcessing(false);
     }
   };

@@ -63,7 +63,7 @@ export default function ErrorSheet({
             <Text className="text-[18px] font-inter-semibold tracking-tight text-[#1A1A1A] text-center mt-2 mb-2">
               {title}
             </Text>
-            <Text className="text-[13px] font-inter-regular tracking-tight text-[#666] text-center leading-5 px-2">
+            <Text className="text-[14px] font-inter-regular tracking-tight text-[#666] text-center leading-6 px-2">
               {message}
             </Text>
           </View>

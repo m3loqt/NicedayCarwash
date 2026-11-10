@@ -4,6 +4,8 @@ import { Image, ImageSourcePropType, Modal, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface VehicleSuccessPanelProps {
+  /** Headline; defaults to "Vehicle Removed" for the delete variant and "Done" otherwise. */
+  title?: string;
   message: string;
   onContinue: () => void;
   iconType?: 'success' | 'delete';
@@ -12,6 +14,7 @@ interface VehicleSuccessPanelProps {
 }
 
 export default function VehicleSuccessPanel({
+  title,
   message,
   onContinue,
   iconType = 'success',
@@ -40,10 +43,10 @@ export default function VehicleSuccessPanel({
         )}
 
         <Text className="text-[18px] font-bold text-[#1A1A1A] text-center mb-1.5">
-          {isDelete ? 'Vehicle Removed' : 'Success'}
+          {title ?? (isDelete ? 'Vehicle Removed' : 'Done')}
         </Text>
 
-        <Text className="text-[12px] text-[#999] text-center mb-6 px-2">{message}</Text>
+        <Text className="text-[14px] leading-6 text-[#666] text-center mb-6 px-2">{message}</Text>
 
         <AppButton
           className="w-full bg-[#F9EF08] py-3.5 rounded-2xl items-center"

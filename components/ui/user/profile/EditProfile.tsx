@@ -42,11 +42,11 @@ export default function EditProfile() {
           setLastName(data.lastName || '');
           setPhone(data.phone || '');
         } else {
-          alert('Error', 'User data not found');
+          alert("Couldn't load your profile", 'Please try again in a moment');
         }
       } catch (err) {
         logAppError('EditProfile.fetchUserData', err);
-        alert('Error', 'Failed to load user data');
+        alert("Couldn't load your profile", 'Please try again in a moment');
       } finally {
         setLoading(false);
       }
@@ -59,7 +59,7 @@ export default function EditProfile() {
     const fn = sanitizeNamePart(firstName);
     const ln = sanitizeNamePart(lastName);
     if (!fn || !ln) {
-      alert('Validation', 'All fields must be filled');
+      alert('Missing info', 'Please fill in every field');
       return;
     }
 
@@ -78,7 +78,7 @@ export default function EditProfile() {
       setShowSuccess(true);
     } catch (err) {
       logAppError('EditProfile.handleSaveChanges', err);
-      alert('Error', 'Failed to save changes');
+      alert("Couldn't save your changes", 'Please try again');
     }
   };
 
@@ -177,6 +177,8 @@ export default function EditProfile() {
           router.back();
         }}
       />
+
+      {AlertComponent}
     </SafeAreaView>
   );
 }

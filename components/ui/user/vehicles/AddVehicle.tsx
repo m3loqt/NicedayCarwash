@@ -7,7 +7,6 @@ import { getDatabase, onValue, ref, set } from 'firebase/database';
 import { useEffect, useRef, useState } from 'react';
 import { AppButton } from '@/components/ui/common/AppButton';
 import {
-  Alert,
   Image,
   ImageSourcePropType,
   ScrollView,
@@ -60,13 +59,13 @@ export default function AddVehicle() {
 
   const handleSave = () => {
     if (!vehicleName.trim() || !plateNumber.trim() || !selectedType) {
-      Alert.alert('Error', 'Please fill all fields and select a vehicle type.');
+      alert('Missing info', 'Fill in every field and pick\nyour vehicle type');
       return;
     }
 
     const userId = getAuth().currentUser?.uid;
     if (!userId) {
-      Alert.alert('Error', 'User not authenticated.');
+      alert('Please sign in', 'Your session has ended.\nSign in again to continue');
       return;
     }
 
@@ -76,7 +75,7 @@ export default function AddVehicle() {
     // Instant, in-memory duplicate check (skipped only if the list hasn't synced yet - the plate
     // is the write key, so a later re-add just updates that entry rather than duplicating it).
     if (existingPlatesRef.current?.has(normalizedPlate)) {
-      Alert.alert('Already added', `You already have a vehicle with plate ${normalizedPlate}. You can edit it from your vehicles list.`);
+      alert('Already added', `Plate ${normalizedPlate} is already on your account.\nYou can edit it from your vehicles list`);
       return;
     }
 
@@ -96,7 +95,8 @@ export default function AddVehicle() {
   if (showSuccess) {
     return (
       <VehicleSuccessPanel
-        message="Vehicle has been added successfully!"
+        title="Vehicle Added"
+        message="It's ready for your next wash"
         onContinue={() => router.back()}
         iconType="success"
         image={require('../../../../assets/images/vehiadded.png')}
@@ -192,6 +192,8 @@ export default function AddVehicle() {
           <Text className="text-[#1A1A00] text-[15px] font-bold">Add Vehicle</Text>
         </AppButton>
       </View>
+
+      {AlertComponent}
     </SafeAreaView>
   );
 }

@@ -25,7 +25,7 @@ export const ANDROID_NOTIFICATION_CHANNEL_ID = 'default';
 // Some Android phones stop delivering pushes once the app is swiped out of recents, and no
 // app-side setting changes that - so users are told instead.
 export const ANDROID_KEEP_OPEN_HINT =
-  "To get alerts while the app is closed, don't swipe it away from your recent apps.";
+  'Keep the app in your recent apps\nso your alerts keep coming';
 
 // Set (BookingSuccess) the moment a booking is confirmed, regardless of which exit button the
 // user taps next - consumed once by whichever screen they land on first (see the user tabs

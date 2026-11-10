@@ -225,7 +225,7 @@ export default function ConfirmationStep({
 
   const handleConfirm = async () => {
     if (!date || !timeSlot) {
-      showAlert('Please select a date and time slot.', { title: 'Missing info', type: 'warning' });
+      showAlert('Pick a date and a time to continue', { title: 'Missing info', type: 'warning' });
       return;
     }
     setSubmitting(true);
@@ -233,7 +233,7 @@ export default function ConfirmationStep({
       const auth = getAuth();
       const userId = auth.currentUser?.uid;
       if (!userId) {
-        showAlert('Please sign in and try again.', { title: 'Not authenticated', type: 'error' });
+        showAlert('Your session has ended.\nSign in again to continue', { title: 'Please sign in', type: 'error' });
         setSubmitting(false);
         return;
       }
@@ -245,7 +245,7 @@ export default function ConfirmationStep({
         setSubmitting(false);
         const waitSeconds = Math.ceil(bookingThrottle.retryAfterMs / 1000);
         logWarn('ConfirmationStep.handleConfirm', 'Client throttle blocked repeated booking submit', { userId, waitSeconds });
-        showAlert(`Too many attempts. Try again in ${waitSeconds}s.`, { title: 'Please wait', type: 'warning' });
+        showAlert(`You can try again in ${waitSeconds}s`, { title: 'Please wait', type: 'warning' });
         return;
       }
       const db = getDatabase();
@@ -333,7 +333,7 @@ export default function ConfirmationStep({
       onDone?.();
       router.replace({ pathname: '/user/booking-success', params: { appointmentId, paymentStatus, dateKey: datePath } } as any);
     } catch {
-      showAlert('Failed to save your booking. Please try again.', { title: 'Something went wrong', type: 'error' });
+      showAlert("We couldn't save your booking.\nPlease try again", { title: 'Something went wrong', type: 'error' });
       setSubmitting(false);
     }
   };

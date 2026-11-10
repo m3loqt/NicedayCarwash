@@ -33,8 +33,8 @@ export default function EnableLocationScreen() {
         <Text className="text-[22px] font-inter-semibold tracking-tight text-[#1A1A1A] mb-1.5 text-center">
           Enable Location Access
         </Text>
-        <Text className="text-[13px] font-inter-regular tracking-tight text-[#999] text-center mb-10">
-          So we can find service providers near you
+        <Text className="text-[14px] leading-6 font-inter-regular tracking-tight text-[#666] text-center mb-10">
+          So we can find branches near you
         </Text>
 
         <AppButton

@@ -27,7 +27,7 @@ export default function AvailabilityModal({
   itemName,
   type,
 }: AvailabilityModalProps) {
-  const { alert } = useAlert();
+  const { alert, AlertComponent } = useAlert();
   const [selected, setSelected] = useState<boolean>(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -97,7 +97,10 @@ export default function AvailabilityModal({
 
   const selectedText = selected ? "Available" : "Unavailable";
 
+  // The alert sits beside the Modal rather than inside it, so the "updated" confirmation still
+  // shows after onClose() hides this modal.
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -185,5 +188,7 @@ export default function AvailabilityModal({
         </View>
       </BlurView>
     </Modal>
+    {AlertComponent}
+    </>
   );
 }

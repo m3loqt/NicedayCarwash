@@ -231,18 +231,18 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
   const emptyState = !hasAnyBookings
     ? {
         title: 'No bookings yet',
-        subtitle: "Book your first wash and we'll keep you updated right here.",
+        subtitle: "Book your first wash and\nwe'll keep you posted here",
         showCta: true,
       }
     : activeTab === 'ongoing'
       ? {
           title: 'No ongoing bookings',
-          subtitle: "You don't have any active washes right now. Ready for another?",
+          subtitle: 'No active washes right now.\nReady for another?',
           showCta: true,
         }
       : {
           title: 'No booking history yet',
-          subtitle: 'Completed and cancelled bookings will show up here.',
+          subtitle: 'Completed and cancelled\nbookings will show up here',
           showCta: false,
         };
 
@@ -264,8 +264,8 @@ export default function HistoryList({ activeTab }: HistoryListProps) {
             />
             <Text className="text-[19px] font-bold text-[#1A1A1A] mt-4 mb-1.5">{emptyState.title}</Text>
             <Text
-              className="text-[13.5px] text-[#999] text-center leading-5 mb-6"
-              style={{ maxWidth: 220 }}
+              className="text-[14px] text-[#666] text-center leading-6 mb-6"
+              style={{ maxWidth: 280 }}
             >
               {emptyState.subtitle}
             </Text>

@@ -39,7 +39,7 @@ export default function CenteredInfoModal({
           )}
 
           <Text className="text-[17px] font-bold text-[#1A1A1A] text-center mb-2">{title}</Text>
-          <Text className="text-[13px] text-[#666] text-center leading-[19px] mb-6">{message}</Text>
+          <Text className="text-[14px] text-[#666] text-center leading-6 mb-6">{message}</Text>
 
           <AppButton className="w-full bg-[#F9EF08] rounded-2xl py-3.5 items-center" onPress={onClose}>
             <Text className="text-[14px] font-bold text-[#1A1A00]">{buttonLabel}</Text>

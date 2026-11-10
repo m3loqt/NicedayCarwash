@@ -7,8 +7,7 @@ interface WalkInsOnlyModalProps {
   onClose: () => void;
 }
 
-const MESSAGE =
-  'This branch is not accepting online reservations right now, but is still open for walk-in customers.';
+const MESSAGE = 'Online booking is paused here right now.\nWalk-ins are still welcome';
 
 // Purpose-built bottom sheet for the "branch not accepting reservations" case - same sheet shape
 // as AlertModal, but with the walkin.png illustration instead of a generic icon, and a "Got it"
@@ -33,7 +32,7 @@ export default function WalkInsOnlyModal({ visible, onClose }: WalkInsOnlyModalP
             <Text className="text-[18px] font-inter-semibold tracking-tight text-[#1A1A1A] text-center mt-2 mb-2">
               Walk-ins Only
             </Text>
-            <Text className="text-[13px] font-inter-regular tracking-tight text-[#666] text-center leading-5 px-2">
+            <Text className="text-[14px] font-inter-regular tracking-tight text-[#666] text-center leading-6 px-2">
               {MESSAGE}
             </Text>
           </View>

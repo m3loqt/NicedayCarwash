@@ -351,7 +351,7 @@ export default function ServicesStep({
 
       setServices(data);
     } catch (err) {
-      showAlert("Something went wrong while fetching the available services. Please try again.", { title: "Couldn't load services", type: 'error' });
+      showAlert('Check your connection and try again', { title: "Couldn't load services", type: 'error' });
     } finally {
       setServicesLoading(false);
     }
@@ -407,7 +407,7 @@ export default function ServicesStep({
 
       setAddons(data);
     } catch (err) {
-      showAlert("Something went wrong while fetching the available add-ons. Please try again.", { title: "Couldn't load add-ons", type: 'error' });
+      showAlert('Check your connection and try again', { title: "Couldn't load add-ons", type: 'error' });
     } finally {
       setAddonsLoading(false);
     }

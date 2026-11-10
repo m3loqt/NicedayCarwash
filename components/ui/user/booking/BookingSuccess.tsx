@@ -9,44 +9,48 @@ import { getAuth } from "firebase/auth";
 import { getDatabase, onValue, ref } from "firebase/database";
 import { useEffect, useState } from "react";
 import { AppButton } from '@/components/ui/common/AppButton';
-import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ImageSourcePropType, ScrollView, Text, View } from 'react-native';
 
 type PaymentStatus = "paid" | "unconfirmed" | "cancelled" | "error";
 
 // Shown once the booking fee is in and the appointment is on its way to the branch.
 const REMINDERS = [
-  "Please arrive a few minutes before your scheduled time. We hold your slot just for you.",
-  "Bring your key and take any valuables with you before the wash begins.",
-  "Need to make a change? You can move or cancel your booking from My Bookings before it starts.",
+  "Please arrive a few minutes before your scheduled time. We hold your slot just for you",
+  "Bring your key and take any valuables with you before the wash begins",
+  "Need to make a change? You can move or cancel your booking from My Bookings before it starts",
 ];
+
+// The receipt-printer-with-clock art reads as "waiting on payment". The error state keeps the plain
+// icon badge until an error-universal.png illustration exists (see the TODO in ErrorSheet.tsx).
+const WAITING_ILLUSTRATION = require('../../../../assets/images/waitreceipt.png');
 
 const PAYMENT_STATE: Record<
   PaymentStatus,
-  { title: string; icon: keyof typeof Ionicons.glyphMap; notice: string }
+  { title: string; icon: keyof typeof Ionicons.glyphMap; notice: string; illustration?: ImageSourcePropType }
 > = {
   paid: {
     title: "Thank you for choosing Nice Day!",
     icon: "checkmark-circle-outline",
     notice:
       "We're processing your appointment and will notify you once it's confirmed. Please hold on for a moment!",
+    illustration: require('../../../../assets/images/booksuccess.png'),
   },
   unconfirmed: {
     title: "Booking Not Sent",
     icon: "time-outline",
-    notice:
-      "This hasn't been sent to the branch yet. If you don't complete payment shortly, the slot will be released, pay again below to keep it.",
+    notice: "Finish paying to keep your slot.\nWe can't hold it for long",
+    illustration: WAITING_ILLUSTRATION,
   },
   cancelled: {
     title: "Booking Not Sent",
     icon: "alert-circle-outline",
-    notice:
-      "This hasn't been sent to the branch yet. If you don't complete payment shortly, the slot will be released, pay again below to keep it.",
+    notice: "Finish paying to keep your slot.\nWe can't hold it for long",
+    illustration: WAITING_ILLUSTRATION,
   },
   error: {
     title: "Booking Not Sent",
     icon: "alert-circle-outline",
-    notice:
-      "We couldn't start payment, so this hasn't been sent to the branch. If you don't complete payment shortly, the slot will be released - try again below.",
+    notice: "We couldn't start your payment.\nTry again to keep your slot",
   },
 };
 
@@ -96,7 +100,7 @@ export default function BookingSuccess() {
     const userId = getAuth().currentUser?.uid;
     if (!appointmentId || !dateKey || !userId) {
       showAlert(
-        "Missing booking details. Please try from your booking history instead.",
+        "We couldn't find this booking's details.\nPlease go back and try again",
         {
           title: "Something went wrong",
           type: "error",
@@ -114,7 +118,7 @@ export default function BookingSuccess() {
     );
     if (!gate.allowed) {
       const waitSeconds = Math.ceil(gate.retryAfterMs / 1000);
-      showAlert(`Too many attempts. Try again in ${waitSeconds}s.`, {
+      showAlert(`You can try again in ${waitSeconds}s`, {
         title: "Please wait",
         type: "warning",
       });
@@ -142,11 +146,10 @@ export default function BookingSuccess() {
       contentContainerStyle={{ flexGrow: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingVertical: 28 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Icon - the illustration is reserved for an actually-successful booking; the
-          not-paid-yet states keep the plain icon box since nothing's confirmed for them yet */}
-      {status === "paid" ? (
+      {/* Illustration per state; a state without one falls back to the plain icon box */}
+      {state.illustration ? (
         <Image
-          source={require('../../../../assets/images/booksuccess.png')}
+          source={state.illustration}
           style={{ width: 160, height: 160 }}
           resizeMode="contain"
           className="mb-3"
@@ -173,7 +176,7 @@ export default function BookingSuccess() {
       )}
 
       {/* Payment notice */}
-      <Text className="text-[12px] text-[#999] text-center mb-6 px-2">
+      <Text className="text-[14px] leading-6 text-[#666] text-center mb-6 px-2">
         {state.notice}
       </Text>
 

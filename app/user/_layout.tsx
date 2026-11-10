@@ -38,6 +38,10 @@ export default function UserLayout() {
         }}
       />
       <Stack.Screen
+        name="switch-branch"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="payment"
         options={{
           headerShown: false,

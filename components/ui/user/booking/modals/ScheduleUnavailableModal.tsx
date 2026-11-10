@@ -44,15 +44,15 @@ export default function ScheduleUnavailableModal({
 
           {/* Body */}
           <View className="px-5 pt-5 pb-3">
-            <Text className="text-[14px] text-[#666] leading-[20px]">
-              Sorry, the branch is closed on the selected date.
+            <Text className="text-[14px] text-[#666] leading-6">
+              Sorry, the branch is closed on the selected date
             </Text>
 
             {branchSchedule && (
               <View className="flex-row items-center mt-3">
                 <Ionicons name="time-outline" size={15} color="#999" />
                 <Text className="text-[13px] text-[#999] ml-1.5">
-                  Store Hours: {branchSchedule.openTime} – {branchSchedule.closeTime}
+                  Store hours: {branchSchedule.openTime} to {branchSchedule.closeTime}
                 </Text>
               </View>
             )}
