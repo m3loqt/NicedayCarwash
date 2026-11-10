@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { onValue, ref, update } from 'firebase/database';
 import { useEffect, useState } from 'react';
 import { AppButton } from '@/components/ui/common/AppButton';
+import { NotificationsSkeleton } from '@/components/ui/user/UserScreenSkeleton';
 import { Image, Platform, ScrollView, StatusBar, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../../firebase/firebase';
@@ -47,6 +48,8 @@ function isToday(isoString: string): boolean {
 
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  // False until the first snapshot (or a failure) arrives, so the empty state never shows while loading.
+  const [loaded, setLoaded] = useState(false);
   // react-native-safe-area-context's insets.top can briefly read 0 on this screen's first
   // paint (visible as the header flashing flush against the status bar before settling).
   // StatusBar.currentHeight is a synchronous native value on Android, so it's used as the
@@ -56,13 +59,19 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    const unsub = onValue(ref(db, `Notifications/ByUser/${uid}`), (snap) => {
-      if (!snap.exists()) { setNotifications([]); return; }
-      const list: Notification[] = Object.entries(snap.val()).map(([id, val]: [string, any]) => ({ id, ...val }));
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setNotifications(list);
-    });
+    if (!uid) { setLoaded(true); return; }
+    const unsub = onValue(
+      ref(db, `Notifications/ByUser/${uid}`),
+      (snap) => {
+        if (!snap.exists()) { setNotifications([]); setLoaded(true); return; }
+        const list: Notification[] = Object.entries(snap.val()).map(([id, val]: [string, any]) => ({ id, ...val }));
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setNotifications(list);
+        setLoaded(true);
+      },
+      // A failed read falls through to the empty state instead of leaving the skeleton up forever.
+      () => setLoaded(true),
+    );
     return () => unsub();
   }, []);
 
@@ -108,7 +117,9 @@ export default function NotificationsScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {notifications.length === 0 ? (
+        {!loaded ? (
+          <NotificationsSkeleton />
+        ) : notifications.length === 0 ? (
           /* Empty state */
           <View style={{ alignItems: 'center', paddingTop: 100, paddingHorizontal: 40 }}>
             <Image
@@ -119,8 +130,8 @@ export default function NotificationsScreen() {
             <Text style={{ fontSize: 20, fontWeight: '700', color: '#1A1A1A', marginBottom: 8 }}>
               No notifications yet
             </Text>
-            <Text style={{ fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 20 }}>
-              Your notifications will appear here once you&apos;ve received them.
+            <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', lineHeight: 24 }}>
+              {'Updates about your bookings\nwill show up here'}
             </Text>
           </View>
         ) : (

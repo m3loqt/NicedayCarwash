@@ -183,6 +183,43 @@ export function DateStripSkeleton() {
   );
 }
 
+/** Skeleton for the notifications list, shown until the first snapshot arrives. Mirrors NotifCard
+ *  (44px icon circle, title + time line, two body lines) so rows don't shift when data lands. */
+export function NotificationsSkeleton() {
+  const pulse = usePulse();
+  return (
+    <View style={{ paddingTop: 8 }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+        <SkeletonBar width={48} height={12} animatedValue={pulse} />
+      </View>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <View
+          key={i}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            backgroundColor: '#FFFFFF',
+            marginHorizontal: 16,
+            marginVertical: 2,
+            borderRadius: 14,
+            padding: 14,
+          }}
+        >
+          <SkeletonBar width={44} height={44} style={{ borderRadius: 22, marginRight: 12 }} animatedValue={pulse} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <SkeletonBar width="55%" height={14} animatedValue={pulse} />
+              <SkeletonBar width={24} height={11} animatedValue={pulse} />
+            </View>
+            <SkeletonBar width="92%" height={12} animatedValue={pulse} />
+            <SkeletonBar width="65%" height={12} style={{ marginTop: 6 }} animatedValue={pulse} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** Skeleton for the floating active-booking bar, shown only while its first fetch is in flight */
 export function ActiveBookingSkeleton() {
   const pulse = usePulse();
@@ -197,7 +234,7 @@ export function ActiveBookingSkeleton() {
       </View>
       <View className="flex-row items-center mt-3.5 gap-1">
         {[1, 2, 3, 4].map((i) => (
-          <SkeletonBar key={i} width={16} height={16} style={{ borderRadius: 8 }} animatedValue={pulse} />
+          <SkeletonBar key={i} width={26} height={26} style={{ borderRadius: 13 }} animatedValue={pulse} />
         ))}
       </View>
     </View>

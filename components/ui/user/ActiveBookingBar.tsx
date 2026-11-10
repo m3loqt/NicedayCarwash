@@ -138,8 +138,21 @@ export default function ActiveBookingBar() {
               const reached = i <= currentIndex;
               const isCurrent = i === currentIndex;
               const isLast = i === STAGES.length - 1;
+              // Yellow on white is nearly invisible as a thin outline glyph, so a reached stage is a
+              // solid yellow disc with a dark icon on it; unreached stages stay a quiet grey disc.
               const icon = (
-                <Ionicons name={stage.icon} size={16} color={reached ? '#F9EF08' : '#D4D4D4'} />
+                <View
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 13,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: reached ? '#F9EF08' : '#F3F3F3',
+                  }}
+                >
+                  <Ionicons name={stage.icon} size={15} color={reached ? '#1A1A1A' : '#B0B0B0'} />
+                </View>
               );
               return (
                 <View key={stage.status} style={{ flexDirection: 'row', alignItems: 'center', flex: isLast ? 0 : 1 }}>
@@ -153,7 +166,7 @@ export default function ActiveBookingBar() {
                       style={{
                         flex: 1,
                         height: 4,
-                        marginHorizontal: 4,
+                        marginHorizontal: 6,
                         borderRadius: 2,
                         backgroundColor: i < currentIndex ? '#F9EF08' : '#EEEEEE',
                       }}
